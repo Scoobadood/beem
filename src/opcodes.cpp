@@ -7,11 +7,14 @@
 
 #include <map>
 #include <vector>
-#include <iostream>
-#include <iomanip>
 
 #undef DEBUG_ADC
 #undef DEBUG_SBC
+
+#if defined(DEBUG_ADC) || defined(DEBUG_SBC)
+#include <iostream>
+#include <iomanip>
+#endif
 
 const uint32_t STACK_BASE = 0x100;
 void push_stack(Cpu &cpu, std::vector<uint8_t> &memory, uint8_t arg) {
@@ -1222,7 +1225,7 @@ void lsr_zpg_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageIndexedX(cpu, memory, addr, page_wrap);
-  memory.at(addr) = lsr(cpu, arg);;
+  memory.at(addr) = lsr(cpu, arg);
   clk += 6;
 }
 
@@ -1431,8 +1434,6 @@ uint8_t rol(Cpu &cpu, uint32_t arg) {
 }
 
 void rol_a(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
-  bool page_wrap;
-  uint32_t addr;
   auto arg = cpu.accumulator_;
   arg = rol(cpu, arg);
   cpu.accumulator_ = arg;
@@ -1500,8 +1501,6 @@ uint8_t ror(Cpu &cpu, uint32_t arg) {
 }
 
 void ror_a(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
-  bool page_wrap;
-  uint32_t addr;
   auto arg = cpu.accumulator_;
   arg = ror(cpu, arg);
   cpu.accumulator_ = arg;
@@ -1630,15 +1629,14 @@ void sbc_decimal(Cpu &cpu, uint32_t arg) {
   int32_t a = (cpu.accumulator_ & 0xf0) - (arg & 0xf0) + al;
 
   //  3d. If A < 0, then A = A - $60
-  if( a < 0 ) a -= 0x60;
+  if (a < 0) a -= 0x60;
 
-  cpu.status_.set(SR_CRY, cpu.accumulator_ >= (arg + borrow) );
+  cpu.status_.set(SR_CRY, cpu.accumulator_ >= (arg + borrow));
 
   //  3e. The accumulator result is the lower 8 bits of A
   cpu.accumulator_ = a & 0xff;
 
   /* The flags are set just like in Binary mode. */
-  int32_t bin_val = cpu.accumulator_ - arg - (cpu.carry_clear() ? 1 : 0);
   cpu.status_.set(SR_ZER, (cpu.accumulator_ & 0xff) == 0);
   cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
 
