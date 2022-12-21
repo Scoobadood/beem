@@ -1,11 +1,10 @@
 #include <iostream>
 
 #include <vector>
-#include "../include/cpu.h"
-#include "../include/opcodes.h"
-#include <iostream>
 #include <fstream>
-#include <set>
+
+#include "cpu.h"
+#include "opcodes.h"
 
 void dump(const Cpu &cpu, uint32_t clk) {
   using namespace std;
@@ -14,12 +13,13 @@ void dump(const Cpu &cpu, uint32_t clk) {
   cout << "  SP: " << hex << setfill('0') << setw(2) << cpu.stack_pointer_;
   cout << "  ST: "
        << (cpu.minus() ? 'N' : 'n')
-       << (cpu.zero() ? 'Z' : 'z')
+       << (cpu.is_overflow() ? 'V' : 'v')
        << '_'
-       << (cpu.carry() ? 'C' : 'c')
-       << (cpu.is_interrupt() ? 'I' : 'i')
+       << '1'
        << (cpu.is_decimal() ? 'D' : 'd')
-       << (cpu.is_overflow() ? 'V' : 'v');
+       << (cpu.is_interrupt() ? 'I' : 'i')
+       << (cpu.zero() ? 'Z' : 'z')
+       << (cpu.carry() ? 'C' : 'c');
 
   cout << "  A: " << (cpu.accumulator_ & 0x80 ? '1' : '0')
        << (cpu.accumulator_ & 0x40 ? '1' : '0')
@@ -56,28 +56,41 @@ void dump(const Cpu &cpu, uint32_t clk) {
   cout << endl;
 }
 
-
-void dump_instruction( const Cpu& cpu,
-                       const OpCode& instruction) {
+void dump_instruction(const Cpu &cpu,
+                      const OpCode &instruction) {
   using namespace std;
   cout << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_;
   cout << "  " << instruction.name;
-  cout << setfill(' ') << setw( 7);
-  switch( instruction.addressing_mode) {
-    case OpCode::Accumulator: cout << "Acc"; break;
-    case OpCode::Absolute: cout <<  "Abs"; break;
-    case OpCode::AbsoluteIndexedX: cout << "Abs,X"; break;
-    case OpCode::AbsoluteIndexedY: cout << "Abs,Y"; break;
-    case OpCode::Immediate: cout << "Imm"; break;
-    case OpCode::Implied:  cout << ""; break;
-    case OpCode::Indirect: cout << "Ind"; break;
-    case OpCode::IndirectIndexedX: cout << "Ind,X"; break;
-    case OpCode::IndirectIndexedY: cout << "Ind,Y"; break;
-    case OpCode::Relative: cout << "Rel"; break;
-    case OpCode::ZeroPage: cout << "Zpg"; break;
-    case OpCode::ZeroPageIndexedX: cout << "Zpg,X"; break;
-    case OpCode::ZeroPageIndexedY: cout << "Zpg,Y"; break;
-    default: cout << "ERR"; break;
+  cout << setfill(' ') << setw(7);
+  switch (instruction.addressing_mode) {
+    case OpCode::Accumulator: cout << "Acc";
+      break;
+    case OpCode::Absolute: cout << "Abs";
+      break;
+    case OpCode::AbsoluteIndexedX: cout << "Abs,X";
+      break;
+    case OpCode::AbsoluteIndexedY: cout << "Abs,Y";
+      break;
+    case OpCode::Immediate: cout << "Imm";
+      break;
+    case OpCode::Implied: cout << "";
+      break;
+    case OpCode::Indirect: cout << "Ind";
+      break;
+    case OpCode::IndirectIndexedX: cout << "Ind,X";
+      break;
+    case OpCode::IndirectIndexedY: cout << "Ind,Y";
+      break;
+    case OpCode::Relative: cout << "Rel";
+      break;
+    case OpCode::ZeroPage: cout << "Zpg";
+      break;
+    case OpCode::ZeroPageIndexedX: cout << "Zpg,X";
+      break;
+    case OpCode::ZeroPageIndexedY: cout << "Zpg,Y";
+      break;
+    default: cout << "ERR";
+      break;
   }
   cout << "    | ";
 }
@@ -108,15 +121,16 @@ int main() {
     auto ins = memory.at(cpu.pc_);
     auto iter = codes.find(ins);
     if (iter == codes.end()) {
-      cout << "Unrecognised opcode 0x"  << hex << setfill('0') << setw(2) << (uint32_t)ins << " at PC: 0x" << setw(4) << cpu.pc_ << endl;
+      cout << "Unrecognised opcode 0x" << hex << setfill('0') << setw(2) << (uint32_t) ins << " at PC: 0x" << setw(4)
+           << cpu.pc_ << endl;
       break;
     }
-    dump_instruction( cpu, iter->second);
+    dump_instruction(cpu, iter->second);
     cpu.pc_++;
     iter->second.operation(cpu, memory, clk);
     dump(cpu, clk);
 
-    if( start_pc == cpu.pc_) {
+    if (start_pc == cpu.pc_) {
       cout << "Stuck in a loop at PC: 0x" << hex << setw(4) << cpu.pc_ << endl;
       break;
     }

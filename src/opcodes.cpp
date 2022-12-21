@@ -2,9 +2,8 @@
 // Created by Dave Durbin on 1/12/2022.
 //
 
-#include "../include/opcodes.h"
-#include "../include/cpu.h"
-#include "../include/addressing.h"
+#include "opcodes.h"
+#include "addressing.h"
 
 #include <map>
 #include <vector>
@@ -47,7 +46,7 @@ void adc(Cpu &cpu, uint32_t arg) {
   if (cpu.carry()) a++;
 
   cpu.status_.set(SR_CRY, (a > 0xff));
-  cpu.status_.set(SR_BMI, (a & 0x80));
+  cpu.status_.set(SR_NEG, (a & 0x80));
   cpu.status_.set(SR_ZER, (a & 0xff));
 
   cpu.status_.set(SR_OVF, !((cpu.accumulator_ ^ arg) & 0x80) && ((cpu.accumulator_ ^ a) & 0x80));
@@ -127,7 +126,7 @@ void adc_ind_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
 
 void anda(Cpu &cpu, uint32_t arg) {
   cpu.accumulator_ &= (arg & 0xff);
-  cpu.status_.set(SR_BMI, (cpu.accumulator_ & 0x80));
+  cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
   cpu.status_.set(SR_ZER, (cpu.accumulator_ == 0));
 }
 void and_imm(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
@@ -201,7 +200,7 @@ uint8_t asl(Cpu &cpu, uint32_t arg) {
   cpu.status_.set(SR_CRY, (arg & 0x80));
 
   arg <<= 1;
-  cpu.status_.set(SR_BMI, (arg & 0x80));
+  cpu.status_.set(SR_NEG, (arg & 0x80));
   cpu.status_.set(SR_ZER, (arg == 0));
   return (arg & 0xff);
 }
@@ -308,7 +307,7 @@ void beq(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  * absolute	    BIT oper	2C	3	4
  */
 void bit(Cpu &cpu, uint8_t arg) {
-  cpu.status_.set(SR_BMI, (arg & (1<<SR_BMI)));
+  cpu.status_.set(SR_NEG, (arg & (1 << SR_NEG)));
   cpu.status_.set(SR_OVF, (arg & (1<<SR_OVF)));
   cpu.status_.set(SR_ZER, !(arg & cpu.accumulator_));
 }
@@ -458,7 +457,7 @@ void clv(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 void cmp(Cpu &cpu, uint8_t arg) {
   auto t = (cpu.accumulator_ - arg) & 0xff;
-  cpu.status_.set(SR_BMI, (t & 0x80));
+  cpu.status_.set(SR_NEG, (t & 0x80));
   cpu.status_.set(SR_ZER, (t == 0));
   cpu.status_.set(SR_CRY, (arg <= cpu.accumulator_));
 }
@@ -536,7 +535,7 @@ void cmp_ind_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 void cpx(Cpu &cpu, uint8_t arg) {
   auto t = (cpu.x_reg_ - arg) & 0xff;
-  cpu.status_.set(SR_BMI, (t & 0x80));
+  cpu.status_.set(SR_NEG, (t & 0x80));
   cpu.status_.set(SR_ZER, (t == 0));
   cpu.status_.set(SR_CRY, (arg <= cpu.x_reg_));
 }
@@ -576,7 +575,7 @@ void cpx_abs(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
 */
 void cpy(Cpu &cpu, uint8_t arg) {
   auto t = (cpu.y_reg_ - arg) & 0xff;
-  cpu.status_.set(SR_BMI, (t & 0x80));
+  cpu.status_.set(SR_NEG, (t & 0x80));
   cpu.status_.set(SR_ZER, (t == 0));
   cpu.status_.set(SR_CRY, (arg <= cpu.y_reg_));
 }
@@ -617,7 +616,7 @@ void cpy_abs(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 uint8_t dec(Cpu &cpu, uint8_t arg) {
   arg = (arg - 1) & 0xff;
-  cpu.status_.set(SR_BMI, (arg & 0x80));
+  cpu.status_.set(SR_NEG, (arg & 0x80));
   cpu.status_.set(SR_ZER, (arg == 0));
   return arg;
 }
@@ -667,7 +666,7 @@ void dec_abs_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
 */
 void dex(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   cpu.x_reg_ = (cpu.x_reg_ - 1) & 0xff;
-  cpu.status_.set(SR_BMI, (cpu.x_reg_ & 0x80));
+  cpu.status_.set(SR_NEG, (cpu.x_reg_ & 0x80));
   cpu.status_.set(SR_ZER, (cpu.x_reg_ == 0));
   clk += 2;
 }
@@ -684,7 +683,7 @@ void dex(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
 */
 void dey(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   cpu.y_reg_ = (cpu.y_reg_ - 1) & 0xff;
-  cpu.status_.set(SR_BMI, (cpu.y_reg_ & 0x80));
+  cpu.status_.set(SR_NEG, (cpu.y_reg_ & 0x80));
   cpu.status_.set(SR_ZER, (cpu.y_reg_ == 0));
   clk += 2;
 }
@@ -709,8 +708,8 @@ void dey(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 void eor(Cpu &cpu, uint8_t arg) {
   cpu.accumulator_ = (cpu.accumulator_ ^ arg);
-  if (cpu.accumulator_ & 0x80) cpu.set_neg(); else cpu.clear_neg();
-  if (cpu.accumulator_ == 0) cpu.set_zero(); else cpu.clear_zero();
+  cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
+  cpu.status_.set(SR_ZER, (cpu.accumulator_ == 0));
 }
 
 void eor_imm(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
@@ -787,7 +786,7 @@ void eor_ind_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 uint8_t inc(Cpu &cpu, uint8_t arg) {
   arg = (arg + 1) & 0xff;
-  cpu.status_.set(SR_BMI, (arg & 0x80));
+  cpu.status_.set(SR_NEG, (arg & 0x80));
   cpu.status_.set(SR_ZER, (arg == 0));
   return arg;
 }
@@ -946,7 +945,7 @@ void jsr(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 
 void lda(Cpu &cpu, uint32_t arg) {
-  cpu.status_.set(SR_BMI, (arg & 0x80));
+  cpu.status_.set(SR_NEG, (arg & 0x80));
   cpu.status_.set(SR_ZER, (arg == 0));
   cpu.accumulator_ = arg;
 }
@@ -1024,7 +1023,7 @@ void lda_ind_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  * absolute,Y	LDX oper,Y	BE	3	4*
  */
 void ldx(Cpu &cpu, uint32_t arg) {
-  cpu.status_.set(SR_BMI, (arg & 0x80));
+  cpu.status_.set(SR_NEG, (arg & 0x80));
   cpu.status_.set(SR_ZER, (arg == 0));
   cpu.x_reg_ = (arg & 0xff);
 }
@@ -1079,7 +1078,7 @@ void ldx_abs_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  * absolute,X	LDY oper,X	BC	3	4*
  */
 void ldy(Cpu &cpu, uint32_t arg) {
-  cpu.status_.set(SR_BMI, (arg & 0x80));
+  cpu.status_.set(SR_NEG, (arg & 0x80));
   cpu.status_.set(SR_ZER, (arg == 0));
   cpu.y_reg_ = (arg & 0xff);
 }
@@ -1137,18 +1136,15 @@ void ldy_abs_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  * absolute,X	LSR oper,X	5E	3	7
  */
 uint8_t lsr(Cpu &cpu, uint32_t arg) {
-  if (arg & 0x01) cpu.set_carry(); else cpu.clear_carry();
-  arg = (arg >> 1) & 0xff;
-  if (arg == 0) cpu.set_zero(); else cpu.clear_zero();
+  cpu.status_.set(SR_CRY, (arg & 0x01));
+  arg = (arg >> 1) & 0x7f;
+  cpu.status_.set(SR_NEG, false);
+  cpu.status_.set(SR_ZER, (arg == 0));
   return arg;
 }
 
 void lsr_a(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
-  bool page_wrap;
-  uint32_t addr;
-  auto arg = cpu.accumulator_;
-  arg = lsr(cpu, arg);
-  cpu.accumulator_ = arg;
+  cpu.accumulator_ = lsr(cpu, cpu.accumulator_);
   clk += 2;
 }
 
@@ -1156,8 +1152,7 @@ void lsr_zpg(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPage(cpu, memory, addr, page_wrap);
-  arg = lsr(cpu, arg);
-  memory.at(addr) = arg;
+  memory.at(addr) = lsr(cpu, arg);
   clk += 5;
 }
 
@@ -1165,8 +1160,7 @@ void lsr_zpg_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageIndexedX(cpu, memory, addr, page_wrap);
-  arg = lsr(cpu, arg);
-  memory.at(addr) = arg;
+  memory.at(addr) = lsr(cpu, arg);;
   clk += 6;
 }
 
@@ -1174,8 +1168,7 @@ void lsr_abs(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = Absolute(cpu, memory, addr, page_wrap);
-  arg = lsr(cpu, arg);
-  memory.at(addr) = arg;
+  memory.at(addr) = lsr(cpu, arg);
   clk += 6;
 }
 
@@ -1183,8 +1176,7 @@ void lsr_abs_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteIndexedX(cpu, memory, addr, page_wrap);
-  arg = lsr(cpu, arg);
-  memory.at(addr) = arg;
+  memory.at(addr) = lsr(cpu, arg);
   clk += 7;
 }
 
@@ -1330,7 +1322,7 @@ void php(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 void pla(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   cpu.accumulator_ = pop_stack(cpu, memory);
-  cpu.status_.set(SR_BMI, (cpu.accumulator_ & 0x80));
+  cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
   cpu.status_.set(SR_ZER, (cpu.accumulator_ == 0));
   clk += 4;
 }
@@ -1837,7 +1829,7 @@ void tay(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 void tsx(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   cpu.x_reg_ = (cpu.stack_pointer_ & 0xff);
-  cpu.status_.set(SR_BMI, cpu.x_reg_ & 0x80);
+  cpu.status_.set(SR_NEG, cpu.x_reg_ & 0x80);
   cpu.status_.set(SR_ZER, cpu.x_reg_ == 0);
   clk += 2;
 }

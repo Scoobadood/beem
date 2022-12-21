@@ -1,6 +1,5 @@
-#include "../include/addressing.h"
-
-#include "../include/cpu.h"
+#include "addressing.h"
+#include "cpu.h"
 #include <vector>
 
 /**
