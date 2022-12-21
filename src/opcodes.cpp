@@ -41,17 +41,18 @@ const uint8_t BRK_FLAG = 0x10;
  * (indirect),Y	ADC (oper),Y 71	 2	    5*
  */
 void adc(Cpu &cpu, uint32_t arg) {
-  auto a = cpu.accumulator_;
-  a += (arg & 0xff);
-  if (cpu.carry()) a++;
+  auto result = cpu.accumulator_;
+  result += (arg & 0xff);
+  result += (cpu.carry() ? 1 : 0);
+  cpu.status_.set(SR_CRY, (result > 0xff));
 
-  cpu.status_.set(SR_CRY, (a > 0xff));
-  cpu.status_.set(SR_NEG, (a & 0x80));
-  cpu.status_.set(SR_ZER, (a & 0xff));
+  result &= 0xff;
+  cpu.status_.set(SR_NEG, (result & 0x80));
+  cpu.status_.set(SR_ZER, (result == 0));
 
-  cpu.status_.set(SR_OVF, !((cpu.accumulator_ ^ arg) & 0x80) && ((cpu.accumulator_ ^ a) & 0x80));
+  cpu.status_.set(SR_OVF, !((cpu.accumulator_ ^ arg) & 0x80) && ((cpu.accumulator_ ^ result) & 0x80));
 
-  cpu.accumulator_ = (a & 0xff);
+  cpu.accumulator_ = result;
 }
 
 void adc_imm(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
@@ -308,7 +309,7 @@ void beq(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 void bit(Cpu &cpu, uint8_t arg) {
   cpu.status_.set(SR_NEG, (arg & (1 << SR_NEG)));
-  cpu.status_.set(SR_OVF, (arg & (1<<SR_OVF)));
+  cpu.status_.set(SR_OVF, (arg & (1 << SR_OVF)));
   cpu.status_.set(SR_ZER, !(arg & cpu.accumulator_));
 }
 
