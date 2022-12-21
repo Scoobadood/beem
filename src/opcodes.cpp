@@ -183,24 +183,26 @@ void and_ind_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
 }
 
 /*
+ * ASL
  * Shift Left One Bit (Memory or Accumulator)
-
-    C <- [76543210] <- 0
-    N	Z	C	I	D	V
-    +	+	+	-	-	-
-    addressing	assembler	opc	bytes	cycles
-    accumulator	ASL A	    0A	1	2
-    zeropage	ASL oper	06	2	5
-    zeropage,X	ASL oper,X	16	2	6
-    absolute	ASL oper	0E	3	6
-    absolute,X	ASL oper,X	1E	3	7
-
+ *
+ * C <- [76543210] <- 0
+ *
+ * N	Z	C	I	D	V
+ * +	+	+	-	-	-
+ * addressing	assembler	opc	bytes	cycles
+ * accumulator	ASL A	    0A	1	2
+ * zeropage	ASL oper	06	2	5
+ * zeropage,X	ASL oper,X	16	2	6
+ * absolute	ASL oper	0E	3	6
+ * absolute,X	ASL oper,X	1E	3	7
  */
 uint8_t asl(Cpu &cpu, uint32_t arg) {
+  cpu.status_.set(SR_CRY, (arg & 0x80));
+
   arg <<= 1;
   cpu.status_.set(SR_BMI, (arg & 0x80));
   cpu.status_.set(SR_ZER, (arg == 0));
-  cpu.status_.set(SR_CRY, (arg == 0x100));
   return (arg & 0xff);
 }
 
