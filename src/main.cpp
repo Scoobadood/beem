@@ -86,7 +86,7 @@ int main() {
   using namespace std;
 
   // Load bin file
-  ifstream f("6502_functional_test.bin", ios::binary);
+  ifstream f("data/6502_functional_test.bin", ios::binary);
   if (!f.is_open()) {
     cerr << "File read failed" << endl;
     return 0;

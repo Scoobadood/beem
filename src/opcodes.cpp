@@ -613,9 +613,10 @@ void cpy_abs(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  * absolute,X	DEC oper,X	DE	3	7
  */
 uint8_t dec(Cpu &cpu, uint8_t arg) {
-  arg -= 1;
-  if (arg & 0x80) cpu.set_neg(); else cpu.clear_neg();
-  if (arg == 0) cpu.set_zero(); else cpu.clear_zero();
+  arg = (arg - 1) & 0xff;
+  cpu.status_.set(SR_BMI, (arg & 0x80));
+  cpu.status_.set(SR_ZER, (arg == 0));
+  return arg;
 }
 
 void dec_zpg(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
@@ -783,8 +784,9 @@ void eor_ind_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  */
 uint8_t inc(Cpu &cpu, uint8_t arg) {
   arg = (arg + 1) & 0xff;
-  if (arg & 0x80) cpu.set_neg(); else cpu.clear_neg();
-  if (arg == 0) cpu.set_zero(); else cpu.clear_zero();
+  cpu.status_.set(SR_BMI, (arg & 0x80));
+  cpu.status_.set(SR_ZER, (arg == 0));
+  return arg;
 }
 
 void inc_zpg(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
@@ -1833,7 +1835,7 @@ void tay(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
 void tsx(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   cpu.x_reg_ = (cpu.stack_pointer_ & 0xff);
   cpu.status_.set(SR_BMI, cpu.x_reg_ & 0x80);
-  cpu.status_.set(SR_ZER, cpu.x_reg_ == 0x80);
+  cpu.status_.set(SR_ZER, cpu.x_reg_ == 0);
   clk += 2;
 }
 
