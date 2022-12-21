@@ -291,23 +291,24 @@ void beq(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   }
 }
 
-//Test Bits in Memory with Accumulator
-//
-//bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
-//the zero-flag is set to the result of operand AND accumulator.
-//
-//A AND M, M7 -> N, M6 -> V
-//    N	Z	C	I	D	V
-//    M7	+	-	-	-	M6
-//    addressing	assembler	opc	bytes	cycles
-//zeropage	BIT oper	24	2	3
-//absolute	BIT oper	2C	3	4
-
+/*
+ * BIT
+ *
+ * Test Bits in Memory with Accumulator
+ * bits 7 and 6 of operand are transfered to bit 7 and 6 of SR (N,V);
+ * the zero-flag is set to the result of operand AND accumulator.
+ *
+ * A AND M, M7 -> N, M6 -> V
+ * N	Z	C	I	D	V
+ * M7	+	-	-	-	M6
+ * addressing	assembler	opc	bytes	cycles
+ * zeropage	    BIT oper	24	2	3
+ * absolute	    BIT oper	2C	3	4
+ */
 void bit(Cpu &cpu, uint8_t arg) {
-  if (arg & SR_BMI) cpu.set_neg(); else cpu.clear_neg();
-  if (arg & SR_OVF) cpu.set_overflow(); else cpu.clear_overflow();
-  if (arg & cpu.accumulator_) cpu.clear_zero();
-  else cpu.set_zero();
+  cpu.status_.set(SR_BMI, (arg & (1<<SR_BMI)));
+  cpu.status_.set(SR_OVF, (arg & (1<<SR_OVF)));
+  cpu.status_.set(SR_ZER, !(arg & cpu.accumulator_));
 }
 
 void bit_zpg(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
