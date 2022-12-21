@@ -10,8 +10,8 @@
 #include <iostream>
 #include <iomanip>
 
-#define DEBUG_ADC
-#define DEBUG_SBC
+#undef DEBUG_ADC
+#undef DEBUG_SBC
 
 const uint32_t STACK_BASE = 0x100;
 void push_stack(Cpu &cpu, std::vector<uint8_t> &memory, uint8_t arg) {
