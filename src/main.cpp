@@ -51,7 +51,7 @@ void dump(const Cpu &cpu, uint32_t clk) {
        << (cpu.y_reg_ & 0x01 ? '1' : '0')
        << "  (" << std::hex << setfill('0') << setw(2) << cpu.y_reg_ << ")";
 
-  cout << "  CLK: " << dec << setfill('0') << setw(6) << clk;
+  cout << "  CLK: " << dec << setfill('0') << setw(8) << clk;
 
   cout << endl;
 }

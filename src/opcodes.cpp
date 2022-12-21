@@ -1547,7 +1547,7 @@ void sbc(Cpu &cpu, uint32_t arg) {
 
   // Per http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
   // Implement as adc with ones complement of arg
-  adc(cpu, (!arg) & 0xff);
+  adc(cpu, (0xff - arg));
 }
 
 void sbc_imm(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
