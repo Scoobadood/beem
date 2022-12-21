@@ -1978,10 +1978,10 @@ const std::map<uint8_t, OpCode> codes = {
     {0xbc, {3, 4, true, "ldy", OpCode::AddressingMode::AbsoluteIndexedX, ldy_abs_x}},
 
     {0x4a, {1, 2, false, "lsr", OpCode::AddressingMode::Accumulator, lsr_a}},
-    {0x4e, {2, 5, false, "lsr", OpCode::AddressingMode::ZeroPage, lsr_zpg}},
-    {0x5e, {2, 6, false, "lsr", OpCode::AddressingMode::ZeroPageIndexedX, lsr_zpg_x}},
-    {0x46, {3, 6, false, "lsr", OpCode::AddressingMode::Absolute, lsr_abs}},
-    {0x56, {3, 7, false, "lsr", OpCode::AddressingMode::AbsoluteIndexedX, lsr_abs_x}},
+    {0x46, {2, 5, false, "lsr", OpCode::AddressingMode::ZeroPage, lsr_zpg}},
+    {0x56, {2, 6, false, "lsr", OpCode::AddressingMode::ZeroPageIndexedX, lsr_zpg_x}},
+    {0x4e, {3, 6, false, "lsr", OpCode::AddressingMode::Absolute, lsr_abs}},
+    {0x5e, {3, 7, false, "lsr", OpCode::AddressingMode::AbsoluteIndexedX, lsr_abs_x}},
 
     {0xea, {1, 2, false, "nop", OpCode::AddressingMode::Implied, nop}},
 
