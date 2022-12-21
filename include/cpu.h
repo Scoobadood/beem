@@ -8,7 +8,7 @@
 #include <vector>
 #include <bitset>
 
-const uint8_t SR_BMI = 7;
+const uint8_t SR_NEG = 7;
 const uint8_t SR_OVF = 6;
 const uint8_t SR_DEC = 3;
 const uint8_t SR_INT = 2;
@@ -17,10 +17,10 @@ const uint8_t SR_CRY = 0;
 
 struct Cpu {
   [[nodiscard]] inline bool minus() const {
-    return status_.test(SR_BMI);
+    return status_.test(SR_NEG);
   }
   [[nodiscard]] inline bool plus() const {
-    return !status_.test(SR_BMI);
+    return !status_.test(SR_NEG);
   }
   [[nodiscard]] inline bool is_overflow() const {
     return status_.test(SR_OVF);
@@ -44,7 +44,7 @@ struct Cpu {
     return !status_.test(SR_CRY);
   }
   inline void set_neg() {
-    status_.set(SR_BMI, true);
+    status_.set(SR_NEG, true);
   }
   inline void set_overflow() {
     status_.set(SR_OVF, true);
@@ -62,7 +62,7 @@ struct Cpu {
     status_.set(SR_CRY, true);
   }
   inline void clear_neg() {
-    status_.set(SR_BMI, false);
+    status_.set(SR_NEG, false);
   }
   inline void clear_overflow() {
     status_.set(SR_OVF, false);

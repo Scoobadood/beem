@@ -7,6 +7,11 @@
 
 #include <map>
 #include <vector>
+#include <iostream>
+#include <iomanip>
+
+#define DEBUG_ADC
+#define DEBUG_SBC
 
 const uint32_t STACK_BASE = 0x100;
 void push_stack(Cpu &cpu, std::vector<uint8_t> &memory, uint8_t arg) {
@@ -40,7 +45,55 @@ const uint8_t BRK_FLAG = 0x10;
  * (indirect,X)	ADC (oper,X) 61	 2	    6
  * (indirect),Y	ADC (oper),Y 71	 2	    5*
  */
+
+
+// Implementation taken from http://www.6502.org/tutorials/decimal_mode.html
+void adc_decimal(Cpu &cpu, uint32_t arg) {
+  using namespace std;
+
+#ifdef DEBUG_ADC
+  cout << "add_dec "
+       << hex << setw(2) << setfill('0') << cpu.accumulator_
+       << " + "
+       << hex << setw(2) << setfill('0') << arg
+       << " + " << (cpu.carry() ? 1 : 0);
+#endif
+
+//  1a. AL = (A & $0F) + (B & $0F) + C
+  uint32_t carry = cpu.carry() ? 1 : 0;
+  auto al = (cpu.accumulator_ & 0x0f) + (arg & 0x0f) + carry;
+
+//  1b. If AL >= $0A, then AL = ((AL + $06) & $0F) + $10
+  if (al >= 0x0a) al = ((al + 6) & 0xf) + 0x10;
+
+//  1c. A = (A & $F0) + (B & $F0) + AL
+  auto a = (cpu.accumulator_ & 0xf0) + (arg & 0xf0) + al;
+
+//  1d. Note that A can be >= $100 at this point
+//  1e. If (A >= $A0), then A = A + $60
+  if (a >= 0xA0) a += 0x60;
+
+//  1f. The accumulator result is the lower 8 bits of A
+  cpu.accumulator_ = a & 0xff;
+
+//  1g. The carry result is 1 if A >= $100, and is 0 if A < $100
+  cpu.status_.set(SR_CRY, a >= 0x100);
+  cpu.status_.set(SR_ZER, (a & 0xff) == 0);
+  cpu.status_.set(SR_NEG, (a & 0x80));
+
+#ifdef DEBUG_ADC
+  cout << " = "
+       << hex << setw(2) << setfill('0') << cpu.accumulator_
+       << "   c:" << (cpu.carry() ? 1 : 0)
+       << std::endl;
+#endif
+}
+
 void adc(Cpu &cpu, uint32_t arg) {
+  if (cpu.is_decimal()) {
+    adc_decimal(cpu, arg);
+    return;
+  }
   auto result = cpu.accumulator_;
   result += (arg & 0xff);
   result += (cpu.carry() ? 1 : 0);
@@ -130,30 +183,35 @@ void anda(Cpu &cpu, uint32_t arg) {
   cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
   cpu.status_.set(SR_ZER, (cpu.accumulator_ == 0));
 }
+
 void and_imm(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, Immediate(cpu, memory, addr, page_wrap));
   clk += 2;
 }
+
 void and_zpg(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, ZeroPage(cpu, memory, addr, page_wrap));
   clk += 3;
 }
+
 void and_zpg_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
   clk += 4;
 }
+
 void and_abs(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, Absolute(cpu, memory, addr, page_wrap));
   clk += 4;
 }
+
 void and_abs_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
@@ -161,6 +219,7 @@ void and_abs_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   clk += 4;
   if (page_wrap) clk++;
 }
+
 void and_abs_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
@@ -168,12 +227,14 @@ void and_abs_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   clk += 4;
   if (page_wrap) clk++;
 }
+
 void and_ind_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
   clk += 6;
 }
+
 void and_ind_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
@@ -1543,7 +1604,57 @@ void rts(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
  * (indirect,X)	SBC (oper,X)  E1	2	6
  * (indirect),Y	SBC (oper),Y  F1	2	5*
  */
+
+// Per http://www.6502.org/tutorials/decimal_mode.html
+void sbc_decimal(Cpu &cpu, uint32_t arg) {
+  using namespace std;
+
+#ifdef DEBUG_SBC
+  cout << "sub_dec "
+       << hex << setw(2) << setfill('0') << cpu.accumulator_
+       << " - "
+       << hex << setw(2) << setfill('0') << arg
+       << " - " << (cpu.carry_clear() ? 1 : 0);
+#endif
+
+
+
+  //  3a. AL = (A & $0F) - (B & $0F) + C-1
+  auto borrow = (cpu.carry_clear() ? 1 : 0);
+  int32_t al = (cpu.accumulator_ & 0x0f) - (arg & 0x0f) - borrow;
+
+  //  3b. If AL < 0, then AL = ((AL - $06) & $0F) - $10
+  if (al < 0) al = ((al - 0x06) & 0x0f) - 0x10;
+
+  //  3c. A = (A & $F0) - (B & $F0) + AL
+  int32_t a = (cpu.accumulator_ & 0xf0) - (arg & 0xf0) + al;
+
+  //  3d. If A < 0, then A = A - $60
+  if( a < 0 ) a -= 0x60;
+
+  cpu.status_.set(SR_CRY, cpu.accumulator_ >= (arg + borrow) );
+
+  //  3e. The accumulator result is the lower 8 bits of A
+  cpu.accumulator_ = a & 0xff;
+
+  /* The flags are set just like in Binary mode. */
+  int32_t bin_val = cpu.accumulator_ - arg - (cpu.carry_clear() ? 1 : 0);
+  cpu.status_.set(SR_ZER, (cpu.accumulator_ & 0xff) == 0);
+  cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
+
+#ifdef DEBUG_SBC
+  cout << " = "
+       << hex << setw(2) << setfill('0') << cpu.accumulator_
+       << "   c:" << (cpu.carry() ? 1 : 0)
+       << std::endl;
+#endif
+}
+
 void sbc(Cpu &cpu, uint32_t arg) {
+  if (cpu.is_decimal()) {
+    sbc_decimal(cpu, arg);
+    return;
+  }
 
   // Per http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html
   // Implement as adc with ones complement of arg
@@ -1556,24 +1667,28 @@ void sbc_imm(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   sbc(cpu, Immediate(cpu, memory, addr, page_wrap));
   clk += 2;
 }
+
 void sbc_zpg(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, ZeroPage(cpu, memory, addr, page_wrap));
   clk += 3;
 }
+
 void sbc_zpg_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
   clk += 4;
 }
+
 void sbc_abs(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, Absolute(cpu, memory, addr, page_wrap));
   clk += 4;
 }
+
 void sbc_abs_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
@@ -1581,6 +1696,7 @@ void sbc_abs_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   clk += 4;
   if (page_wrap) clk++;
 }
+
 void sbc_abs_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
@@ -1588,12 +1704,14 @@ void sbc_abs_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   clk += 4;
   if (page_wrap) clk++;
 }
+
 void sbc_ind_x(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
   clk += 6;
 }
+
 void sbc_ind_y(Cpu &cpu, std::vector<uint8_t> &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;

@@ -630,12 +630,12 @@ ffff =                  ram_top = -1
 000c :                  zpt                         ;5 bytes store/modify test area
                         ;add/subtract operand generation and result/flag prediction
 000c : 00               adfc    ds  1               ;carry flag before op
-000d : 00               ad1     ds  1               ;operand 1 - accumulator
-000e : 00               ad2     ds  1               ;operand 2 - memory / immediate
-000f : 00               adrl    ds  1               ;expected result bits 0-7
-0010 : 00               adrh    ds  1               ;expected result bit 8 (carry)
-0011 : 00               adrf    ds  1               ;expected flags NV0000ZC (only binary mode)
-0012 : 00               sb2     ds  1               ;operand 2 complemented for subtract
+000d : 00               ad1     ds  1               ; 99   operand 1 - accumulator
+000e : 00               ad2     ds  1               ; 99   operand 2 - memory / immediate
+000f : 00               adrl    ds  1               ; 99   expected result bits 0-7
+0010 : 00               adrh    ds  1               ; 01   expected result bit 8 (carry)
+0011 : 00               adrf    ds  1               ; 02   expected flags NV0000ZC (only binary mode)
+0012 : 00               sb2     ds  1               ; 00   operand 2 complemented for subtract
 0013 :                  zp_bss
 0013 : c3824100         zp1     db  $c3,$82,$41,0   ;test patterns for LDx BIT ROL ROR ASL LSR
 0017 : 7f               zp7f    db  $7f             ;test pattern for compare
@@ -9210,30 +9210,30 @@ ffff =                  ram_top = -1
 
                         ; testing shifts - ASL LSR ROL ROR all addressing modes
                         ; shifts - accumulator
-22c3 : a203                     ldx #3
-22c5 :                  tasl
-                                set_ax zp1,0
-                       >            load_flag 0
-22c5 : a900            >            lda #0             ;allow test to change I-flag (no mask)
+22c3 : a203                 ldx #3
+22c5 :                      tasl
+                            set_ax zp1,0
+                       >    load_flag 0
+22c5 : a900            >    lda #0              ;allow test to change I-flag (no mask)
                        >
-22c7 : 48              >            pha         ;use stack to load status
-22c8 : b513            >            lda zp1,x    ;precharge accu
-22ca : 28              >            plp
+22c7 : 48              >    pha                 ;use stack to load status
+22c8 : b513            >    lda zp1,x           ;precharge accu
+22ca : 28              >    plp
 
-22cb : 0a                       asl a
-                                tst_ax rASL,fASL,0
-22cc : 08              >            php         ;save flags
-22cd : dd2002          >            cmp rASL,x    ;test result
-                       >            trap_ne
-22d0 : d0fe            >        bne *           ;failed not equal (non zero)
+22cb : 0a                   asl a
+                            tst_ax rASL,fASL,0
+22cc : 08              >    php                 ;save flags
+22cd : dd2002          >    cmp rASL,x          ;test result
+                       >    trap_ne
+22d0 : d0fe            >    bne *               ;failed not equal (non zero)
                        >
-22d2 : 68              >            pla         ;load status
-                       >            eor_flag 0
-22d3 : 4930            >            eor #0|fao         ;invert expected flags + always on bits
+22d2 : 68              >    pla                 ;load status
+                       >    eor_flag 0
+22d3 : 4930            >    eor #0|fao          ;invert expected flags + always on bits
                        >
-22d5 : dd3002          >            cmp fASL,x    ;test flags
-                       >            trap_ne     ;
-22d8 : d0fe            >        bne *           ;failed not equal (non zero)
+22d5 : dd3002          >    cmp fASL,x          ;test flags
+                       >    trap_ne             ;
+22d8 : d0fe            >    bne *               ;failed not equal (non zero)
                        >
 
 22da : ca                       dex

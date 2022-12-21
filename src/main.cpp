@@ -2,97 +2,105 @@
 
 #include <vector>
 #include <fstream>
+#include <sstream>
 
 #include "cpu.h"
 #include "opcodes.h"
 
-void dump(const Cpu &cpu, uint32_t clk) {
+std::string dump(const Cpu &cpu, uint32_t clk) {
   using namespace std;
 
-  cout << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_;
-  cout << "  SP: " << hex << setfill('0') << setw(2) << cpu.stack_pointer_;
-  cout << "  ST: "
-       << (cpu.minus() ? 'N' : 'n')
-       << (cpu.is_overflow() ? 'V' : 'v')
-       << '_'
-       << '1'
-       << (cpu.is_decimal() ? 'D' : 'd')
-       << (cpu.is_interrupt() ? 'I' : 'i')
-       << (cpu.zero() ? 'Z' : 'z')
-       << (cpu.carry() ? 'C' : 'c');
+  stringstream oss;
 
-  cout << "  A: " << (cpu.accumulator_ & 0x80 ? '1' : '0')
-       << (cpu.accumulator_ & 0x40 ? '1' : '0')
-       << (cpu.accumulator_ & 0x20 ? '1' : '0')
-       << (cpu.accumulator_ & 0x10 ? '1' : '0')
-       << (cpu.accumulator_ & 0x08 ? '1' : '0')
-       << (cpu.accumulator_ & 0x04 ? '1' : '0')
-       << (cpu.accumulator_ & 0x02 ? '1' : '0')
-       << (cpu.accumulator_ & 0x01 ? '1' : '0')
-       << "  (" << std::hex << setfill('0') << setw(2) << cpu.accumulator_ << ")";
+  oss << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_;
+  oss << "  SP: " << hex << setfill('0') << setw(2) << cpu.stack_pointer_;
+  oss << "  ST: "
+      << (cpu.minus() ? 'N' : 'n')
+      << (cpu.is_overflow() ? 'V' : 'v')
+      << '_'
+      << '1'
+      << (cpu.is_decimal() ? 'D' : 'd')
+      << (cpu.is_interrupt() ? 'I' : 'i')
+      << (cpu.zero() ? 'Z' : 'z')
+      << (cpu.carry() ? 'C' : 'c');
 
-  cout << "  X: " << (cpu.x_reg_ & 0x80 ? '1' : '0')
-       << (cpu.x_reg_ & 0x40 ? '1' : '0')
-       << (cpu.x_reg_ & 0x20 ? '1' : '0')
-       << (cpu.x_reg_ & 0x10 ? '1' : '0')
-       << (cpu.x_reg_ & 0x08 ? '1' : '0')
-       << (cpu.x_reg_ & 0x04 ? '1' : '0')
-       << (cpu.x_reg_ & 0x02 ? '1' : '0')
-       << (cpu.x_reg_ & 0x01 ? '1' : '0')
-       << "  (" << std::hex << setfill('0') << setw(2) << cpu.x_reg_ << ")";
+  oss << "  A: " << (cpu.accumulator_ & 0x80 ? '1' : '0')
+      << (cpu.accumulator_ & 0x40 ? '1' : '0')
+      << (cpu.accumulator_ & 0x20 ? '1' : '0')
+      << (cpu.accumulator_ & 0x10 ? '1' : '0')
+      << (cpu.accumulator_ & 0x08 ? '1' : '0')
+      << (cpu.accumulator_ & 0x04 ? '1' : '0')
+      << (cpu.accumulator_ & 0x02 ? '1' : '0')
+      << (cpu.accumulator_ & 0x01 ? '1' : '0')
+      << "  (" << std::hex << setfill('0') << setw(2) << cpu.accumulator_ << ")";
 
-  cout << "   Y: " << (cpu.y_reg_ & 0x80 ? '1' : '0')
-       << (cpu.y_reg_ & 0x40 ? '1' : '0')
-       << (cpu.y_reg_ & 0x20 ? '1' : '0')
-       << (cpu.y_reg_ & 0x10 ? '1' : '0')
-       << (cpu.y_reg_ & 0x08 ? '1' : '0')
-       << (cpu.y_reg_ & 0x04 ? '1' : '0')
-       << (cpu.y_reg_ & 0x02 ? '1' : '0')
-       << (cpu.y_reg_ & 0x01 ? '1' : '0')
-       << "  (" << std::hex << setfill('0') << setw(2) << cpu.y_reg_ << ")";
+  oss << "  X: " << (cpu.x_reg_ & 0x80 ? '1' : '0')
+      << (cpu.x_reg_ & 0x40 ? '1' : '0')
+      << (cpu.x_reg_ & 0x20 ? '1' : '0')
+      << (cpu.x_reg_ & 0x10 ? '1' : '0')
+      << (cpu.x_reg_ & 0x08 ? '1' : '0')
+      << (cpu.x_reg_ & 0x04 ? '1' : '0')
+      << (cpu.x_reg_ & 0x02 ? '1' : '0')
+      << (cpu.x_reg_ & 0x01 ? '1' : '0')
+      << "  (" << std::hex << setfill('0') << setw(2) << cpu.x_reg_ << ")";
 
-  cout << "  CLK: " << dec << setfill('0') << setw(8) << clk;
+  oss << "   Y: " << (cpu.y_reg_ & 0x80 ? '1' : '0')
+      << (cpu.y_reg_ & 0x40 ? '1' : '0')
+      << (cpu.y_reg_ & 0x20 ? '1' : '0')
+      << (cpu.y_reg_ & 0x10 ? '1' : '0')
+      << (cpu.y_reg_ & 0x08 ? '1' : '0')
+      << (cpu.y_reg_ & 0x04 ? '1' : '0')
+      << (cpu.y_reg_ & 0x02 ? '1' : '0')
+      << (cpu.y_reg_ & 0x01 ? '1' : '0')
+      << "  (" << std::hex << setfill('0') << setw(2) << cpu.y_reg_ << ")";
 
-  cout << endl;
+  oss << "  CLK: " << dec << setfill('0') << setw(8) << clk;
+
+  oss << endl;
+  return oss.str();
 }
 
-void dump_instruction(const Cpu &cpu,
-                      const OpCode &instruction) {
+std::string dump_instruction(const Cpu &cpu,
+                             const OpCode &instruction) {
   using namespace std;
-  cout << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_;
-  cout << "  " << instruction.name;
-  cout << setfill(' ') << setw(7);
+
+  stringstream oss;
+
+  oss << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_;
+  oss << "  " << instruction.name;
+  oss << setfill(' ') << setw(7);
   switch (instruction.addressing_mode) {
-    case OpCode::Accumulator: cout << "Acc";
+    case OpCode::Accumulator: oss << "Acc";
       break;
-    case OpCode::Absolute: cout << "Abs";
+    case OpCode::Absolute: oss << "Abs";
       break;
-    case OpCode::AbsoluteIndexedX: cout << "Abs,X";
+    case OpCode::AbsoluteIndexedX: oss << "Abs,X";
       break;
-    case OpCode::AbsoluteIndexedY: cout << "Abs,Y";
+    case OpCode::AbsoluteIndexedY: oss << "Abs,Y";
       break;
-    case OpCode::Immediate: cout << "Imm";
+    case OpCode::Immediate: oss << "Imm";
       break;
-    case OpCode::Implied: cout << "";
+    case OpCode::Implied: oss << "";
       break;
-    case OpCode::Indirect: cout << "Ind";
+    case OpCode::Indirect: oss << "Ind";
       break;
-    case OpCode::IndirectIndexedX: cout << "Ind,X";
+    case OpCode::IndirectIndexedX: oss << "Ind,X";
       break;
-    case OpCode::IndirectIndexedY: cout << "Ind,Y";
+    case OpCode::IndirectIndexedY: oss << "Ind,Y";
       break;
-    case OpCode::Relative: cout << "Rel";
+    case OpCode::Relative: oss << "Rel";
       break;
-    case OpCode::ZeroPage: cout << "Zpg";
+    case OpCode::ZeroPage: oss << "Zpg";
       break;
-    case OpCode::ZeroPageIndexedX: cout << "Zpg,X";
+    case OpCode::ZeroPageIndexedX: oss << "Zpg,X";
       break;
-    case OpCode::ZeroPageIndexedY: cout << "Zpg,Y";
+    case OpCode::ZeroPageIndexedY: oss << "Zpg,Y";
       break;
-    default: cout << "ERR";
+    default: oss << "ERR";
       break;
   }
-  cout << "    | ";
+  oss << "    | ";
+  return oss.str();
 }
 
 int main() {
@@ -107,6 +115,11 @@ int main() {
 
   auto memory = vector<uint8_t>((istreambuf_iterator<char>(f)), istreambuf_iterator<char>());
   f.close();
+
+  uint32_t buffsize = 20;
+  std::vector<std::string> history;
+  history.resize(buffsize, "");
+  uint32_t next = 0;
 
   // Set PC
   Cpu cpu;
@@ -125,16 +138,27 @@ int main() {
            << cpu.pc_ << endl;
       break;
     }
-    dump_instruction(cpu, iter->second);
+    auto str1 = dump_instruction(cpu, iter->second);
     cpu.pc_++;
     iter->second.operation(cpu, memory, clk);
-    dump(cpu, clk);
+    auto str2 = dump(cpu, clk);
 
+    // Stash to history buffer in case of fail.
+    history.at(next) = str1 + str2;
+    next = (next + 1) % buffsize;
+
+
+    // Handle fail
     if (start_pc == cpu.pc_) {
+      if (cpu.pc_ == 0x3469) {
+        cout << "All tests passed!";
+        return EXIT_SUCCESS;
+      }
       cout << "Stuck in a loop at PC: 0x" << hex << setw(4) << cpu.pc_ << endl;
-      break;
+      for (auto i = 0; i < buffsize; ++i) {
+        cout << history.at((next + i) % buffsize);
+      }
+      return EXIT_FAILURE;
     }
   }
-
-  return EXIT_SUCCESS;
 }
