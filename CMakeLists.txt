@@ -22,6 +22,18 @@ add_executable(cpu
         include/addressing.h src/addressing.cpp
         include/opcodes.h src/opcodes.cpp)
 
+add_executable(beeb
+        src/beeb.cpp
+        include/cpu.h src/cpu.cpp
+        include/addressing.h src/addressing.cpp
+        include/opcodes.h src/opcodes.cpp
+        src/display.h)
+
+
 target_include_directories(cpu
+        PRIVATE
+        include)
+
+target_include_directories(beeb
         PRIVATE
         include)
