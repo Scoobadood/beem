@@ -37,6 +37,7 @@ struct OpCode {
       , addressing_mode{addressing_mode} //
       , operation{std::move(operation)} //
   {}
+  std::string to_string() const;
 };
 
 extern const std::map<uint8_t, OpCode> codes;

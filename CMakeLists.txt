@@ -26,7 +26,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(spdlog)
 include_directories(${spdlog_SOURCE_DIR}/include)
 
-add_executable(cpu
+add_executable(test-6502
         src/test-6502.cpp
         include/cpu.h src/cpu.cpp
         include/addressing.h src/addressing.cpp
@@ -35,7 +35,7 @@ add_executable(cpu
         include/via.h src/via.cpp
         )
 
-target_include_directories(cpu
+target_include_directories(test-6502
         PRIVATE
         include
         )

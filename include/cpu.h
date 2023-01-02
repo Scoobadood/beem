@@ -80,6 +80,8 @@ struct Cpu {
     status_.set(SR_CRY, false);
   }
 
+  std::string to_string() const;
+
   uint32_t pc_;
   std::bitset<8> status_;
   uint16_t stack_pointer_;

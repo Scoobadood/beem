@@ -65,13 +65,13 @@ uint8_t SystemVia::get_irb() {
 
 uint8_t SystemVia::get_ira() {
   spdlog::get("SystemVIA")->info("Read IRA [0x{:0X}]", ira_);
-  if( !input_latching_) {
+  if (!input_latching_) {
     ira_ = read_port_a();
   }
   return ira_;
 }
 
-  void SystemVia::write_port_a() {
+void SystemVia::write_port_a() {
   spdlog::warn("Not Implemented: SystemVIA::write_port_a()");
 }
 
@@ -90,20 +90,16 @@ void SystemVia::write_port_b() {
     case 3:keyb_autoscan_enabled_ = false;
       spdlog::get("SystemVIA")->info("Keyboard autoscan disabled");
       break;
-    case 4:
-      c0_ = 0;
+    case 4:c0_ = 0;
       spdlog::get("SystemVIA")->info("HW Scrolling C0=0");
       break;
-    case 5:
-      c1_ = 0;
+    case 5:c1_ = 0;
       spdlog::get("SystemVIA")->info("HW Scrolling C1=0");
       break;
-    case 6:
-      caps_lock_led_ = true;
+    case 6:caps_lock_led_ = true;
       spdlog::get("SystemVIA")->info("CAPS Lock LED on");
       break;
-    case 7:
-      shift_lock_led_ = true;
+    case 7:shift_lock_led_ = true;
       spdlog::get("SystemVIA")->info("Shift Lock LED on");
       break;
     case 8:sound_chip_enabled_ = false;
@@ -133,9 +129,8 @@ void SystemVia::write_port_b() {
   }
 }
 
-
-uint8_t read_port_a() {
-
+uint8_t SystemVia::read_port_a() {
+  return 0x00;
 }
 
 /**

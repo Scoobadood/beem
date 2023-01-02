@@ -2,106 +2,9 @@
 
 #include <vector>
 #include <fstream>
-#include <sstream>
 
 #include "cpu.h"
 #include "opcodes.h"
-
-std::string dump(const Cpu &cpu, uint32_t clk) {
-  using namespace std;
-
-  stringstream oss;
-
-  oss << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_;
-  oss << "  SP: " << hex << setfill('0') << setw(2) << cpu.stack_pointer_;
-  oss << "  ST: "
-      << (cpu.minus() ? 'N' : 'n')
-      << (cpu.is_overflow() ? 'V' : 'v')
-      << '_'
-      << '1'
-      << (cpu.is_decimal() ? 'D' : 'd')
-      << (cpu.is_interrupt() ? 'I' : 'i')
-      << (cpu.zero() ? 'Z' : 'z')
-      << (cpu.carry() ? 'C' : 'c');
-
-  oss << "  A: " << (cpu.accumulator_ & 0x80 ? '1' : '0')
-      << (cpu.accumulator_ & 0x40 ? '1' : '0')
-      << (cpu.accumulator_ & 0x20 ? '1' : '0')
-      << (cpu.accumulator_ & 0x10 ? '1' : '0')
-      << (cpu.accumulator_ & 0x08 ? '1' : '0')
-      << (cpu.accumulator_ & 0x04 ? '1' : '0')
-      << (cpu.accumulator_ & 0x02 ? '1' : '0')
-      << (cpu.accumulator_ & 0x01 ? '1' : '0')
-      << "  (" << std::hex << setfill('0') << setw(2) << cpu.accumulator_ << ")";
-
-  oss << "  X: " << (cpu.x_reg_ & 0x80 ? '1' : '0')
-      << (cpu.x_reg_ & 0x40 ? '1' : '0')
-      << (cpu.x_reg_ & 0x20 ? '1' : '0')
-      << (cpu.x_reg_ & 0x10 ? '1' : '0')
-      << (cpu.x_reg_ & 0x08 ? '1' : '0')
-      << (cpu.x_reg_ & 0x04 ? '1' : '0')
-      << (cpu.x_reg_ & 0x02 ? '1' : '0')
-      << (cpu.x_reg_ & 0x01 ? '1' : '0')
-      << "  (" << std::hex << setfill('0') << setw(2) << cpu.x_reg_ << ")";
-
-  oss << "   Y: " << (cpu.y_reg_ & 0x80 ? '1' : '0')
-      << (cpu.y_reg_ & 0x40 ? '1' : '0')
-      << (cpu.y_reg_ & 0x20 ? '1' : '0')
-      << (cpu.y_reg_ & 0x10 ? '1' : '0')
-      << (cpu.y_reg_ & 0x08 ? '1' : '0')
-      << (cpu.y_reg_ & 0x04 ? '1' : '0')
-      << (cpu.y_reg_ & 0x02 ? '1' : '0')
-      << (cpu.y_reg_ & 0x01 ? '1' : '0')
-      << "  (" << std::hex << setfill('0') << setw(2) << cpu.y_reg_ << ")";
-
-  oss << "  CLK: " << dec << setfill('0') << setw(8) << clk;
-
-  oss << endl;
-  return oss.str();
-}
-
-std::string dump_instruction(const Cpu &cpu,
-                             const OpCode &instruction) {
-  using namespace std;
-
-  stringstream oss;
-
-  oss << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_;
-  oss << "  " << instruction.name;
-  oss << setfill(' ') << setw(7);
-  switch (instruction.addressing_mode) {
-    case OpCode::Accumulator: oss << "Acc";
-      break;
-    case OpCode::Absolute: oss << "Abs";
-      break;
-    case OpCode::AbsoluteIndexedX: oss << "Abs,X";
-      break;
-    case OpCode::AbsoluteIndexedY: oss << "Abs,Y";
-      break;
-    case OpCode::Immediate: oss << "Imm";
-      break;
-    case OpCode::Implied: oss << "";
-      break;
-    case OpCode::Indirect: oss << "Ind";
-      break;
-    case OpCode::IndirectIndexedX: oss << "Ind,X";
-      break;
-    case OpCode::IndirectIndexedY: oss << "Ind,Y";
-      break;
-    case OpCode::Relative: oss << "Rel";
-      break;
-    case OpCode::ZeroPage: oss << "Zpg";
-      break;
-    case OpCode::ZeroPageIndexedX: oss << "Zpg,X";
-      break;
-    case OpCode::ZeroPageIndexedY: oss << "Zpg,Y";
-      break;
-    default: oss << "ERR";
-      break;
-  }
-  oss << "    | ";
-  return oss.str();
-}
 
 int main() {
   using namespace std;
@@ -140,10 +43,10 @@ int main() {
            << cpu.pc_ << endl;
       break;
     }
-    auto str1 = dump_instruction(cpu, iter->second);
+    auto str1 = iter->second.to_string();
     cpu.pc_++;
     iter->second.operation(cpu, memory, clk);
-    auto str2 = dump(cpu, clk);
-    cout << str1 << str2;
+    auto str2 = cpu.to_string();
+    cout << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_ << str1 << str2;
   }
 }

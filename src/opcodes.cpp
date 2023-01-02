@@ -7,7 +7,9 @@
 #include "memory.h"
 
 #include <map>
-#include <vector>
+#include <sstream>
+#include <iomanip>
+
 
 #undef DEBUG_ADC
 #undef DEBUG_SBC
@@ -2154,3 +2156,44 @@ const std::map<uint8_t, OpCode> codes = {
 
 
 
+std::string OpCode::to_string() const {
+    using namespace std;
+
+    stringstream oss;
+
+    oss << "  " << name;
+    oss << setfill(' ') << setw(7);
+    switch (addressing_mode) {
+      case OpCode::Accumulator: oss << "Acc";
+        break;
+      case OpCode::Absolute: oss << "Abs";
+        break;
+      case OpCode::AbsoluteIndexedX: oss << "Abs,X";
+        break;
+      case OpCode::AbsoluteIndexedY: oss << "Abs,Y";
+        break;
+      case OpCode::Immediate: oss << "Imm";
+        break;
+      case OpCode::Implied: oss << "";
+        break;
+      case OpCode::Indirect: oss << "Ind";
+        break;
+      case OpCode::IndirectIndexedX: oss << "Ind,X";
+        break;
+      case OpCode::IndirectIndexedY: oss << "Ind,Y";
+        break;
+      case OpCode::Relative: oss << "Rel";
+        break;
+      case OpCode::ZeroPage: oss << "Zpg";
+        break;
+      case OpCode::ZeroPageIndexedX: oss << "Zpg,X";
+        break;
+      case OpCode::ZeroPageIndexedY: oss << "Zpg,Y";
+        break;
+      default: oss << "ERR";
+        break;
+    }
+    oss << "    | ";
+    return oss.str();
+
+}
