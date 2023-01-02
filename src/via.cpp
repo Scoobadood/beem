@@ -28,7 +28,12 @@ SystemVia::SystemVia(Keyboard * keyboard, SoundChip * sound_chip) {
   ca2_ = 0;
   cb1_ = 0;
   cb2_ = 0;
-  ier_ = 0;
+  /*
+   * On power on: 6522 System VIA IER bits 0 to 6 will all be clear
+   * (NB bit 7 is always returned as 1)
+   */
+  ier_ = 0x00;
+
   ifr_ = 0;
 
   keyboard_ = keyboard;
