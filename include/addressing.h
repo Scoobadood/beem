@@ -6,10 +6,13 @@
 #define CPU_ADDRESSING_H_
 
 #include "cpu.h"
+#include "memory.h"
+
 #include <vector>
 
+
 using AddressingFunction = std::function<uint32_t(Cpu &cpu,
-                                                  std::vector<uint8_t> &memory,
+                                                  Memory &memory,
                                                   uint32_t &read_addr,
                                                   bool &page_wrap)>;
 extern AddressingFunction Immediate;

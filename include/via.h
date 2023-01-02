@@ -24,7 +24,7 @@
 #ifndef M6502_SRC_VIA_H_
 #define M6502_SRC_VIA_H_
 
-
+#include "spdlog/spdlog-inl.h"
 /*
  * ; ***************************************************************************************
   ;
@@ -325,8 +325,161 @@
   ; See .systemVIADataDirectionRegisterA.
   .systemVIARegisterANoHandshake              = $FE4F     ; System VIA Register A without handshaking
  */
-class SystemVia {
 
+#include <vector>
+
+class SystemVia {
+ public:
+  SystemVia();
+  void set_ddra(uint8_t value);
+  void set_ddrb(uint8_t value);
+  void set_ora(uint8_t value);
+  void set_orb(uint8_t value);
+  uint8_t get_ira();
+  uint8_t get_irb();
+
+  bool is_sound_chip_enabled() const {
+    return sound_chip_enabled_;
+  }
+
+  bool is_read_speech_enabled() const {
+    return read_speech_enabled_;
+  }
+
+  bool is_write_speech_enabled() const {
+    return write_speech_enabled_;
+  }
+
+  bool is_keyb_autoscan_enabled() const {
+    return keyb_autoscan_enabled_;
+  }
+
+  bool caps_lock_led() const {
+    return caps_lock_led_;
+  }
+
+  bool shift_lock_led() const {
+    return shift_lock_led_;
+  }
+
+  /*
+  The values of C0 and C1 together determine the start scroll address for the screen:
+
+         C0   C1      Screen       Used in
+                      Address   Regular MODEs
+         ------------------------------------
+          0    0      $4000           3
+          0    1      $5800          4,5
+          1    0      $6000           6
+          1    1      $3000         0,1,2
+   */
+  uint16_t start_scroll_address() const {
+    switch (c0_ * 2 + c1_) {
+      case 0: return 0x4000;
+      case 1: return 0x5800;
+      case 2: return 0x6000;
+      case 3: return 0x3000;
+      default:spdlog::error("Invalid C0 ({}), C1 ({}) combination in SystemVIA", c0_, c1_);
+      return 0x4000;
+    }
+  }
+
+ private:
+  /*
+   * Value   Effect
+   * -------------------------
+   * 0       Enable sound chip
+   * 1       Enable Read Speech
+   * 2       Enable Write Speech
+   * 3       Disable Keyboard auto scanning
+   * 4       Hardware scrolling - set C0=0 (See below)
+   * 5       Hardware scrolling - set C1=0 (See below)
+   * 6       Turn on CAPS LOCK LED
+   * 7       Turn on SHIFT LOCK LED
+   * 8       Disable sound chip
+   * 9       Disable Read Speech
+   * 10      Disable Write Speech
+   * 11      Enable Keyboard auto scanning
+   * 12      Hardware scrolling - set C0=1 (See below)
+   * 13      Hardware scrolling - set C1=1 (See below)
+   * 14      Turn off CAPS LOCK LED
+   * 15      Turn off SHIFT LOCK LED
+   */
+  void write_port_b();
+
+  /*
+   * The keyboard, sound and speech systems use Data Direction Register A.
+   * Each bit of DDRA indicates whether data can be written or read on that bit when data is accessed via
+   * .systemVIARegisterANoHandshake. This is similar to DDRB. Unlike DDRB, the OS modifies
+   * DDRA frequently to set the appropriate bits for accessing the device (often in the IRQ
+   * interrupt code).
+   *
+   * Once set, data is read or written to .systemVIARegisterANoHandshake as needed. See .systemVIARegisterANoHandshake.
+   * Sound:    When outputting sound, DDRA is set to %11111111 meaning all bits of data
+   *           that are subsequently written to .systemVIARegisterANoHandshake are output bits.
+   *           (See .sendToSoundChipFlagsAreadyPushed)
+   * Speech:   For speech, DDRA is set to %00000000 (for reading) or %11111111 (for writing) as
+   *           needed. (See .readWriteSpeechProcessorPushedFlags)
+   * Keyboard: When reading the keyboard, DDRA is set to (%011111111). The key to read is written
+   *           into bits 0-6 of .systemVIARegisterANoHandshake, and the 'pressed' state of that
+   *           key is then read from bit 7.
+   *           (See .interrogateKeyboard)
+   *           (See .scanKeyboard)
+   */
+  void write_port_a();
+
+
+  /*
+   * Port A of the system VIA acts as a slow data bus which connects to the keyboard,
+   * the sound generator (IC18) and speech system chips (IC98, IC99)
+   */
+  uint8_t read_port_a();
+
+  /**
+   * When reading from this address the top four bits are read:
+   * bit 7:    Speech processor 'ready' signal
+   * bit 6:    Speech processor 'interrupt' signal
+   * bit 4-5:  joystick buttons (bit is zero when button pressed)
+   * @return
+   */
+  uint8_t read_port_b();
+
+  /*
+   * There are two data direction registers DDRA and DDRB which specify whether the peripheral pins are to
+   * operate as inputs or outputs. Placing a ‘0’ in a bit of a DDR will cause the corresponding bit of that
+   * port to be defined as an input. A ‘1’ will cause it to be defined as an output.
+   */
+  uint8_t ddra_;
+  uint8_t ddrb_;
+  uint8_t orb_;
+  uint8_t ora_;
+  bool input_latching_;
+  uint8_t ira_;
+  uint8_t irb_;
+  bool sound_chip_enabled_;
+  bool read_speech_enabled_;
+  bool write_speech_enabled_;
+  bool keyb_autoscan_enabled_;
+  bool caps_lock_led_;
+  bool shift_lock_led_;
+  uint8_t c0_;
+  uint8_t c1_;
+
+  /*
+   * These two lines can act either as interrupt inputs or as handshake outputs.
+   * Each line controls an internal interrupt flag with a corresponding interrupt enable bit.
+   * In addition, CA1 controls the latching of data on port A input lines.
+   */
+  uint8_t ca1_;
+  uint8_t ca2_;
+
+  /*
+   * The port B control lines act as interrupt inputs or as handshake outputs just like port A.
+   * They can also be programmed to act as a serial port under the control of the shift register.
+   * These lines cannot source 1mA either.
+   */
+  uint8_t cb1_;
+  uint8_t cb2_;
 };
 
 #endif //M6502_SRC_VIA_H_

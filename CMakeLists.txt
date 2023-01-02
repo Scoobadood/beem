@@ -16,23 +16,40 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
 
 set(CMAKE_CXX_STANDARD 11)
 
+# Spdlog
+include(FetchContent)
+FetchContent_Declare(
+        spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG        v1.x
+)
+FetchContent_MakeAvailable(spdlog)
+include_directories(${spdlog_SOURCE_DIR}/include)
+
 add_executable(cpu
         src/main.cpp
         include/cpu.h src/cpu.cpp
         include/addressing.h src/addressing.cpp
-        include/opcodes.h src/opcodes.cpp)
+        include/opcodes.h src/opcodes.cpp
+        include/memory.h src/memory.cpp
+        include/via.h src/via.cpp
+        )
+
+target_include_directories(cpu
+        PRIVATE
+        include
+        )
+
 
 add_executable(beeb
         src/beeb.cpp
         include/cpu.h src/cpu.cpp
         include/addressing.h src/addressing.cpp
         include/opcodes.h src/opcodes.cpp
-        src/display.h)
+        include/memory.h src/memory.cpp
+        include/display.h src/display.cpp
+        include/via.h src/via.cpp)
 
-
-target_include_directories(cpu
-        PRIVATE
-        include)
 
 target_include_directories(beeb
         PRIVATE

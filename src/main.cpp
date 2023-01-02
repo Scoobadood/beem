@@ -113,7 +113,7 @@ int main() {
     return 0;
   }
 
-  auto memory = vector<uint8_t>((istreambuf_iterator<char>(f)), istreambuf_iterator<char>());
+  auto memory = Memory(f);
   f.close();
 
   uint32_t buffsize = 20;

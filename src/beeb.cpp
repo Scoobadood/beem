@@ -115,8 +115,8 @@ int main() {
 
   auto rom = vector<uint8_t>((istreambuf_iterator<char>(f)), istreambuf_iterator<char>());
   f.close();
-  auto memory = vector<uint8_t>(65535, 0);
-  memory.insert(memory.begin() + 0xc000, rom.begin(), rom.end());
+  auto memory = Memory(65535);
+  memory.insert(0xc000, rom);
 
   uint32_t buffsize = 20;
   std::vector<std::string> history;
@@ -126,7 +126,7 @@ int main() {
   // Set PC
   Cpu cpu;
   cpu.stack_pointer_ = 0xff;
-  cpu.pc_ = memory[0xfffc] + memory[0xfffd] * 256;
+  cpu.pc_ = memory.at(0xfffc) + memory.at(0xfffd) * 256;
   uint64_t clk = 0;
 
   // Execute code.
