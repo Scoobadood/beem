@@ -42,13 +42,16 @@ target_include_directories(test-6502
 
 
 add_executable(beeb
-        src/beeb.cpp
+        src/main.cpp
         include/cpu.h src/cpu.cpp
         include/addressing.h src/addressing.cpp
         include/opcodes.h src/opcodes.cpp
         include/memory.h src/memory.cpp
         include/display.h src/display.cpp
-        include/via.h src/via.cpp)
+        include/via.h src/via.cpp
+        include/beeb.h src/beeb.cpp
+        include/keyboard.h src/keyboard.cpp
+        )
 
 
 target_include_directories(beeb

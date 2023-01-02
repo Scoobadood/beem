@@ -13,7 +13,7 @@
 
 class Memory {
  public:
-  explicit Memory(uint16_t sz);
+  explicit Memory(uint32_t sz);
 
   explicit Memory(std::ifstream &f);
 
@@ -21,12 +21,15 @@ class Memory {
 
   void set(uint16_t addr, uint8_t arg);
 
+  void set_system_via(SystemVia * system_via);
+
   void insert(uint16_t offset, std::vector<uint8_t> &data);
 
  private:
-  void handle_rom_writes(uint16_t addr, uint8_t arg);
+  uint8_t handle_mmio_reads(uint16_t addr) const;
+  void handle_mmio_writes(uint16_t addr, uint8_t arg);
 
-  SystemVia system_via_;
+  SystemVia * system_via_;
   std::vector<uint8_t> memory_;
   uint32_t size_;
 };

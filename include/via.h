@@ -25,106 +25,8 @@
 #define M6502_SRC_VIA_H_
 
 #include "spdlog/spdlog-inl.h"
+#include "keyboard.h"
 /*
- * ; ***************************************************************************************
-  ;
-  ; System VIA, Register B ($FE40)
-  ;
-  ; Notes:
-  ;     The bottom four bits are used for writing, and the top four bits are used for reading.
-  ;     (See .systemVIADataDirectionRegisterB)
-  ;
-  ;     Values 0-15 can be written to System VIA Register B (Output):
-  ;
-  ;         Value   Effect
-  ;         -------------------------
-  ;         0       Enable sound chip
-  ;         1       Enable Read Speech
-  ;         2       Enable Write Speech
-  ;         3       Disable Keyboard auto scanning
-  ;         4       Hardware scrolling - set C0=0 (See below)
-  ;         5       Hardware scrolling - set C1=0 (See below)
-  ;         6       Turn on CAPS LOCK LED
-  ;         7       Turn on SHIFT LOCK LED
-  ;         8       Disable sound chip
-  ;         9       Disable Read Speech
-  ;         10      Disable Write Speech
-  ;         11      Enable Keyboard auto scanning
-  ;         12      Hardware scrolling - set C0=1 (See below)
-  ;         13      Hardware scrolling - set C1=1 (See below)
-  ;         14      Turn off CAPS LOCK LED
-  ;         15      Turn off SHIFT LOCK LED
-  ;
-  ;  The values of C0 and C1 together determine the start scroll address for the screen:
-  ;
-  ;         C0   C1      Screen       Used in
-  ;                      Address   Regular MODEs
-  ;         ------------------------------------
-  ;          0    0      $4000           3
-  ;          0    1      $5800          4,5
-  ;          1    0      $6000           6
-  ;          1    1      $3000         0,1,2
-  ;
-  ; When reading from this address the top four bits are read:
-  ;
-  ; bit 7:    Speech processor 'ready' signal
-  ; bit 6:    Speech processor 'interrupt' signal
-  ; bit 4-5:  joystick buttons (bit is zero when button pressed)
-  ;
-  ; ***************************************************************************************
-  .systemVIARegisterB                         = $FE40     ; System VIA Register B (Input and Output)
-
-  ; ***************************************************************************************
-  ;
-  ; System VIA, Register A ($FE41)
-  ;
-  ; This register is not used. The non-handshaking variant is used instead.
-  ; See .systemVIADataDirectionRegisterA for details.
-  ; ***************************************************************************************
-  .systemVIARegisterA                         = $FE41     ; System VIA Register A (Input and Output)
-
-  ; ***************************************************************************************
-  ;
-  ; System VIA, Data Direction Register B ($FE42) (aka 'DDRB')
-  ;
-  ; When writing data into Register B (.systemVIARegisterB), the bits that are set on DDRB
-  ; indicate which bits are actually written into Register B. The bits that are clear on DDRB
-  ; are used to read from Register B.
-  ;
-  ; DDRB is only written once on startup where it is initialised to %00001111
-  ; (see .setUpSystemVIA) and the OS expects it to remain that way. Only the bottom four bits
-  ; of .systemVIARegisterB are used when writing, and only the upper four bits are read from
-  ; .systemVIARegisterB. See .systemVIARegisterB.
-  ;
-  ; ***************************************************************************************
-  .systemVIADataDirectionRegisterB            = $FE42     ; System VIA data direction register B (DDRB)
-
-  ; ***************************************************************************************
-  ;
-  ; System VIA, Data Direction Register A ($FE43) (aka 'DDRA')
-  ;
-  ; The keyboard, sound and speech systems use Data Direction Register A. Each bit of DDRA
-  ; indicates whether data can be written or read on that bit when data is accessed via
-  ; .systemVIARegisterANoHandshake. This is similar to DDRB. Unlike DDRB, the OS modifies
-  ; DDRA frequently to set the appropriate bits for accessing the device (often in the IRQ
-  ; interrupt code). Once set, data is read or written to .systemVIARegisterANoHandshake as
-  ; needed. See .systemVIARegisterANoHandshake.
-  ;
-  ; Sound:    When outputting sound, DDRA is set to %11111111 meaning all bits of data
-  ;           that are subsequently written to .systemVIARegisterANoHandshake are output bits.
-  ;           (See .sendToSoundChipFlagsAreadyPushed)
-  ;
-  ; Speech:   For speech, DDRA is set to %00000000 (for reading) or %11111111 (for writing) as
-  ;           needed. (See .readWriteSpeechProcessorPushedFlags)
-  ;
-  ; Keyboard: When reading the keyboard, DDRA is set to (%011111111). The key to read is written
-  ;           into bits 0-6 of .systemVIARegisterANoHandshake, and the 'pressed' state of that
-  ;           key is then read from bit 7.
-  ;           (See .interrogateKeyboard)
-  ;           (See .scanKeyboard)
-  ;
-  ; ***************************************************************************************
-  .systemVIADataDirectionRegisterA            = $FE43     ; System VIA data direction register A (DDRA)
 
   ; ***************************************************************************************
   ;
@@ -267,31 +169,7 @@
   ; ***************************************************************************************
   .systemVIAPeripheralControlRegister         = $FE4C     ;
 
-  ; ***************************************************************************************
-  ;
-  ; System VIA, Interrupt Flag Register ($FE4D) (aka 'IFR')
-  ;
-  ;   bit 0 = key pressed
-  ;   bit 1 = vertical sync occurred
-  ;   bit 2 = shift register timeout (unused)
-  ;   bit 3 = lightpen strobe off screen
-  ;   bit 4 = analogue conversion completed
-  ;   bit 5 = timer 2 has timed out (used for speech)
-  ;   bit 6 = timer 1 has timed out (100Hz signal)
-  ;   bit 7 = (when reading) master interrupt flag (0-6 invalid if clear)
-  ;
-  ; Used in interrupt code:
-  ;
-  ; Reading
-  ; -------
-  ; If bit 7 is set then the System VIA caused the current interrupt. The remaining bits can
-  ; then be checked to see the exact cause.
-  ;
-  ; Writing
-  ; -------
-  ; Clear bit 7 and set a bit 0-6 to clear that interrupt.
-  ;
-  ; ***************************************************************************************
+
   .systemVIAInterruptFlagRegister             = $FE4D     ;
 
   ; ***************************************************************************************
@@ -330,13 +208,40 @@
 
 class SystemVia {
  public:
-  SystemVia();
+  SystemVia(Keyboard * keyboard);
+
   void set_ddra(uint8_t value);
+  /*
+   * System VIA, Data Direction Register A ($FE43) (aka 'DDRA')
+   *
+   * The keyboard, sound and speech systems use Data Direction Register A. Each bit of DDRA
+   * indicates whether data can be written or read on that bit when data is accessed via
+   * .systemVIARegisterANoHandshake.
+   *
+   * This is similar to DDRB. Unlike DDRB, the OS modifies DDRA frequently to set the appropriate bits for accessing
+   * the device (often in the IRQ interrupt code). Once set, data is read or written to .systemVIARegisterANoHandshake
+   * as needed.
+   *
+   * Sound:    When outputting sound, DDRA is set to %11111111 meaning all bits of data
+   *           that are subsequently written to .systemVIARegisterANoHandshake are output bits.
+   *           (See .sendToSoundChipFlagsAreadyPushed)
+   *
+   * Speech:   For speech, DDRA is set to %00000000 (for reading) or %11111111 (for writing) as
+   *           needed. (See .readWriteSpeechProcessorPushedFlags)
+   *
+   * Keyboard: When reading the keyboard, DDRA is set to (%011111111). The key to read is written
+   *           into bits 0-6 of .systemVIARegisterANoHandshake, and the 'pressed' state of that
+   *           key is then read from bit 7.
+   *           (See .interrogateKeyboard)
+   *           (See .scanKeyboard)
+   */
+  uint8_t ddra() const;
   void set_ddrb(uint8_t value);
+  uint8_t ddrb() const;
   void set_ora(uint8_t value);
   void set_orb(uint8_t value);
-  uint8_t get_ira();
-  uint8_t get_irb();
+  uint8_t ira() const;
+  uint8_t irb() const;
 
   bool is_sound_chip_enabled() const {
     return sound_chip_enabled_;
@@ -383,6 +288,59 @@ class SystemVia {
       return 0x4000;
     }
   }
+
+  /*
+   * The 6502 can set or clear selected bits in the interrupt enable register without affecting the other bits.
+   * This is accomplished by writing to the IER.
+   * If bit 7 of the byte written is a 0 then each 1 in bits 0–6 will
+   * clear the corresponding bit in the IER. For each zero in bits 0–6, the corresponding bit will not be affected.
+   * Selected bits can be SET in a similar manner. In this case, bit 7 of the written byte should be set to 1.
+   * Each 1 in bits 0–6 will then SET the selected bit. A zero will cause the corresponding bit to remain unaffected.
+   * The contents of the IER can be read by the 6502. Bit 7 is then always read as a logic 1.
+   *
+   * bit 0 = key pressed
+   * bit 1 = vertical sync occurred
+   * bit 2 = shift register timeout (unused)
+   * bit 3 = light pen strobe off screen
+   * bit 4 = analogue conversion completed
+   * bit 5 = timer 2 timed out (used for speech)
+   * bit 6 = timer 1 timed out (100Hz signal)
+   * bit 7 = enable/disable interrupt value (see below)
+   *
+   * Writing:
+   * --------
+   * To enable  an interrupt, write a byte with bit 7 set   and set the desired bit(s) (0-6).
+   * To disable an interrupt, write a byte with bit 7 clear and set the desired bit(s) (0-6).
+   *
+   * Reading:
+   * --------
+   * Bits 0-6 are read as expected.
+   * Bit 7 is always set when read.
+   */
+  uint8_t ier() const;
+  void set_ier(uint8_t value);
+
+
+  /*
+   * System VIA, Interrupt Flag Register ($FE4D) (aka 'IFR')
+   * bit 0 = key pressed
+   * bit 1 = vertical sync occurred
+   * bit 2 = shift register timeout (unused)
+   * bit 3 = lightpen strobe off screen
+   * bit 4 = analogue conversion completed
+   * bit 5 = timer 2 has timed out (used for speech)
+   * bit 6 = timer 1 has timed out (100Hz signal)
+   * bit 7 = (when reading) master interrupt flag (0-6 invalid if clear)
+   * Used in interrupt code:
+   * Reading
+   * -------
+   * If bit 7 is set then the System VIA caused the current interrupt. The remaining bits can
+   * then be checked to see the exact cause.
+   * Writing
+   * -------
+   * Clear bit 7 and set a bit 0-6 to clear that interrupt.
+   */
+  uint8_t ifr() const {return ifr_;}
 
  private:
   /*
@@ -433,7 +391,7 @@ class SystemVia {
    * Port A of the system VIA acts as a slow data bus which connects to the keyboard,
    * the sound generator (IC18) and speech system chips (IC98, IC99)
    */
-  uint8_t read_port_a();
+  uint8_t read_port_a() const;
 
   /**
    * When reading from this address the top four bits are read:
@@ -450,6 +408,18 @@ class SystemVia {
    * port to be defined as an input. A ‘1’ will cause it to be defined as an output.
    */
   uint8_t ddra_;
+  /*
+   * System VIA, Data Direction Register B ($FE42) (aka 'DDRB')
+   *
+   * When writing data into Register B (.systemVIARegisterB), the bits that are set on DDRB
+   * indicate which bits are actually written into Register B. The bits that are clear on DDRB
+   * are used to read from Register B.
+   *
+   * DDRB is only written once on startup where it is initialised to %00001111
+   * (see .setUpSystemVIA) and the OS expects it to remain that way. Only the bottom four bits
+   * of .systemVIARegisterB are used when writing, and only the upper four bits are read from
+   * .systemVIARegisterB. See .systemVIARegisterB.
+   */
   uint8_t ddrb_;
   uint8_t orb_;
   uint8_t ora_;
@@ -464,6 +434,10 @@ class SystemVia {
   bool shift_lock_led_;
   uint8_t c0_;
   uint8_t c1_;
+
+  uint8_t ier_;
+
+  uint8_t ifr_;
 
   /*
    * These two lines can act either as interrupt inputs or as handshake outputs.
@@ -480,6 +454,8 @@ class SystemVia {
    */
   uint8_t cb1_;
   uint8_t cb2_;
+
+  Keyboard * keyboard_;
 };
 
 #endif //M6502_SRC_VIA_H_

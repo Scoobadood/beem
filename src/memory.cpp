@@ -45,24 +45,25 @@ const uint16_t CRTC_register_data = SHEILA + 0x01;
 //FE4E Interrupt enable register          Interrupt enable register
 //FE4F Output register A, no handshake    Input register A, no handshake
 
-const uint16_t SystemVIA_ORB                 = SHEILA + 0x40;
-const uint16_t SystemVIA_IRB                 = SHEILA + 0x40;
-const uint16_t SystemVIA_ORA                 = SHEILA + 0x41;
-const uint16_t SystemVIA_IRA                 = SHEILA + 0x41;
-const uint16_t SystemVIA_DDRB                = SHEILA + 0x42;
-const uint16_t SystemVIA_DDRA                = SHEILA + 0x43;
-const uint16_t SystemVIA_t1_low_order_cnt    = SHEILA + 0x44;
-const uint16_t SystemVIA_t1_high_order_cnt   = SHEILA + 0x45;
-const uint16_t SystemVIA_t1_low_order_latch  = SHEILA + 0x46;
+const uint16_t SystemVIA_ORB = SHEILA + 0x40;
+const uint16_t SystemVIA_IRB = SHEILA + 0x40;
+const uint16_t SystemVIA_ORA = SHEILA + 0x41;
+const uint16_t SystemVIA_IRA = SHEILA + 0x41;
+const uint16_t SystemVIA_DDRB = SHEILA + 0x42;
+const uint16_t SystemVIA_DDRA = SHEILA + 0x43;
+const uint16_t SystemVIA_t1_low_order_cnt = SHEILA + 0x44;
+const uint16_t SystemVIA_t1_high_order_cnt = SHEILA + 0x45;
+const uint16_t SystemVIA_t1_low_order_latch = SHEILA + 0x46;
 const uint16_t SystemVIA_t1_high_order_latch = SHEILA + 0x47;
-const uint16_t SystemVIA_t2_low_order_latch  = SHEILA + 0x48;
-const uint16_t SystemVIA_t2_high_order_cnt   = SHEILA + 0x49;
-const uint16_t SystemVIA_shift_reg           = SHEILA + 0x4A;
-const uint16_t SystemVIA_aux_control_reg     = SHEILA + 0x4B;
-const uint16_t SystemVIA_peripheral_ctl_reg  = SHEILA + 0x4C;
-const uint16_t SystemVIA_int_flag_reg        = SHEILA + 0x4D;
-const uint16_t SystemVIA_int_enable_reg      = SHEILA + 0x4E;
-const uint16_t SystemVIA_ORA_NoHshk          = SHEILA + 0x4F;
+const uint16_t SystemVIA_t2_low_order_latch = SHEILA + 0x48;
+const uint16_t SystemVIA_t2_high_order_cnt = SHEILA + 0x49;
+const uint16_t SystemVIA_shift_reg = SHEILA + 0x4A;
+const uint16_t SystemVIA_aux_control_reg = SHEILA + 0x4B;
+const uint16_t SystemVIA_peripheral_ctl_reg = SHEILA + 0x4C;
+const uint16_t SystemVIA_int_flag_reg = SHEILA + 0x4D;
+const uint16_t SystemVIA_int_enable_reg = SHEILA + 0x4E;
+const uint16_t SystemVIA_ORA_NoHshk = SHEILA + 0x4F;
+const uint16_t SystemVIA_IRA_NoHshk = SHEILA + 0x4F;
 
 
 
@@ -74,55 +75,85 @@ const uint16_t SystemVIA_ORA_NoHshk          = SHEILA + 0x4F;
 
 
 
-Memory::Memory(uint16_t sz) {
+Memory::Memory(uint32_t sz) {
   size_ = sz;
   memory_.resize(sz, 0);
+  system_via_ = nullptr;
 }
 
 Memory::Memory(std::ifstream &f) {
   using namespace std;
   memory_ = vector<uint8_t>((istreambuf_iterator<char>(f)), istreambuf_iterator<char>());
   size_ = memory_.size();
+  system_via_ = nullptr;
+}
+
+void Memory::set_system_via(SystemVia *system_via) {
+  system_via_ = system_via;
 }
 
 uint8_t Memory::at(uint16_t addr) const {
   assert (addr < size_);
+
+  if (addr >= 0xfc00 && addr <= 0xfeff)
+    return handle_mmio_reads(addr);
+
   return memory_.at(addr);
 }
 
 void Memory::set(uint16_t addr, uint8_t arg) {
-  if (addr >= 0xc000)
-    handle_rom_writes(addr, arg);
+  assert (addr < size_);
+  if (addr >= 0xfc00 && addr <= 0xfeff)
+    handle_mmio_writes(addr, arg);
   else
     memory_.at(addr) = arg;
 }
 
-void Memory::handle_rom_writes(uint16_t addr, uint8_t arg) {
-  switch( addr) {
-    case CRTC_register_addr:
-      spdlog::info("Select CRTC register 0x{:0X}", arg);
+uint8_t Memory::handle_mmio_reads(uint16_t addr) const {
+  if (system_via_ == nullptr) {
+    spdlog::warn("No SystemVIA!");
+  }
+
+  switch (addr) {
+    case SystemVIA_int_enable_reg: {
+      auto ier = system_via_->ier();
+      return ier;
+    }
+
+    case SystemVIA_DDRA:return system_via_->ddra();
+
+    case SystemVIA_DDRB:return system_via_->ddrb();
+
+    case SystemVIA_IRB:return system_via_->irb();
+
+    case SystemVIA_IRA_NoHshk:return system_via_->ira();
+
+    default:spdlog::info("Read from ROM address 0x{:04x} not implemented", addr);
+      return 0x00;
+  }
+}
+
+void Memory::handle_mmio_writes(uint16_t addr, uint8_t arg) {
+  if (system_via_ == nullptr) {
+    spdlog::warn("No SystemVIA!");
+  }
+
+  switch (addr) {
+    case CRTC_register_addr:spdlog::info("Select CRTC register 0x{:0X}", arg);
       break;
-    case CRTC_register_data:
-      spdlog::info("Write CRTC data 0x{:0X}", arg);
+    case CRTC_register_data:spdlog::info("Write CRTC data 0x{:0X}", arg);
       break;
-    case SystemVIA_DDRB:
-      system_via_.set_ddrb(arg);
+    case SystemVIA_DDRB:system_via_->set_ddrb(arg);
       break;
-    case SystemVIA_DDRA:
-      system_via_.set_ddra(arg);
+    case SystemVIA_DDRA:system_via_->set_ddra(arg);
       break;
-    case SystemVIA_ORB:
-      system_via_.set_orb(arg);
+    case SystemVIA_ORB:system_via_->set_orb(arg);
       break;
     case SystemVIA_ORA:
-      system_via_.set_ora(arg);
-      break;
-    case SystemVIA_ORA_NoHshk:
-      spdlog::warn("Not impl: Write 0x{:0X} to port A (no handshake)", arg);
+    case SystemVIA_ORA_NoHshk:system_via_->set_ora(arg);
       break;
 
-    default:
-      spdlog::info("write {:0X} to 0x{:0X}", arg, addr);
+    default:spdlog::info("write {:0X} to 0x{:0X}", arg, addr);
       break;
   }
 }

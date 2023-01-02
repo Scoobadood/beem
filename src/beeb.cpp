@@ -1,52 +1,40 @@
-#include <iostream>
+//
+// Created by Dave Durbin on 2/1/2023.
+//
 
-#include <vector>
-#include <fstream>
+#include "beeb.h"
 
-#include "cpu.h"
-#include "opcodes.h"
+#include  <fstream>
+#include  <iostream>
+#include <spdlog/spdlog-inl.h>
 
-int main() {
+Beeb::Beeb() {
   using namespace std;
 
   // Load bin file
   ifstream f("data/os120", ios::binary);
   if (!f.is_open()) {
-    cerr << "File read failed" << endl;
-    return 0;
+    auto msg = fmt::format("Couldn't load data/os120");
+    spdlog::error(msg);
+    throw runtime_error(msg);
   }
 
   auto rom = vector<uint8_t>((istreambuf_iterator<char>(f)), istreambuf_iterator<char>());
   f.close();
-  auto memory = Memory(65535);
-  memory.insert(0xc000, rom);
+  memory_ = new Memory(65536);
+  memory_->insert(0xc000, rom);
 
-  uint32_t buffsize = 20;
-  std::vector<std::string> history;
-  history.resize(buffsize, "");
-  uint32_t next = 0;
+  keyboard_ = new Keyboard();
+  auto system_via = new SystemVia(keyboard_);
+  memory_->set_system_via(system_via);
 
-  // Set PC
-  Cpu cpu;
-  cpu.stack_pointer_ = 0xff;
-  cpu.pc_ = memory.at(0xfffc) + memory.at(0xfffd) * 256;
-  uint64_t clk = 0;
+  cpu_ = new Cpu(true);
+  cpu_->stack_pointer_ = 0xff;
+  cpu_->pc_ = memory_->at(0xfffc) + memory_->at(0xfffd) * 256;
+  clock_ = 0;
+}
 
-  // Execute code.
-  while (true) {
-    auto start_pc = cpu.pc_;
-
-    auto ins = memory.at(cpu.pc_);
-    auto iter = codes.find(ins);
-    if (iter == codes.end()) {
-      cout << "Unrecognised opcode 0x" << hex << setfill('0') << setw(2) << (uint32_t) ins << " at PC: 0x" << setw(4)
-           << cpu.pc_ << endl;
-      break;
-    }
-    auto str1 = iter->second.to_string();
-    cpu.pc_++;
-    iter->second.operation(cpu, memory, clk);
-    auto str2 = cpu.to_string();
-    cout << "PC: " << hex << setfill('0') << setw(4) << cpu.pc_ << str1 << str2;
-  }
+void Beeb::tick() {
+  cpu_->tick(memory_, clock_);
+  clock_++;
 }

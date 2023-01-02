@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <bitset>
+#include "memory.h"
 
 const uint8_t SR_NEG = 7;
 const uint8_t SR_OVF = 6;
@@ -16,6 +17,8 @@ const uint8_t SR_ZER = 1;
 const uint8_t SR_CRY = 0;
 
 struct Cpu {
+  Cpu(bool should_log = false);
+
   [[nodiscard]] inline bool minus() const {
     return status_.test(SR_NEG);
   }
@@ -82,6 +85,8 @@ struct Cpu {
 
   std::string to_string() const;
 
+  void tick(Memory *memory, uint64_t clock_);
+
   uint32_t pc_;
   std::bitset<8> status_;
   uint16_t stack_pointer_;
@@ -89,5 +94,9 @@ struct Cpu {
   uint16_t x_reg_;
   uint16_t y_reg_;
   std::vector<uint8_t> stack_;
+
+  uint64_t next_clock_;
+  bool should_log_;
+
 };
 #endif //CPU_CPU_H_

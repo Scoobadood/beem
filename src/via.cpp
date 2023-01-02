@@ -3,17 +3,19 @@
 //
 
 #include "via.h"
+#include "keyboard.h"
 #include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
-SystemVia::SystemVia() {
+SystemVia::SystemVia(Keyboard * keyboard) {
   input_latching_ = false;
   ddra_ = 0x00;
   ddrb_ = 0x00;
   orb_ = 0x00;
   ora_ = 0x00;
   ira_ = 0x00;
-  irb_ = 0x00;
+  // no joystick buttons depressed
+  irb_ = 0x30;
   sound_chip_enabled_ = false;
   read_speech_enabled_ = false;
   write_speech_enabled_ = false;
@@ -26,10 +28,13 @@ SystemVia::SystemVia() {
   ca2_ = 0;
   cb1_ = 0;
   cb2_ = 0;
+  ier_ = 0;
+  ifr_ = 0;
+
+  keyboard_ = keyboard;
 
   try {
     auto logger = spdlog::basic_logger_mt("SystemVIA", "logs/system-via.txt", true);
-    logger->set_pattern("[SystemVIA] [%^%l%$] %v");
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
@@ -37,41 +42,60 @@ SystemVia::SystemVia() {
 }
 
 void SystemVia::set_ddra(uint8_t value) {
-  spdlog::get("SystemVIA")->info("Set DDRA 0x{:0X}", value);
+  spdlog::get("SystemVIA")->info("Set DDRA 0x{:02x}", value);
   ddra_ = value;
 }
 
+uint8_t SystemVia::ddra() const {
+  spdlog::get("SystemVIA")->info("Get DDRA (0x{:02x})", ddra_);
+  return ddra_;
+}
+
 void SystemVia::set_ddrb(uint8_t value) {
-  spdlog::get("SystemVIA")->info("Set DDRB 0x{:0X}", value);
+  spdlog::get("SystemVIA")->info("Set DDRB 0x{:02x}", value);
   ddrb_ = value;
 }
 
+uint8_t SystemVia::ddrb() const {
+  spdlog::get("SystemVIA")->info("Get DDRB (0x{:02x})", ddrb_);
+  return ddrb_;
+}
+
 void SystemVia::set_orb(uint8_t value) {
-  spdlog::get("SystemVIA")->info("Set ORB 0x{:0X}", value);
   orb_ = value;
   write_port_b();
 }
 
 void SystemVia::set_ora(uint8_t value) {
-  spdlog::get("SystemVIA")->info("Set ORA 0x{:0X}", value);
-  ora_ = value;
+  spdlog::get("SystemVIA")->info("Set ORA 0x{:02x} (ddra is {:02x})", value, ddra_);
+  ora_ = (ddra_ & value);
   write_port_a();
 }
 
-uint8_t SystemVia::get_irb() {
-  spdlog::get("SystemVIA")->info("Read IRB [0x{:0X}]", irb_);
+uint8_t SystemVia::irb() const {
+  spdlog::get("SystemVIA")->info("Read IRB (0x{:02X})", irb_);
   return irb_;
 }
 
-uint8_t SystemVia::get_ira() {
-  spdlog::get("SystemVIA")->info("Read IRA [0x{:0X}]", ira_);
-  if (!input_latching_) {
-    ira_ = read_port_a();
-  }
+uint8_t SystemVia::ira() const {
+  spdlog::get("SystemVIA")->info("Read IRA (0x{:02X})", ira_);
+  // TODO Input latching
   return ira_;
 }
 
 void SystemVia::write_port_a() {
+  if( ddra_ == 0x7f) {
+    // Keyboard probing
+    auto key_code = ora_ & 0x7f;
+    if( keyboard_->key_pressed(key_code) ) {
+      ira_ = 0x80;
+      spdlog::get("SystemVIA")->info("Probe key 0x{:02x} (not pushed)", key_code);
+    } else {
+      ira_ = 0x00;
+      spdlog::get("SystemVIA")->info("Probe key 0x{:02x} (pushed)", key_code);
+    }
+    return;
+  }
   spdlog::warn("Not Implemented: SystemVIA::write_port_a()");
 }
 
@@ -126,10 +150,21 @@ void SystemVia::write_port_b() {
     case 15:shift_lock_led_ = false;
       spdlog::get("SystemVIA")->info("Shift Lock LED off");
       break;
+    default:
+      spdlog::get("SystemVIA")->warn("Set ORB 0x{:0X}", out_value);
+      break;
   }
 }
 
-uint8_t SystemVia::read_port_a() {
+/*
+ * Various behaviors based on the state of DDRA
+ *
+ */
+uint8_t SystemVia::read_port_a() const {
+  if( ddra_ == 0x7f) {
+    // KBD handling
+
+  }
   return 0x00;
 }
 
@@ -145,3 +180,24 @@ uint8_t SystemVia::read_port_b() {
   return irb_;
 }
 
+/*
+ * The 6502 can set or clear selected bits in the interrupt enable register without affecting the other bits.
+ * This is accomplished by writing to the IER.
+ * If bit 7 of the byte written is a 0 then each 1 in bits 0–6 will
+ * clear the corresponding bit in the IER. For each zero in bits 0–6, the corresponding bit will not be affected.
+ * Selected bits can be SET in a similar manner. In this case, bit 7 of the written byte should be set to 1.
+ * Each 1 in bits 0–6 will then SET the selected bit. A zero will cause the corresponding bit to remain unaffected.
+ * The contents of the IER can be read by the 6502. Bit 7 is then always read as a logic 1.
+ */
+uint8_t SystemVia::ier() const {
+  spdlog::get("SystemVIA")->info("Get IER (0x{:02X})", (ier_ | 0x80));
+  return 0x80 | ier_;
+}
+
+void SystemVia::set_ier(uint8_t value) {
+  if (value & 0x80) {
+    ier_ = ier_ & (~value);
+  } else {
+    ier_ = ier_ | value;
+  }
+}

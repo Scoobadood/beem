@@ -284,6 +284,7 @@ void asl_zpg(Cpu &cpu, Memory & memory, uint64_t &clk) {
   auto arg = ZeroPage(cpu, memory, addr, page_wrap);
   arg = asl(cpu, arg);
   memory.set(addr, arg);
+  clk+=5;
 }
 
 void asl_zpg_x(Cpu &cpu, Memory & memory, uint64_t &clk) {
@@ -292,6 +293,7 @@ void asl_zpg_x(Cpu &cpu, Memory & memory, uint64_t &clk) {
   auto arg = ZeroPageIndexedX(cpu, memory, addr, page_wrap);
   arg = asl(cpu, arg);
   memory.set(addr, arg);
+  clk+=6;
 }
 
 void asl_abs(Cpu &cpu, Memory & memory, uint64_t &clk) {
@@ -300,6 +302,7 @@ void asl_abs(Cpu &cpu, Memory & memory, uint64_t &clk) {
   auto arg = Absolute(cpu, memory, addr, page_wrap);
   arg = asl(cpu, arg);
   memory.set(addr, arg);
+  clk+=6;
 }
 
 void asl_abs_x(Cpu &cpu, Memory & memory, uint64_t &clk) {
@@ -308,6 +311,7 @@ void asl_abs_x(Cpu &cpu, Memory & memory, uint64_t &clk) {
   auto arg = AbsoluteIndexedX(cpu, memory, addr, page_wrap);
   arg = asl(cpu, arg);
   memory.set(addr, arg);
+  clk+=7;
 }
 
 void do_branch(Cpu &cpu, Memory & memory, int8_t branch, uint64_t &clk) {
@@ -472,18 +476,22 @@ void bvs(Cpu &cpu, Memory & memory, uint64_t &clk) {
 }
 
 void clc(Cpu &cpu, Memory & memory, uint64_t &clk) {
+  clk+=2;
   cpu.clear_carry();
 }
 
 void cld(Cpu &cpu, Memory & memory, uint64_t &clk) {
+  clk+=2;
   cpu.clear_decimal();
 }
 
 void cli(Cpu &cpu, Memory & memory, uint64_t &clk) {
+  clk+=2;
   cpu.clear_interrupt();
 }
 
 void clv(Cpu &cpu, Memory & memory, uint64_t &clk) {
+  clk+=2;
   cpu.clear_overflow();
 }
 
