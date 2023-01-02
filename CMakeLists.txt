@@ -33,6 +33,9 @@ add_executable(test-6502
         include/opcodes.h src/opcodes.cpp
         include/memory.h src/memory.cpp
         include/via.h src/via.cpp
+        include/sound_76489.h src/sound_76489.cpp
+        include/keyboard.h src/keyboard.cpp
+
         )
 
 target_include_directories(test-6502
@@ -51,6 +54,7 @@ add_executable(beeb
         include/via.h src/via.cpp
         include/beeb.h src/beeb.cpp
         include/keyboard.h src/keyboard.cpp
+        include/sound_76489.h src/sound_76489.cpp
         )
 
 

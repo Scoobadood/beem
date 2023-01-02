@@ -147,7 +147,7 @@ const uint8_t KEY_CAPS_LOCK = 0x40;
 class Keyboard {
  public:
   Keyboard();
-  bool key_pressed(uint8_t key_code, bool shift = false, bool ctl = false);
+  bool key_pressed(uint8_t key_code, bool shift = false, bool ctl = false) const;
  private:
   // DIP switches. Default open (set to 1)
   uint8_t dips_;

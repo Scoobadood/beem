@@ -25,7 +25,8 @@ Beeb::Beeb() {
   memory_->insert(0xc000, rom);
 
   keyboard_ = new Keyboard();
-  auto system_via = new SystemVia(keyboard_);
+  auto sound_chip = new SoundChip();
+  auto system_via = new SystemVia(keyboard_, sound_chip);
   memory_->set_system_via(system_via);
 
   cpu_ = new Cpu(true);

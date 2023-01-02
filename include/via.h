@@ -26,6 +26,7 @@
 
 #include "spdlog/spdlog-inl.h"
 #include "keyboard.h"
+#include "sound_76489.h"
 /*
 
   ; ***************************************************************************************
@@ -208,7 +209,7 @@
 
 class SystemVia {
  public:
-  SystemVia(Keyboard * keyboard);
+  SystemVia(Keyboard * keyboard, SoundChip * sound_chip);
 
   void set_ddra(uint8_t value);
   /*
@@ -244,7 +245,7 @@ class SystemVia {
   uint8_t irb() const;
 
   bool is_sound_chip_enabled() const {
-    return sound_chip_enabled_;
+    return sound_chip_->is_enabled();
   }
 
   bool is_read_speech_enabled() const {
@@ -376,8 +377,10 @@ class SystemVia {
    * Sound:    When outputting sound, DDRA is set to %11111111 meaning all bits of data
    *           that are subsequently written to .systemVIARegisterANoHandshake are output bits.
    *           (See .sendToSoundChipFlagsAreadyPushed)
+   *
    * Speech:   For speech, DDRA is set to %00000000 (for reading) or %11111111 (for writing) as
    *           needed. (See .readWriteSpeechProcessorPushedFlags)
+   *
    * Keyboard: When reading the keyboard, DDRA is set to (%011111111). The key to read is written
    *           into bits 0-6 of .systemVIARegisterANoHandshake, and the 'pressed' state of that
    *           key is then read from bit 7.
@@ -426,7 +429,6 @@ class SystemVia {
   bool input_latching_;
   uint8_t ira_;
   uint8_t irb_;
-  bool sound_chip_enabled_;
   bool read_speech_enabled_;
   bool write_speech_enabled_;
   bool keyb_autoscan_enabled_;
@@ -456,6 +458,7 @@ class SystemVia {
   uint8_t cb2_;
 
   Keyboard * keyboard_;
+  SoundChip * sound_chip_;
 };
 
 #endif //M6502_SRC_VIA_H_

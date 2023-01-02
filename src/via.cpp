@@ -4,10 +4,11 @@
 
 #include "via.h"
 #include "keyboard.h"
+#include "sound_76489.h"
 #include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
-SystemVia::SystemVia(Keyboard * keyboard) {
+SystemVia::SystemVia(Keyboard * keyboard, SoundChip * sound_chip) {
   input_latching_ = false;
   ddra_ = 0x00;
   ddrb_ = 0x00;
@@ -16,7 +17,6 @@ SystemVia::SystemVia(Keyboard * keyboard) {
   ira_ = 0x00;
   // no joystick buttons depressed
   irb_ = 0x30;
-  sound_chip_enabled_ = false;
   read_speech_enabled_ = false;
   write_speech_enabled_ = false;
   keyb_autoscan_enabled_ = false;
@@ -32,6 +32,7 @@ SystemVia::SystemVia(Keyboard * keyboard) {
   ifr_ = 0;
 
   keyboard_ = keyboard;
+  sound_chip_ = sound_chip;
 
   try {
     auto logger = spdlog::basic_logger_mt("SystemVIA", "logs/system-via.txt", true);
@@ -89,21 +90,25 @@ void SystemVia::write_port_a() {
     auto key_code = ora_ & 0x7f;
     if( keyboard_->key_pressed(key_code) ) {
       ira_ = 0x80;
-      spdlog::get("SystemVIA")->info("Probe key 0x{:02x} (not pushed)", key_code);
+      spdlog::get("SystemVIA")->info("Probe key 0x{:02x} (pushed)", key_code);
     } else {
       ira_ = 0x00;
-      spdlog::get("SystemVIA")->info("Probe key 0x{:02x} (pushed)", key_code);
+      spdlog::get("SystemVIA")->info("Probe key 0x{:02x} (not pushed)", key_code);
     }
     return;
+  } else if ( ddra_ == 0xff) {
+    spdlog::get("SystemVIA")->info("Poking the sound chip");
+  } else {
+    spdlog::warn("Not Implemented: SystemVIA::write_port_a() with ddra==0x{:02x}", ddra_);
   }
-  spdlog::warn("Not Implemented: SystemVIA::write_port_a()");
 }
 
 void SystemVia::write_port_b() {
   auto out_value = (orb_ & 0xf) & ddrb_;
   switch (out_value) {
-    case 0:sound_chip_enabled_ = true;
-      spdlog::get("SystemVIA")->info("Sound chip enabled");
+    case 0:
+      spdlog::get("SystemVIA")->info("Enabled sound chip");
+      sound_chip_->enable();
       break;
     case 1:read_speech_enabled_ = true;
       spdlog::get("SystemVIA")->info("Read speech enabled");
@@ -126,8 +131,13 @@ void SystemVia::write_port_b() {
     case 7:shift_lock_led_ = true;
       spdlog::get("SystemVIA")->info("Shift Lock LED on");
       break;
-    case 8:sound_chip_enabled_ = false;
-      spdlog::get("SystemVIA")->info("Sound chip disabled");
+    case 8:
+      spdlog::get("SystemVIA")->info("Disabled sound chip");
+      if( sound_chip_->is_enabled()) {
+        sound_chip_->push_byte(ora_);
+        ira_ = 0x0;
+      }
+      sound_chip_->disable();
       break;
     case 9:read_speech_enabled_ = false;
       spdlog::get("SystemVIA")->info("Read speech disabled");
