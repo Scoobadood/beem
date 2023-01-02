@@ -27,7 +27,7 @@ FetchContent_MakeAvailable(spdlog)
 include_directories(${spdlog_SOURCE_DIR}/include)
 
 add_executable(cpu
-        src/main.cpp
+        src/test-6502.cpp
         include/cpu.h src/cpu.cpp
         include/addressing.h src/addressing.cpp
         include/opcodes.h src/opcodes.cpp
