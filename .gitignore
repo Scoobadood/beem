@@ -1,9 +1,9 @@
-cmake-build-debug/
-build/
-bin/
-lib/
-docs/
+/cmake-build-debug/
+/build/
+/bin/
+/lib/
+/docs/
+/logs/*
 
 .idea/
 
-logs/
