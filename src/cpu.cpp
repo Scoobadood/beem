@@ -82,18 +82,24 @@ void Cpu::tick(Memory *memory, uint64_t clock) {
   pc_++;
   iter->second.operation(*this, *memory, next_clock_);
 
+
+
+  auto msg = fmt::format("PC: 0x{:04x} {} {} CLK: {}", start_pc, iter->second.to_string(), to_string(), std::to_string(clock));
+  history_.at(next_) = msg;
+  next_ = (next_ + 1) % history_buffsize_;
   if (should_log_) {
-    auto msg = fmt::format("PC: 0x{:04x} {} {} CLK: {}", start_pc, iter->second.to_string(), to_string(), std::to_string(clock));
     std::cout << msg << std::endl;
   }
 
   if( pc_ == start_pc) {
     auto msg = fmt::format("Hung at PC: 0x{:04x}", start_pc);
     spdlog::error(msg);
+
+    for( auto i=0; i<history_buffsize_; ++i) {
+      spdlog::info(history_[next_]);
+      next_ = (next_ + 1) % history_buffsize_;
+    }
+    spdlog::default_logger()->flush();
     throw std::runtime_error(msg);
   }
-  // Stash to history buffer in case of fail.
-//  history.at(next) = str1 + str2;
-//  next = (next + 1) % buffsize;
-
 }

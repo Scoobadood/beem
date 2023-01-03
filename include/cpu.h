@@ -98,5 +98,9 @@ struct Cpu {
   uint64_t next_clock_;
   bool should_log_;
 
+  // Tracing errors
+  const uint32_t history_buffsize_ = 30;
+  std::vector<std::string> history_{history_buffsize_, ""};
+  uint32_t next_ = 0;
 };
 #endif //CPU_CPU_H_

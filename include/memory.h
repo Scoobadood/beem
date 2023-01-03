@@ -7,6 +7,7 @@
 
 #include "system_via.h"
 #include "user_via.h"
+#include "acia_6850.h"
 
 #include <vector>
 #include <iterator>
@@ -24,6 +25,7 @@ class Memory {
 
   void set_system_via(SystemVia * system_via);
   void set_user_via(UserVia * user_via);
+  void set_acia(Acia * acia);
 
   void insert(uint16_t offset, std::vector<uint8_t> &data);
 
@@ -33,6 +35,7 @@ class Memory {
 
   SystemVia * system_via_;
   UserVia * user_via_;
+  Acia * acia_;
   std::vector<uint8_t> memory_;
   uint32_t size_;
 };

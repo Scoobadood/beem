@@ -20,8 +20,15 @@ const uint16_t CRTC_register_data = SHEILA + 0x01;
 //&00–&07 6845 CRTC
 
 
-//&08–&0F 6850 ACIA
-//&10–&1F Serial ULA
+// 6850 ACIA - Async Comms Interface Adaptor 0xfe08–0xfe0f
+const uint16_t ACIA_CTL = SHEILA + 0x08; // Control Register W/O
+const uint16_t ACIA_STATUS = SHEILA + 0x08; // Status Register R/O
+const uint16_t ACIA_TDR = SHEILA + 0x09; // Transmit Data Register W/O
+const uint16_t ACIA_RDR = SHEILA + 0x09; // Receive Data Register R/O
+
+//Serial ULA - uncomitted Logic Array 0xfe10–0xfe1f
+const uint16_t S_ULA_CTL = SHEILA + 0x10; // Serial ULA Ctl. WO
+
 //&20–&2F Video ULA
 //&30–&3F 74LS161
 //&80–&9F 8271 FDC
@@ -29,6 +36,7 @@ const uint16_t CRTC_register_data = SHEILA + 0x01;
 //&C0–&DF uPD7002
 //&E0–&FF Tube ULA
 
+// Sytem VIA : 0xfe40 - 0xfe4f
 const uint16_t SystemVIA_ORB = SHEILA + 0x40;
 const uint16_t SystemVIA_IRB = SHEILA + 0x40;
 const uint16_t SystemVIA_ORA = SHEILA + 0x41;
@@ -49,6 +57,7 @@ const uint16_t SystemVIA_int_enable_reg = SHEILA + 0x4E;
 const uint16_t SystemVIA_ORA_NoHshk = SHEILA + 0x4F;
 const uint16_t SystemVIA_IRA_NoHshk = SHEILA + 0x4F;
 
+// User VIA : 0xfe60 - 0xfe6f
 const uint16_t UserVIA_ORB = SHEILA + 0x60;
 const uint16_t UserVIA_IRB = SHEILA + 0x60;
 const uint16_t UserVIA_ORA = SHEILA + 0x61;
@@ -90,6 +99,10 @@ void Memory::set_user_via(UserVia *user_via) {
   user_via_ = user_via;
 }
 
+void Memory::set_acia(Acia *acia) {
+  acia_ = acia;
+}
+
 uint8_t Memory::at(uint16_t addr) const {
   assert (addr < size_);
 
@@ -114,12 +127,18 @@ uint8_t Memory::handle_mmio_reads(uint16_t addr) const {
   if (user_via_ == nullptr) {
     spdlog::warn("No UserVIA!");
   }
+  if (acia_ == nullptr) {
+    spdlog::warn("No Acia!");
+  }
 
   switch (addr) {
     case SystemVIA_int_enable_reg: {
       auto ier = system_via_->ier();
       return ier;
     }
+
+    case ACIA_STATUS: return acia_->status();
+    case ACIA_RDR: return acia_->rdr();
 
     case SystemVIA_DDRA:return system_via_->ddra();
 
@@ -143,11 +162,23 @@ void Memory::handle_mmio_writes(uint16_t addr, uint8_t arg) {
   if (system_via_ == nullptr) {
     spdlog::warn("No SystemVIA!");
   }
+  if (user_via_ == nullptr) {
+    spdlog::warn("No UserVIA!");
+  }
+  if (acia_ == nullptr) {
+    spdlog::warn("No Acia!");
+  }
 
   switch (addr) {
     case CRTC_register_addr:spdlog::info("Select CRTC register 0x{:0X}", arg);
       break;
     case CRTC_register_data:spdlog::info("Write CRTC data 0x{:0X}", arg);
+      break;
+    case ACIA_CTL: acia_->set_ctl(arg);
+      break;
+    case ACIA_TDR: acia_->set_tdr(arg);
+      break;
+    case S_ULA_CTL: acia_->set_ula_ctl(arg);
       break;
     case SystemVIA_DDRB:system_via_->set_ddrb(arg);
       break;
@@ -172,7 +203,6 @@ void Memory::handle_mmio_writes(uint16_t addr, uint8_t arg) {
       break;
     case UserVIA_int_enable_reg:user_via_->set_ier(arg);
       break;
-
 
     default:spdlog::info("write {:0X} to 0x{:0X}", arg, addr);
       break;
