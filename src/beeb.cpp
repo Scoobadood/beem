@@ -26,8 +26,8 @@ Beeb::Beeb() {
 
   keyboard_ = new Keyboard();
   auto sound_chip = new SoundChip();
-  auto system_via = new SystemVia(keyboard_, sound_chip);
-  memory_->set_system_via(system_via);
+  system_via_ = new SystemVia(keyboard_, sound_chip);
+  memory_->set_system_via(system_via_);
 
   memory_->set_user_via(new UserVia());
 
@@ -41,5 +41,9 @@ Beeb::Beeb() {
 
 void Beeb::tick() {
   cpu_->tick(memory_, clock_);
+  system_via_->tick();
+  if( system_via_->interrupt_raised()) {
+    cpu_->service_interrupt(memory_, clock_);
+  }
   clock_++;
 }

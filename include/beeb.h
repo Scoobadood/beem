@@ -19,6 +19,7 @@ class Beeb {
   uint64_t clock_;
   Memory * memory_;
   Keyboard * keyboard_;
+  SystemVia * system_via_;
   Cpu * cpu_;
 };
 
