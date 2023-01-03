@@ -3,55 +3,77 @@
 #include <vector>
 
 /**
- * Retrieve aan absolute argument
+ * Retrieve an absolute argument
  */
 uint32_t get_arg_immediate(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
   page_wrap = false;
   read_addr = cpu.pc_;
   return memory.at(cpu.pc_++);
 }
-AddressingFunction Immediate = get_arg_immediate;
+AddressingFunction ImmediateData = get_arg_immediate;
+
+uint32_t get_addr_zpg(Cpu &cpu, Memory &memory, bool &page_wrap) {
+  page_wrap = false;
+  return  memory.at(cpu.pc_++) & 0xff;
+}
+AddressComputeFunction ZeroPageAddress = get_addr_zpg;
 
 /**
  * Retrieve a zero page argument
  */
 uint32_t get_arg_zpg(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
-  page_wrap = false;
-  read_addr = memory.at(cpu.pc_++);
+  read_addr = get_addr_zpg(cpu, memory, page_wrap);
   return memory.at(read_addr);
 }
-AddressingFunction ZeroPage = get_arg_zpg;
+AddressingFunction ZeroPageData = get_arg_zpg;
+
+uint32_t get_addr_zpg_x(Cpu &cpu, Memory &memory, bool &page_wrap) {
+  page_wrap = false;
+  uint32_t read_addr = memory.at(cpu.pc_++);
+  return (read_addr + cpu.x_reg_) & 0xff;
+}
+AddressComputeFunction ZeroPageIndexedXAddress = get_addr_zpg_x;
 
 /**
  * Retrieve an indexed zero page argument
  */
 uint32_t get_arg_zpg_x(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
-  page_wrap = false;
-  read_addr = memory.at(cpu.pc_++);
-  read_addr = (read_addr + cpu.x_reg_) & 0xff;
+  read_addr = get_addr_zpg_x(cpu, memory, page_wrap);
   return memory.at(read_addr);
 }
-AddressingFunction ZeroPageIndexedX = get_arg_zpg_x;
+AddressingFunction ZeroPageIndexedXData = get_arg_zpg_x;
+
+
+uint32_t get_addr_zpg_y(Cpu &cpu, Memory &memory, bool &page_wrap) {
+  page_wrap = false;
+  uint32_t read_addr = memory.at(cpu.pc_++);
+  return (read_addr + cpu.y_reg_) & 0xff;
+}
+AddressComputeFunction ZeroPageIndexedYAddress = get_addr_zpg_y;
 
 /**
  * Retrieve an indexed zero page argument
  */
 uint32_t get_arg_zpg_y(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
-  page_wrap = false;
-  read_addr = memory.at(cpu.pc_++);
-  read_addr = (read_addr + cpu.y_reg_) & 0xff;
+  read_addr = get_addr_zpg_y(cpu, memory, page_wrap);
   return memory.at(read_addr);
 }
-AddressingFunction ZeroPageIndexedY = get_arg_zpg_y;
+AddressingFunction ZeroPageIndexedYData = get_arg_zpg_y;
 
-uint32_t get_arg_absolute(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+uint32_t get_addr_absolute(Cpu &cpu, Memory &memory, bool &page_wrap) {
   page_wrap = false;
   uint8_t addr_lo = memory.at(cpu.pc_++);
   uint8_t addr_hi = memory.at(cpu.pc_++);
-  read_addr = ((addr_hi * 256) + addr_lo) & 0xffff;
+  return ((addr_hi * 256) + addr_lo) & 0xffff;
+}
+AddressComputeFunction AbsoluteAddress = get_addr_absolute;
+
+uint32_t get_arg_absolute(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+  read_addr = get_addr_absolute(cpu, memory, page_wrap);
   return memory.at(read_addr);
 }
-AddressingFunction Absolute = get_arg_absolute;
+AddressingFunction AbsoluteData = get_arg_absolute;
+
 
 /*
  * This form of addressing is used in conjunction with the X index register.
@@ -62,26 +84,38 @@ AddressingFunction Absolute = get_arg_absolute;
  * any location referencing and the index to modify multiple fields resulting
  * in reduced coding and execution time.
  */
-uint32_t get_arg_absolute_x(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+uint32_t get_addr_absolute_x(Cpu &cpu, Memory &memory, bool &page_wrap) {
   uint8_t addr_lo = memory.at(cpu.pc_++);
   uint8_t addr_hi = memory.at(cpu.pc_++);
-  read_addr = (addr_hi * 256) + addr_lo;
+  uint32_t read_addr = (addr_hi * 256) + addr_lo;
   read_addr = (read_addr + cpu.x_reg_  ) & 0xffff;
 
   page_wrap = (((read_addr >> 8) & 0xff) != addr_hi);
+  return read_addr;
+}
+AddressComputeFunction AbsoluteIndexedXAddress = get_addr_absolute_x;
+
+uint32_t get_arg_absolute_x(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+  read_addr = get_addr_absolute_x(cpu, memory, page_wrap);
   return memory.at(read_addr);
 }
-AddressingFunction AbsoluteIndexedX = get_arg_absolute_x;
+AddressingFunction AbsoluteIndexedXData = get_arg_absolute_x;
 
-uint32_t get_arg_absolute_y(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+uint32_t get_addr_absolute_y(Cpu &cpu, Memory &memory, bool &page_wrap) {
   uint8_t addr_lo = memory.at(cpu.pc_++);
   uint8_t addr_hi = memory.at(cpu.pc_++);
-  read_addr = (addr_hi * 256) + addr_lo;
+  uint32_t read_addr = (addr_hi * 256) + addr_lo;
   read_addr += cpu.y_reg_;
   page_wrap = (((read_addr >> 8) & 0xff) != addr_hi);
+  return read_addr;
+}
+AddressComputeFunction AbsoluteIndexedYAddress = get_addr_absolute_y;
+
+uint32_t get_arg_absolute_y(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+  read_addr = get_addr_absolute_y(cpu,memory, page_wrap);
   return memory.at(read_addr);
 }
-AddressingFunction AbsoluteIndexedY = get_arg_absolute_y;
+AddressingFunction AbsoluteIndexedYData = get_arg_absolute_y;
 
 /**
  * Retrieve an indirect absolute ($abcd), Used with JMP
@@ -96,33 +130,45 @@ uint32_t get_arg_indirect_absolute(Cpu &cpu, Memory &memory, uint32_t & read_add
   read_addr = (addr_hi * 256) + addr_lo;
   return read_addr;
 }
-AddressingFunction IndirectAbsolute = get_arg_indirect_absolute;
+AddressingFunction IndirectAbsoluteData = get_arg_indirect_absolute;
 
-/**
- * LDA ($B4, X)
- */
-uint32_t get_arg_indexed_indirect(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+
+uint32_t get_addr_indexed_indirect(Cpu &cpu, Memory &memory, bool &page_wrap) {
   page_wrap = false;
   uint8_t zpg = memory.at(cpu.pc_++);
   zpg += cpu.x_reg_;
   uint8_t addr_lo = memory.at(zpg);
   uint8_t addr_hi = memory.at((zpg + 1) & 0xff);
-  read_addr = (addr_hi * 256) + addr_lo;
+  return ((addr_hi * 256) + addr_lo) & 0xffff;
+}
+AddressComputeFunction IndexedIndirectAddress = get_addr_indexed_indirect;
+
+/**
+ * LDA ($B4, X)
+ */
+uint32_t get_arg_indexed_indirect(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+  read_addr = get_addr_indexed_indirect(cpu, memory, page_wrap);
   return memory.at(read_addr);
 }
-AddressingFunction IndexedIndirect = get_arg_indexed_indirect;
+AddressingFunction IndexedIndirectData = get_arg_indexed_indirect;
 
 /**
  * LDA ($B4), X
  */
-uint32_t get_arg_indirect_indexed(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+
+uint32_t get_addr_indirect_indexed(Cpu &cpu, Memory &memory, bool &page_wrap) {
   uint8_t zpg = memory.at(cpu.pc_++);
   uint8_t addr_lo = memory.at(zpg);
   uint8_t addr_hi = memory.at((zpg + 1) & 0xff);
-  read_addr = (addr_hi * 256) + addr_lo;
+  uint32_t read_addr = (addr_hi * 256) + addr_lo;
   read_addr += cpu.y_reg_;
   page_wrap = (((read_addr >> 8) & 0xff) != addr_hi);
+  return read_addr;
+}
+AddressComputeFunction IndirectIndexedAddress = get_addr_indirect_indexed;
 
+uint32_t get_arg_indirect_indexed(Cpu &cpu, Memory &memory, uint32_t & read_addr, bool &page_wrap) {
+  read_addr = get_addr_indirect_indexed(cpu, memory, page_wrap);
   return memory.at(read_addr);
 }
-AddressingFunction IndirectIndexed = get_arg_indirect_indexed;
+AddressingFunction IndirectIndexedData = get_arg_indirect_indexed;

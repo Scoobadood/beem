@@ -15,15 +15,28 @@ using AddressingFunction = std::function<uint32_t(Cpu &cpu,
                                                   Memory &memory,
                                                   uint32_t &read_addr,
                                                   bool &page_wrap)>;
-extern AddressingFunction Immediate;
-extern AddressingFunction ZeroPage;
-extern AddressingFunction ZeroPageIndexedX;
-extern AddressingFunction ZeroPageIndexedY;
-extern AddressingFunction Absolute;
-extern AddressingFunction AbsoluteIndexedX;
-extern AddressingFunction AbsoluteIndexedY;
-extern AddressingFunction IndirectAbsolute;
-extern AddressingFunction IndexedIndirect;
-extern AddressingFunction IndirectIndexed;
+using AddressComputeFunction = std::function<uint32_t(Cpu &cpu,
+                                                  Memory &memory,
+                                                  bool &page_wrap)>;
+
+extern AddressingFunction ImmediateData;
+extern AddressingFunction ZeroPageData;
+extern AddressingFunction ZeroPageIndexedXData;
+extern AddressingFunction ZeroPageIndexedYData;
+extern AddressingFunction AbsoluteData;
+extern AddressingFunction AbsoluteIndexedXData;
+extern AddressingFunction AbsoluteIndexedYData;
+extern AddressingFunction IndirectAbsoluteData;
+extern AddressingFunction IndexedIndirectData;
+extern AddressingFunction IndirectIndexedData;
+
+extern AddressComputeFunction AbsoluteAddress;
+extern AddressComputeFunction AbsoluteIndexedYAddress;
+extern AddressComputeFunction AbsoluteIndexedXAddress;
+extern AddressComputeFunction ZeroPageAddress;
+extern AddressComputeFunction ZeroPageIndexedXAddress;
+extern AddressComputeFunction ZeroPageIndexedYAddress;
+extern AddressComputeFunction IndexedIndirectAddress;
+extern AddressComputeFunction IndirectIndexedAddress;
 
 #endif //CPU_ADDRESSING_H_

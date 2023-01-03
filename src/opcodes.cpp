@@ -116,52 +116,52 @@ void adc(Cpu &cpu, uint32_t arg) {
 void adc_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  adc(cpu, Immediate(cpu, memory, addr, page_wrap));
+  adc(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void adc_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  adc(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  adc(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 void adc_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  adc(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  adc(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 void adc_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  adc(cpu, Absolute(cpu, memory, addr, page_wrap));
+  adc(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 void adc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  adc(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  adc(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
 void adc_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  adc(cpu, AbsoluteIndexedY(cpu, memory, addr, page_wrap));
+  adc(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
 void adc_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  adc(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
+  adc(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 void adc_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  adc(cpu, IndirectIndexed(cpu, memory, addr, page_wrap));
+  adc(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
   clk += 5;
   if (page_wrap) clk++;
 }
@@ -192,35 +192,35 @@ void anda(Cpu &cpu, uint32_t arg) {
 void and_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  anda(cpu, Immediate(cpu, memory, addr, page_wrap));
+  anda(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void and_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  anda(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  anda(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void and_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  anda(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  anda(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void and_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  anda(cpu, Absolute(cpu, memory, addr, page_wrap));
+  anda(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void and_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  anda(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  anda(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -228,7 +228,7 @@ void and_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void and_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  anda(cpu, AbsoluteIndexedY(cpu, memory, addr, page_wrap));
+  anda(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -236,14 +236,14 @@ void and_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void and_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  anda(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
+  anda(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
 void and_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  anda(cpu, IndirectIndexed(cpu, memory, addr, page_wrap));
+  anda(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
   clk += 5;
   if (page_wrap) clk++;
 }
@@ -280,7 +280,7 @@ void asl_a(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void asl_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = ZeroPage(cpu, memory, addr, page_wrap);
+  auto arg = ZeroPageData(cpu, memory, addr, page_wrap);
   arg = asl(cpu, arg);
   memory.set(addr, arg);
   clk += 5;
@@ -289,7 +289,7 @@ void asl_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void asl_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = ZeroPageIndexedX(cpu, memory, addr, page_wrap);
+  auto arg = ZeroPageIndexedXData(cpu, memory, addr, page_wrap);
   arg = asl(cpu, arg);
   memory.set(addr, arg);
   clk += 6;
@@ -298,7 +298,7 @@ void asl_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void asl_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = Absolute(cpu, memory, addr, page_wrap);
+  auto arg = AbsoluteData(cpu, memory, addr, page_wrap);
   arg = asl(cpu, arg);
   memory.set(addr, arg);
   clk += 6;
@@ -307,7 +307,7 @@ void asl_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void asl_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = AbsoluteIndexedX(cpu, memory, addr, page_wrap);
+  auto arg = AbsoluteIndexedXData(cpu, memory, addr, page_wrap);
   arg = asl(cpu, arg);
   memory.set(addr, arg);
   clk += 7;
@@ -325,13 +325,16 @@ void do_branch(Cpu &cpu, Memory &memory, int8_t branch, uint64_t &clk) {
   }
 }
 
-//Branch on Carry Clear
-//
-//branch on C = 0
-//N	Z	C	I	D	V
-//-	-	-	-	-	-
-//addressing	assembler	opc	bytes	cycles
-//    relative	BCC oper	90	2	2**
+/*
+ * BCC
+ * Branch on Carry Clear
+ *
+ * branch on C = 0
+ * N	Z	C	I	D	V
+ * -	-	-	-	-	-
+ * addressing	assembler	opc	bytes	cycles
+ * relative	    BCC oper	90	2	    2**
+ */
 void bcc(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
@@ -340,13 +343,15 @@ void bcc(Cpu &cpu, Memory &memory, uint64_t &clk) {
   }
 }
 
-//Branch on Carry Set
-//
-//branch on C = 1
-//N	Z	C	I	D	V
-//-	-	-	-	-	-
-//addressing	assembler	opc	bytes	cycles
-//    relative	BCS oper	B0	2	2**
+/*
+ * Branch on Carry Set
+ *
+ * branch on C = 1
+ * N	Z	C	I	D	V
+ * -	-	-	-	-	-
+ * addressing	assembler	opc	bytes	cycles
+ * relative	    BCS oper	B0	2	    2**
+ */
 void bcs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
@@ -355,6 +360,16 @@ void bcs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   }
 }
 
+/*
+ * BEQ
+ * Branch if EQual
+ *
+ * branch on Z = 1
+ * N	Z	C	I	D	V
+ * -	-	-	-	-	-
+ * addressing	assembler	opc	bytes	cycles
+ * relative	    BEQ oper	    2	    2**
+ */
 void beq(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
@@ -386,14 +401,14 @@ void bit(Cpu &cpu, uint8_t arg) {
 void bit_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  bit(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  bit(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void bit_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  bit(cpu, Absolute(cpu, memory, addr, page_wrap));
+  bit(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
@@ -540,35 +555,35 @@ void cmp(Cpu &cpu, uint8_t arg) {
 void cmp_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cmp(cpu, Immediate(cpu, memory, addr, page_wrap));
+  cmp(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void cmp_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cmp(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  cmp(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void cmp_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cmp(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  cmp(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void cmp_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cmp(cpu, Absolute(cpu, memory, addr, page_wrap));
+  cmp(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void cmp_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cmp(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  cmp(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -576,7 +591,7 @@ void cmp_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void cmp_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cmp(cpu, AbsoluteIndexedY(cpu, memory, addr, page_wrap));
+  cmp(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -584,14 +599,14 @@ void cmp_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void cmp_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cmp(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
+  cmp(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
 void cmp_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cmp(cpu, IndirectIndexed(cpu, memory, addr, page_wrap));
+  cmp(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
   clk += 5;
   if (page_wrap) clk++;
 }
@@ -618,21 +633,21 @@ void cpx(Cpu &cpu, uint8_t arg) {
 void cpx_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cpx(cpu, Immediate(cpu, memory, addr, page_wrap));
+  cpx(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void cpx_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cpx(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  cpx(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void cpx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cpx(cpu, Absolute(cpu, memory, addr, page_wrap));
+  cpx(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
@@ -658,21 +673,21 @@ void cpy(Cpu &cpu, uint8_t arg) {
 void cpy_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cpy(cpu, Immediate(cpu, memory, addr, page_wrap));
+  cpy(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void cpy_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cpy(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  cpy(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void cpy_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  cpy(cpu, Absolute(cpu, memory, addr, page_wrap));
+  cpy(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
@@ -699,7 +714,7 @@ uint8_t dec(Cpu &cpu, uint8_t arg) {
 void dec_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto ans = dec(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  auto ans = dec(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   memory.set(addr, ans);
   clk += 5;
 }
@@ -707,7 +722,7 @@ void dec_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void dec_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto ans = dec(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  auto ans = dec(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   memory.set(addr, ans);
   clk += 6;
 }
@@ -715,7 +730,7 @@ void dec_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void dec_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto ans = dec(cpu, Absolute(cpu, memory, addr, page_wrap));
+  auto ans = dec(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   memory.set(addr, ans);
   clk += 6;
 }
@@ -723,7 +738,7 @@ void dec_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void dec_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto ans = dec(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  auto ans = dec(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   memory.set(addr, ans);
   clk += 7;
 }
@@ -790,35 +805,35 @@ void eor(Cpu &cpu, uint8_t arg) {
 void eor_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  eor(cpu, Immediate(cpu, memory, addr, page_wrap));
+  eor(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void eor_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  eor(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  eor(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void eor_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  eor(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  eor(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void eor_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  eor(cpu, Absolute(cpu, memory, addr, page_wrap));
+  eor(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void eor_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  eor(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  eor(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -826,7 +841,7 @@ void eor_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void eor_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  eor(cpu, AbsoluteIndexedY(cpu, memory, addr, page_wrap));
+  eor(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -834,14 +849,14 @@ void eor_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void eor_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  eor(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
+  eor(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
 void eor_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  eor(cpu, IndirectIndexed(cpu, memory, addr, page_wrap));
+  eor(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
   clk += 5;
   if (page_wrap) clk++;
 }
@@ -869,7 +884,7 @@ uint8_t inc(Cpu &cpu, uint8_t arg) {
 void inc_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto ans = inc(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  auto ans = inc(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   memory.set(addr, ans);
   clk += 5;
 }
@@ -877,7 +892,7 @@ void inc_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void inc_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto ans = inc(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  auto ans = inc(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   memory.set(addr, ans);
   clk += 6;
 }
@@ -885,7 +900,7 @@ void inc_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void inc_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto ans = inc(cpu, Absolute(cpu, memory, addr, page_wrap));
+  auto ans = inc(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   memory.set(addr, ans);
   clk += 6;
 }
@@ -893,7 +908,7 @@ void inc_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void inc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto ans = inc(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  auto ans = inc(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   memory.set(addr, ans);
   clk += 7;
 }
@@ -1028,35 +1043,35 @@ void lda(Cpu &cpu, uint32_t arg) {
 void lda_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  lda(cpu, Immediate(cpu, memory, addr, page_wrap));
+  lda(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void lda_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  lda(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  lda(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void lda_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  lda(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  lda(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void lda_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  lda(cpu, Absolute(cpu, memory, addr, page_wrap));
+  lda(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void lda_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  lda(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  lda(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -1064,7 +1079,7 @@ void lda_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void lda_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  lda(cpu, AbsoluteIndexedY(cpu, memory, addr, page_wrap));
+  lda(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -1072,14 +1087,14 @@ void lda_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void lda_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  lda(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
+  lda(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
 void lda_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  lda(cpu, IndirectIndexed(cpu, memory, addr, page_wrap));
+  lda(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
   clk += 5;
   if (page_wrap) clk++;
 }
@@ -1106,35 +1121,35 @@ void ldx(Cpu &cpu, uint32_t arg) {
 void ldx_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldx(cpu, Immediate(cpu, memory, addr, page_wrap));
+  ldx(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void ldx_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldx(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  ldx(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void ldx_zpg_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldx(cpu, ZeroPageIndexedY(cpu, memory, addr, page_wrap));
+  ldx(cpu, ZeroPageIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void ldx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldx(cpu, Absolute(cpu, memory, addr, page_wrap));
+  ldx(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void ldx_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldx(cpu, AbsoluteIndexedY(cpu, memory, addr, page_wrap));
+  ldx(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -1161,35 +1176,35 @@ void ldy(Cpu &cpu, uint32_t arg) {
 void ldy_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldy(cpu, Immediate(cpu, memory, addr, page_wrap));
+  ldy(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void ldy_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldy(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  ldy(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void ldy_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldy(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  ldy(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void ldy_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldy(cpu, Absolute(cpu, memory, addr, page_wrap));
+  ldy(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void ldy_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  ldy(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  ldy(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -1226,7 +1241,7 @@ void lsr_a(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void lsr_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = ZeroPage(cpu, memory, addr, page_wrap);
+  auto arg = ZeroPageData(cpu, memory, addr, page_wrap);
   memory.set(addr, lsr(cpu, arg));
   clk += 5;
 }
@@ -1234,7 +1249,7 @@ void lsr_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void lsr_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = ZeroPageIndexedX(cpu, memory, addr, page_wrap);
+  auto arg = ZeroPageIndexedXData(cpu, memory, addr, page_wrap);
   memory.set(addr, lsr(cpu, arg));
   clk += 6;
 }
@@ -1242,7 +1257,7 @@ void lsr_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void lsr_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = Absolute(cpu, memory, addr, page_wrap);
+  auto arg = AbsoluteData(cpu, memory, addr, page_wrap);
   memory.set(addr, lsr(cpu, arg));
   clk += 6;
 }
@@ -1250,7 +1265,7 @@ void lsr_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void lsr_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = AbsoluteIndexedX(cpu, memory, addr, page_wrap);
+  auto arg = AbsoluteIndexedXData(cpu, memory, addr, page_wrap);
   memory.set(addr, lsr(cpu, arg));
   clk += 7;
 }
@@ -1296,35 +1311,35 @@ void or_a(Cpu &cpu, uint32_t arg) {
 void ora_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  or_a(cpu, Immediate(cpu, memory, addr, page_wrap));
+  or_a(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void ora_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  or_a(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  or_a(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void ora_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  or_a(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  or_a(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void ora_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  or_a(cpu, Absolute(cpu, memory, addr, page_wrap));
+  or_a(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void ora_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  or_a(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  or_a(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -1332,7 +1347,7 @@ void ora_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void ora_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  or_a(cpu, AbsoluteIndexedY(cpu, memory, addr, page_wrap));
+  or_a(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -1340,14 +1355,14 @@ void ora_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void ora_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  or_a(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
+  or_a(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
 void ora_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  or_a(cpu, IndirectIndexed(cpu, memory, addr, page_wrap));
+  or_a(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
   clk += 5;
   if (page_wrap) clk++;
 }
@@ -1453,7 +1468,7 @@ void rol_a(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void rol_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = ZeroPage(cpu, memory, addr, page_wrap);
+  auto arg = ZeroPageData(cpu, memory, addr, page_wrap);
   arg = rol(cpu, arg);
   memory.set(addr, arg);
   clk += 5;
@@ -1462,7 +1477,7 @@ void rol_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void rol_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = ZeroPageIndexedX(cpu, memory, addr, page_wrap);
+  auto arg = ZeroPageIndexedXData(cpu, memory, addr, page_wrap);
   arg = rol(cpu, arg);
   memory.set(addr, arg);
   clk += 6;
@@ -1471,7 +1486,7 @@ void rol_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void rol_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = Absolute(cpu, memory, addr, page_wrap);
+  auto arg = AbsoluteData(cpu, memory, addr, page_wrap);
   arg = rol(cpu, arg);
   memory.set(addr, arg);
   clk += 6;
@@ -1480,7 +1495,7 @@ void rol_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void rol_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = AbsoluteIndexedX(cpu, memory, addr, page_wrap);
+  auto arg = AbsoluteIndexedXData(cpu, memory, addr, page_wrap);
   arg = rol(cpu, arg);
   memory.set(addr, arg);
   clk += 7;
@@ -1520,7 +1535,7 @@ void ror_a(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void ror_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = ZeroPage(cpu, memory, addr, page_wrap);
+  auto arg = ZeroPageData(cpu, memory, addr, page_wrap);
   arg = ror(cpu, arg);
   memory.set(addr, arg);
   clk += 5;
@@ -1529,7 +1544,7 @@ void ror_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void ror_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = ZeroPageIndexedX(cpu, memory, addr, page_wrap);
+  auto arg = ZeroPageIndexedXData(cpu, memory, addr, page_wrap);
   arg = ror(cpu, arg);
   memory.set(addr, arg);
   clk += 6;
@@ -1538,7 +1553,7 @@ void ror_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void ror_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = Absolute(cpu, memory, addr, page_wrap);
+  auto arg = AbsoluteData(cpu, memory, addr, page_wrap);
   arg = ror(cpu, arg);
   memory.set(addr, arg);
   clk += 6;
@@ -1547,7 +1562,7 @@ void ror_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void ror_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  auto arg = AbsoluteIndexedX(cpu, memory, addr, page_wrap);
+  auto arg = AbsoluteIndexedXData(cpu, memory, addr, page_wrap);
   arg = ror(cpu, arg);
   memory.set(addr, arg);
   clk += 7;
@@ -1672,35 +1687,35 @@ void sbc(Cpu &cpu, uint32_t arg) {
 void sbc_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  sbc(cpu, Immediate(cpu, memory, addr, page_wrap));
+  sbc(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
 void sbc_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  sbc(cpu, ZeroPage(cpu, memory, addr, page_wrap));
+  sbc(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
 void sbc_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  sbc(cpu, ZeroPageIndexedX(cpu, memory, addr, page_wrap));
+  sbc(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void sbc_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  sbc(cpu, Absolute(cpu, memory, addr, page_wrap));
+  sbc(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
 void sbc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  sbc(cpu, AbsoluteIndexedX(cpu, memory, addr, page_wrap));
+  sbc(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -1708,7 +1723,7 @@ void sbc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void sbc_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  sbc(cpu, AbsoluteIndexedY(cpu, memory, addr, page_wrap));
+  sbc(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
@@ -1716,14 +1731,14 @@ void sbc_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void sbc_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  sbc(cpu, IndexedIndirect(cpu, memory, addr, page_wrap));
+  sbc(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
 void sbc_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
-  sbc(cpu, IndirectIndexed(cpu, memory, addr, page_wrap));
+  sbc(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
   clk += 5;
   if (page_wrap) clk++;
 }
@@ -1792,56 +1807,49 @@ void sei(Cpu &cpu, Memory &memory, uint64_t &clk) {
  */
 void sta_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  ZeroPage(cpu, memory, addr, page_wrap);
+  auto addr = ZeroPageAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 3;
 }
 
 void sta_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  ZeroPageIndexedX(cpu, memory, addr, page_wrap);
+  auto addr = ZeroPageIndexedXAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 4;
 }
 
 void sta_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  Absolute(cpu, memory, addr, page_wrap);
+  auto addr = AbsoluteAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 4;
 }
 
 void sta_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  AbsoluteIndexedX(cpu, memory, addr, page_wrap);
+  auto addr = AbsoluteIndexedXAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 5;
 }
 
 void sta_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  AbsoluteIndexedY(cpu, memory, addr, page_wrap);
+  auto addr = AbsoluteIndexedYAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 5;
 }
 
 void sta_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  IndexedIndirect(cpu, memory, addr, page_wrap);
+  auto addr = IndexedIndirectAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 6;
 }
 
 void sta_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  IndirectIndexed(cpu, memory, addr, page_wrap);
+  auto addr = IndirectIndexedAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 6;
 }
@@ -1860,22 +1868,19 @@ void sta_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  */
 void stx_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  ZeroPage(cpu, memory, addr, page_wrap);
+  auto addr = ZeroPageAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.x_reg_);
   clk += 3;
 }
 void stx_zpg_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  ZeroPageIndexedY(cpu, memory, addr, page_wrap);
+  auto addr = ZeroPageIndexedYAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.x_reg_);
   clk += 4;
 }
 void stx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  Absolute(cpu, memory, addr, page_wrap);
+  auto addr = AbsoluteAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.x_reg_);
   clk += 4;
 }
@@ -1894,22 +1899,19 @@ void stx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
  */
 void sty_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  ZeroPage(cpu, memory, addr, page_wrap);
+  auto addr = ZeroPageAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.y_reg_);
   clk += 3;
 }
 void sty_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  ZeroPageIndexedX(cpu, memory, addr, page_wrap);
+  auto addr = ZeroPageIndexedXAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.y_reg_);
   clk += 4;
 }
 void sty_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
-  uint32_t addr;
-  Absolute(cpu, memory, addr, page_wrap);
+  auto addr = AbsoluteAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.y_reg_);
   clk += 4;
 }
