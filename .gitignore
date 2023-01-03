@@ -3,7 +3,8 @@
 /bin/
 /lib/
 /docs/
-/logs/*
+/logs/
+/data/
 
 .idea/
 
