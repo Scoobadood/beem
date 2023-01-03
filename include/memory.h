@@ -8,6 +8,7 @@
 #include "system_via.h"
 #include "user_via.h"
 #include "acia_6850.h"
+#include "cpu.h"
 
 #include <vector>
 #include <iterator>
@@ -19,13 +20,16 @@ class Memory {
 
   explicit Memory(std::ifstream &f);
 
+  void push_stack(Cpu &cpu, uint8_t arg);
+  uint8_t pop_stack(Cpu &cpu) const;
+
   uint8_t at(uint16_t addr) const;
 
   void set(uint16_t addr, uint8_t arg);
 
-  void set_system_via(SystemVia * system_via);
-  void set_user_via(UserVia * user_via);
-  void set_acia(Acia * acia);
+  void set_system_via(SystemVia *system_via);
+  void set_user_via(UserVia *user_via);
+  void set_acia(Acia *acia);
 
   void insert(uint16_t offset, std::vector<uint8_t> &data);
 
@@ -33,9 +37,9 @@ class Memory {
   uint8_t handle_mmio_reads(uint16_t addr) const;
   void handle_mmio_writes(uint16_t addr, uint8_t arg);
 
-  SystemVia * system_via_;
-  UserVia * user_via_;
-  Acia * acia_;
+  SystemVia *system_via_;
+  UserVia *user_via_;
+  Acia *acia_;
   std::vector<uint8_t> memory_;
   uint32_t size_;
 };

@@ -7,6 +7,17 @@
 #include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
+static const   std::string control_modes[] = {
+    "negative edges active on input",
+    "independent interrupt; input negative edge",
+    "positive edges active on input",
+    "independent interrupt; input positive edge",
+    "handshake output mode",
+    "pulse output mode",
+    "low output",
+    "high output"
+};
+
 UserVia::UserVia() {
   input_latching_ = false;
   ddra_ = 0x00;
@@ -127,7 +138,149 @@ void UserVia::set_ier(uint8_t value) {
   );
 }
 
+uint8_t UserVia::ifr() const {
+  spdlog::get("UserVIA")->info("Read IFR (0x{:02X}) | MASTER {} | TIMER 1 {} | TIMER 2 {} | CB1 (EOC) {} | CB2 (LPSTB) {} | SHIFT_REG {} | CA1 (VSYNC) {} | CA2 (KEYB) {} |",
+                                 ifr_,
+                                 (ifr_ & 0x80) ? "X" : " ",
+                                 (ifr_ & 0x40) ? "X" : " ",
+                                 (ifr_ & 0x20) ? "X" : " ",
+                                 (ifr_ & 0x10) ? "X" : " ",
+                                 (ifr_ & 0x08) ? "X" : " ",
+                                 (ifr_ & 0x04) ? "X" : " ",
+                                 (ifr_ & 0x02) ? "X" : " ",
+                                 (ifr_ & 0x01) ? "X" : " "
+  );
+
+  return ifr_;
+}
+
+void UserVia::set_ifr(uint8_t data) {
+  if (data & 0x80) {
+    return;
+  }
+  ifr_ = (ifr_ ^ data);
+  if ((ifr_ & 0x7f) == 0) {
+    ifr_ ^= 0x80;
+  }
+  spdlog::get("UserVIA")->info(
+      "Set IFR (0x{:02X}) | MASTER {} | TIMER 1 {} | TIMER 2 {} | CB1 (EOC) {} | CB2 (LPSTB) {} | SHIFT_REG {} | CA1 (VSYNC) {} | CA2 (KEYB) {} |",
+      ifr_,
+      (ifr_ & 0x80) ? "X" : " ",
+      (ifr_ & 0x40) ? "X" : " ",
+      (ifr_ & 0x20) ? "X" : " ",
+      (ifr_ & 0x10) ? "X" : " ",
+      (ifr_ & 0x08) ? "X" : " ",
+      (ifr_ & 0x04) ? "X" : " ",
+      (ifr_ & 0x02) ? "X" : " ",
+      (ifr_ & 0x01) ? "X" : " "
+  );
+}
+
 void UserVia::set_pcr(uint8_t value) {
   pcr_ = value;
-  spdlog::get("UserVIA")->info("Set PCR (0x{:02x})", value);
+  /*
+ * System VIA, Peripheral Control Register ($FE4C) (aka 'PCR')
+ *
+ * bit 0    = CA1 interrupt control
+ *            Writing to CA1 means "data taken"
+ *            0 means negative active edge
+ *            1 means positive active edge
+ *
+ * bits 1-3 = CA2 control mode
+ *            CA2 signifies "data ready"
+ *
+ * bit 4    = CB1 interrupt control
+ *            Writing to CB1 means "data taken"
+ *            0 means negative active edge
+ *            1 means positive active edge
+ *
+ * bits 5-7 = CB2 control mode
+ *            CB2 signifies "data ready"
+ *
+ * control mode:
+ *   000 = negative edges active on input
+ *   001 = independent interrupt; input negative edge
+ *   010 = positive edges active on input
+ *   011 = independent interrupt; input positive edge
+ *   100 = handshake output mode
+ *   101 = pulse output mode
+ *   110 = low output
+ *   111 = high output
+ *
+ * The System VIA PCR initialises like so (See .setUpPage2):
+ *       CA1 has negative active edge       (vertical sync)
+ *       CA2 positive edges active on input (keyboard)
+ *       CB1 has negative active edge       (end of analogue conversion)
+ *       CB2 negative active edges on input (light pen strobe)
+ */
+  pcr_ = value;
+
+  uint8_t ca2_control_mode = (value & 0x0e) >> 1;
+  uint8_t cb2_control_mode = (value & 0xd0) >> 5;
+  spdlog::get("UserVIA")->info("Set PCR (0x{:02x})  CA1: {}  CA2 Mode: {}  CB1: {}  CB2 Mode: {}",
+                                 value,
+                                 (value & 0x01) ? "positive active edge" : "negative active edge",
+                                 control_modes[ca2_control_mode],
+                                 (value & 0x10) ? "positive active edge" : "negative active edge",
+                                 control_modes[cb2_control_mode]
+  );
+}
+
+uint8_t UserVia::pcr() const {
+  uint8_t ca2_control_mode = (pcr_ & 0x0e) >> 1;
+  uint8_t cb2_control_mode = (pcr_ & 0xd0) >> 5;
+  spdlog::get("UserVIA")->info(
+      "Read PCR (0x{:02x})  CA1: {}  CA2 Mode: {}  CB1: {}  CB2 Mode: {}",
+      pcr_,
+      (pcr_ & 0x01) ? "positive active edge" : "negative active edge",
+      control_modes[ca2_control_mode],
+      (pcr_ & 0x10) ? "positive active edge" : "negative active edge",
+      control_modes[cb2_control_mode]
+  );
+  return pcr_;
+}
+
+
+
+/*
+;
+; System VIA, Auxiliary Control Register ($FE4B) (aka 'ACR')
+;
+; bit 0:    PA latch enable
+; bit 1:    PB latch enable
+; bits 2-4: Shift register mode
+; bit 5:    Timer 2 mode: 0=One-shot mode; 1=Pulse counting mode.
+; bit 6:    Timer 1 mode: 0=One shot mode; 1=Free-run mode.
+; bit 7:    Enable pulsing of System VIA output pin PB7.
+;           When enabled, Timer 1 will set PB7 as follows:
+;           In One-shot mode:
+;               PB7 is cleared when Timer 1 started,
+;               PB7 is set when Timer 1 one-shot mode times out.
+;           In Free-run mode:
+;               PB7 is inverted when Timer 1 times out.
+;
+; In the reset code (see .setUpPage2) this register is initialised to:
+;
+;   (a) disable the latches and the shift register,
+;   (b) set Timer 2 as an interval timer,
+;   (c) set Timer 1 as free-run mode (aka continuous interrupts).
+;
+; Otherwise this register is not used by the OS.
+;
+; See NAUG Section 22.4.8, Page 395.
+;
+*/
+void UserVia::set_acr(uint8_t value) {
+  uint32_t sr_mode = (value & 0x1c) >> 2;
+  spdlog::get("UserVIA")->info(
+      "Set ACR (0x{:02x}) | Pulse PB7 {} | TIMER 1 {} | TIMER 2 {} | SR Mode {} | PB Latch enable {} | PA Latch enable {} |",
+      ifr_,
+      (ifr_ & 0x80) ? "X" : " ",
+      (ifr_ & 0x40) ? "Free run" : "One shot",
+      (ifr_ & 0x20) ? "Pulse count" : "One shot",
+      sr_mode,
+      (ifr_ & 0x02) ? "X" : " ",
+      (ifr_ & 0x01) ? "X" : " "
+  );
+  acr_ = value;
 }

@@ -23,6 +23,9 @@ class UserVia {
   uint8_t ddrb() const;
 
   void set_pcr(uint8_t value);
+  uint8_t pcr() const;
+
+  void set_acr(uint8_t value);
 
   void set_ora(uint8_t value);
   void set_orb(uint8_t value);
@@ -33,7 +36,8 @@ class UserVia {
   uint8_t ier() const;
   void set_ier(uint8_t value);
 
-  uint8_t ifr() const {return ifr_;}
+  uint8_t ifr() const;
+  void set_ifr(uint8_t data);
 
  private:
   // Printer Port
@@ -64,6 +68,8 @@ class UserVia {
   uint8_t ifr_;
 
   uint8_t pcr_;
+
+  uint8_t acr_;
 };
 
 #endif //M6502_SRC_USER_VIA_H_

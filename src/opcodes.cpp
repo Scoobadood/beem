@@ -18,17 +18,6 @@
 #include <iomanip>
 #endif
 
-const uint32_t STACK_BASE = 0x100;
-void push_stack(Cpu &cpu, Memory &memory, uint8_t arg) {
-  memory.set(STACK_BASE + cpu.stack_pointer_, arg & 0xff);
-  cpu.stack_pointer_ = (cpu.stack_pointer_ - 1) & 0xff;
-}
-
-uint8_t pop_stack(Cpu &cpu, Memory &memory) {
-  cpu.stack_pointer_ = (cpu.stack_pointer_ + 1) & 0xff;
-  return memory.at(STACK_BASE + cpu.stack_pointer_) & 0xff;
-}
-
 const uint8_t RES_FLAG = 0x20;
 const uint8_t BRK_FLAG = 0x10;
 
@@ -459,13 +448,13 @@ void bpl(Cpu &cpu, Memory &memory, uint64_t &clk) {
 void brek(Cpu &cpu, Memory &memory, uint64_t &clk) {
   // PC currently points to the reson byte after BRK
   auto pc = cpu.pc_ + 1;
-  push_stack(cpu, memory, pc >> 8);
-  push_stack(cpu, memory, pc & 0xff);
+  memory.push_stack(cpu, pc >> 8);
+  memory.push_stack(cpu, pc & 0xff);
 
   auto status = (cpu.status_.to_ulong());
   status |= BRK_FLAG;
   status |= RES_FLAG;
-  push_stack(cpu, memory, status);
+  memory.push_stack(cpu, status);
 
   cpu.set_interrupt();
 
@@ -1008,8 +997,8 @@ void jsr(Cpu &cpu, Memory &memory, uint64_t &clk) {
   // PC currently points at first byte of arg
   auto ret_addr = cpu.pc_ + 1;
 
-  push_stack(cpu, memory, ret_addr >> 8);
-  push_stack(cpu, memory, ret_addr & 0xff);
+  memory.push_stack(cpu, ret_addr >> 8);
+  memory.push_stack(cpu, ret_addr & 0xff);
   auto pcl = memory.at(cpu.pc_++);
   auto pch = memory.at(cpu.pc_++);
   auto addr = ((pch * 256) + pcl) & 0xffff;
@@ -1377,7 +1366,7 @@ void ora_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * implied	    PHA	        48	1	3
  */
 void pha(Cpu &cpu, Memory &memory, uint64_t &clk) {
-  push_stack(cpu, memory, cpu.accumulator_);
+  memory.push_stack(cpu, cpu.accumulator_);
   clk += 3;
 }
 
@@ -1396,7 +1385,7 @@ void php(Cpu &cpu, Memory &memory, uint64_t &clk) {
   auto arg = cpu.status_.to_ulong();
   arg |= BRK_FLAG;
   arg |= RES_FLAG;
-  push_stack(cpu, memory, arg);
+  memory.push_stack(cpu, arg);
 
   clk += 3;
 }
@@ -1411,7 +1400,7 @@ void php(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * implied	PLA	68	1	4
  */
 void pla(Cpu &cpu, Memory &memory, uint64_t &clk) {
-  cpu.accumulator_ = pop_stack(cpu, memory);
+  cpu.accumulator_ = memory.pop_stack(cpu);
   cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
   cpu.status_.set(SR_ZER, (cpu.accumulator_ == 0));
   clk += 4;
@@ -1429,7 +1418,7 @@ void pla(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * implied	PLP	28	1	4
  */
 void plp(Cpu &cpu, Memory &memory, uint64_t &clk) {
-  cpu.status_ = pop_stack(cpu, memory);
+  cpu.status_ = memory.pop_stack(cpu);
   clk += 4;
 }
 
@@ -1582,10 +1571,10 @@ void ror_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
 */
 
 void rti(Cpu &cpu, Memory &memory, uint64_t &clk) {
-  cpu.status_ = pop_stack(cpu, memory);
+  cpu.status_ = memory.pop_stack(cpu);
 
-  auto pcl = pop_stack(cpu, memory);
-  auto pch = pop_stack(cpu, memory);
+  auto pcl = memory.pop_stack(cpu);
+  auto pch = memory.pop_stack(cpu);
   cpu.pc_ = ((pch * 256) + pcl) & 0xffff;
   clk += 6;
 }
@@ -1603,8 +1592,8 @@ void rti(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * implied	    RTS	        60	1	6
  */
 void rts(Cpu &cpu, Memory &memory, uint64_t &clk) {
-  auto pcl = pop_stack(cpu, memory);
-  auto pch = pop_stack(cpu, memory);
+  auto pcl = memory.pop_stack(cpu);
+  auto pch = memory.pop_stack(cpu);
   cpu.pc_ = ((pch * 256) + pcl) & 0xffff;
   cpu.pc_++;
   clk += 6;

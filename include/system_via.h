@@ -102,49 +102,15 @@
   ;
   ; ***************************************************************************************
   .systemVIAShiftRegister                     = $FE4A     ;
-
-  ; ***************************************************************************************
-  ;
-  ; System VIA, Auxiliary Control Register ($FE4B) (aka 'ACR')
-  ;
-  ; bit 0:    PA latch enable
-  ; bit 1:    PB latch enable
-  ; bits 2-4: Shift register mode
-  ; bit 5:    Timer 2 mode: 0=One-shot mode; 1=Pulse counting mode.
-  ; bit 6:    Timer 1 mode: 0=One shot mode; 1=Free-run mode.
-  ; bit 7:    Enable pulsing of System VIA output pin PB7.
-  ;           When enabled, Timer 1 will set PB7 as follows:
-  ;           In One-shot mode:
-  ;               PB7 is cleared when Timer 1 started,
-  ;               PB7 is set when Timer 1 one-shot mode times out.
-  ;           In Free-run mode:
-  ;               PB7 is inverted when Timer 1 times out.
-  ;
-  ; In the reset code (see .setUpPage2) this register is initialised to:
-  ;
-  ;   (a) disable the latches and the shift register,
-  ;   (b) set Timer 2 as an interval timer,
-  ;   (c) set Timer 1 as free-run mode (aka continuous interrupts).
-  ;
-  ; Otherwise this register is not used by the OS.
-  ;
-  ; See NAUG Section 22.4.8, Page 395.
-  ;
-  ; ***************************************************************************************
-  .systemVIAAuxiliaryControlRegister          = $FE4B     ;
-
-  .systemVIAInterruptFlagRegister             = $FE4D     ;
-
-  ; See .systemVIADataDirectionRegisterA.
-  .systemVIARegisterANoHandshake              = $FE4F     ; System VIA Register A without handshaking
  */
 
 #include <vector>
 
 class SystemVia {
  public:
-  SystemVia(Keyboard * keyboard, SoundChip * sound_chip);
+  SystemVia(Keyboard *keyboard, SoundChip *sound_chip);
 
+  bool interrupt_raised() const { return ifr_ & 0x80;}
 
   /*
    * System VIA, Data Direction Register A ($FE43) (aka 'DDRA')
@@ -173,6 +139,14 @@ class SystemVia {
   void set_ddra(uint8_t value);
   uint8_t ddra() const;
 
+  void set_ddrb(uint8_t value);
+  uint8_t ddrb() const;
+
+  void set_ora(uint8_t value);
+  void set_orb(uint8_t value);
+
+  uint8_t ira() const;
+  uint8_t irb() const;
 
   /*
    * System VIA, Peripheral Control Register ($FE4C) (aka 'PCR')
@@ -210,14 +184,71 @@ class SystemVia {
    *       CB2 negative active edges on input (light pen strobe)
    */
   void set_pcr(uint8_t value);
+  uint8_t pcr() const;
 
+  /*
+  ;
+  ; System VIA, Auxiliary Control Register ($FE4B) (aka 'ACR')
+  ;
+  ; bit 0:    PA latch enable
+  ; bit 1:    PB latch enable
+  ; bits 2-4: Shift register mode
+  ; bit 5:    Timer 2 mode: 0=One-shot mode; 1=Pulse counting mode.
+  ; bit 6:    Timer 1 mode: 0=One shot mode; 1=Free-run mode.
+  ; bit 7:    Enable pulsing of System VIA output pin PB7.
+  ;           When enabled, Timer 1 will set PB7 as follows:
+  ;           In One-shot mode:
+  ;               PB7 is cleared when Timer 1 started,
+  ;               PB7 is set when Timer 1 one-shot mode times out.
+  ;           In Free-run mode:
+  ;               PB7 is inverted when Timer 1 times out.
+  ;
+  ; In the reset code (see .setUpPage2) this register is initialised to:
+  ;
+  ;   (a) disable the latches and the shift register,
+  ;   (b) set Timer 2 as an interval timer,
+  ;   (c) set Timer 1 as free-run mode (aka continuous interrupts).
+  ;
+  ; Otherwise this register is not used by the OS.
+  ;
+  ; See NAUG Section 22.4.8, Page 395.
+  ;
+  */
+  void set_acr(uint8_t value);
 
-    void set_ddrb(uint8_t value);
-  uint8_t ddrb() const;
-  void set_ora(uint8_t value);
-  void set_orb(uint8_t value);
-  uint8_t ira() const;
-  uint8_t irb() const;
+  /*
+  ;
+  ; System VIA, Timer 1 registers ($FE44-7)
+  ;
+  ; This is a 1Mhz countdown timer. An IRQ is triggered when the timer reaches zero. The OS
+  ; uses this timer as a 100Hz timer to update various parts of the OS. It is expected to
+  ; remain as a 100Hz timer if the OS is to continue working properly. User VIA Timers are
+  ; available for user programs instead.
+  ; See .irq1CheckSystemVIA100HzTimer.
+  ;
+  ; Timer 1 can be configured in one of two modes by writing to the ACR
+  ; (see .systemVIAAuxiliaryControlRegister):
+  ;
+  ; One-shot mode:
+  ;   .systemVIATimer1LatchLow and .systemVIATimer1CounterHigh form a 16 bit countdown value.
+  ;   Write to .systemVIATimer1LatchLow first then writing to .systemVIATimer1CounterHigh
+  ;   starts the timer. When the timer is complete a timer IRQ interrupt is generated. This
+  ;   only happens once.
+  ;
+  ; Free-run mode (aka 'Continuous interrupts'):
+  ;   .systemVIATimer1LatchLow and .systemVIATimer1LatchHigh are initialised to the initial
+  ;   timeout value for the timer. The timer starts when .systemVIATimer1CounterHigh is
+  ;   also written. Unlike one-shot mode, once the timeout interrupt has happened the counter
+  ;   is reset to the values in the latches and the process repeats. The process can be stopped
+  ;   by writing .systemVIATimer1CounterHigh, by reading .systemVIATimer1CounterLow, or by
+  ;   writing to the interrupt flag.
+  ;   This is the mode set by the OS for Timer 1 at startup. See .setUpPage2.
+  ;
+  */
+  void set_T1_counter_low(uint8_t data);
+  void set_T1_counter_high(uint8_t data);
+  void set_T1_latch_low(uint8_t data);
+  void set_T1_latch_high(uint8_t data);
 
   bool is_sound_chip_enabled() const {
     return sound_chip_->is_enabled();
@@ -261,7 +292,7 @@ class SystemVia {
       case 2: return 0x6000;
       case 3: return 0x3000;
       default:spdlog::error("Invalid C0 ({}), C1 ({}) combination in SystemVIA", c0_, c1_);
-      return 0x4000;
+        return 0x4000;
     }
   }
 
@@ -296,7 +327,6 @@ class SystemVia {
   uint8_t ier() const;
   void set_ier(uint8_t value);
 
-
   /*
    * System VIA, Interrupt Flag Register ($FE4D) (aka 'IFR')
    * bit 0 = key pressed
@@ -312,11 +342,15 @@ class SystemVia {
    * -------
    * If bit 7 is set then the System VIA caused the current interrupt. The remaining bits can
    * then be checked to see the exact cause.
+   *
    * Writing
    * -------
    * Clear bit 7 and set a bit 0-6 to clear that interrupt.
    */
-  uint8_t ifr() const {return ifr_;}
+  uint8_t ifr() const;
+  void set_ifr(uint8_t);
+
+  void tick();
 
  private:
   /*
@@ -364,7 +398,6 @@ class SystemVia {
    */
   void write_port_a();
 
-
   /*
    * Port A of the system VIA acts as a slow data bus which connects to the keyboard,
    * the sound generator (IC18) and speech system chips (IC98, IC99)
@@ -380,11 +413,11 @@ class SystemVia {
    */
   uint8_t read_port_b();
 
-  /*
-   * There are two data direction registers DDRA and DDRB which specify whether the peripheral pins are to
-   * operate as inputs or outputs. Placing a ‘0’ in a bit of a DDR will cause the corresponding bit of that
-   * port to be defined as an input. A ‘1’ will cause it to be defined as an output.
-   */
+    /*
+     * There are two data direction registers DDRA and DDRB which specify whether the peripheral pins are to
+     * operate as inputs or outputs. Placing a ‘0’ in a bit of a DDR will cause the corresponding bit of that
+     * port to be defined as an input. A ‘1’ will cause it to be defined as an output.
+     */
   uint8_t ddra_;
   /*
    * System VIA, Data Direction Register B ($FE42) (aka 'DDRB')
@@ -416,11 +449,19 @@ class SystemVia {
 
   uint8_t ifr_;
 
-
   uint8_t pcr_;
 
-  Keyboard * keyboard_;
-  SoundChip * sound_chip_;
+  // Auxiliary Control Register
+  uint8_t acr_;
+
+  // Timer 1
+  uint16_t timer_1_count_;
+  uint16_t timer_1_latch_;
+  uint8_t timer_1_mode_; // 0= one shot, 1 = free run
+  bool timer_1_running_ = false;
+
+  Keyboard *keyboard_;
+  SoundChip *sound_chip_;
 };
 
 #endif //M6502_SRC_VIA_H_
