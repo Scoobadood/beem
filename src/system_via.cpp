@@ -2,11 +2,13 @@
 // Created by Dave Durbin on 30/12/2022.
 //
 
-#include "via.h"
+#include "system_via.h"
 #include "keyboard.h"
 #include "sound_76489.h"
 #include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
+
+
 
 SystemVia::SystemVia(Keyboard * keyboard, SoundChip * sound_chip) {
   input_latching_ = false;
@@ -24,10 +26,6 @@ SystemVia::SystemVia(Keyboard * keyboard, SoundChip * sound_chip) {
   shift_lock_led_ = false;
   c0_ = 0;
   c1_ = 0;
-  ca1_ = 0;
-  ca2_ = 0;
-  cb1_ = 0;
-  cb2_ = 0;
   /*
    * On power on: 6522 System VIA IER bits 0 to 6 will all be clear
    * (NB bit 7 is always returned as 1)
@@ -264,13 +262,5 @@ void SystemVia::set_pcr(uint8_t value) {
  *       CB2 negative active edges on input (light pen strobe)
  */
   pcr_ = value;
-  spdlog::get("SystemVIA")->info("Set PCR (0x{:02x}) | TIMER 1 {} | TIMER 2 {} | CB1 (EOC) {} | CB2 (LPSTB) {} | SHIFT_REG {} | CA1 (VSYNC) {} | CA2 (KEYB) {} |", value,
-                                 (ier_ & 0x40) ? "X" : " ",
-                                 (ier_ & 0x20) ? "X" : " ",
-                                 (ier_ & 0x10) ? "X" : " ",
-                                 (ier_ & 0x08) ? "X" : " ",
-                                 (ier_ & 0x04) ? "X" : " ",
-                                 (ier_ & 0x02) ? "X" : " ",
-                                 (ier_ & 0x01) ? "X" : " "
-  );
+  spdlog::get("SystemVIA")->info("Set PCR (0x{:02x})", value);
 }

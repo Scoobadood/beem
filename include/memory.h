@@ -5,7 +5,8 @@
 #ifndef M6502_INCLUDE_MEMORY_H_
 #define M6502_INCLUDE_MEMORY_H_
 
-#include "via.h"
+#include "system_via.h"
+#include "user_via.h"
 
 #include <vector>
 #include <iterator>
@@ -22,6 +23,7 @@ class Memory {
   void set(uint16_t addr, uint8_t arg);
 
   void set_system_via(SystemVia * system_via);
+  void set_user_via(UserVia * user_via);
 
   void insert(uint16_t offset, std::vector<uint8_t> &data);
 
@@ -30,6 +32,7 @@ class Memory {
   void handle_mmio_writes(uint16_t addr, uint8_t arg);
 
   SystemVia * system_via_;
+  UserVia * user_via_;
   std::vector<uint8_t> memory_;
   uint32_t size_;
 };

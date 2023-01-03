@@ -3,7 +3,7 @@
 //
 
 #include "keyboard.h"
-#include "via.h"
+#include "system_via.h"
 
 Keyboard::Keyboard() {
   dips_ = 0x00;

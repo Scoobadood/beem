@@ -29,6 +29,8 @@ Beeb::Beeb() {
   auto system_via = new SystemVia(keyboard_, sound_chip);
   memory_->set_system_via(system_via);
 
+  memory_->set_user_via(new UserVia());
+  
   cpu_ = new Cpu(false);
   cpu_->stack_pointer_ = 0xff;
   cpu_->pc_ = memory_->at(0xfffc) + memory_->at(0xfffd) * 256;

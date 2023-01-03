@@ -7,7 +7,7 @@
 
 #include "memory.h"
 #include "cpu.h"
-#include "via.h"
+#include "system_via.h"
 #include "keyboard.h"
 
 class Beeb {
