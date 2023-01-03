@@ -36,6 +36,7 @@ add_executable(test-6502
         include/user_via.h src/user_via.cpp
         include/sound_76489.h src/sound_76489.cpp
         include/keyboard.h src/keyboard.cpp
+        include/acia_6850.h src/acia_6850.cpp
         )
 
 target_include_directories(test-6502
@@ -56,6 +57,7 @@ add_executable(beeb
         include/beeb.h src/beeb.cpp
         include/keyboard.h src/keyboard.cpp
         include/sound_76489.h src/sound_76489.cpp
+        include/acia_6850.h src/acia_6850.cpp
         )
 
 
