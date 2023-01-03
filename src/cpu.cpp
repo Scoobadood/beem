@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include "opcodes.h"
+#include "memory.h"
 
 #include <sstream>
 #include <functional>
@@ -8,6 +9,13 @@
 
 Cpu::Cpu(bool should_log) {
   should_log_ = should_log;
+  stack_pointer_ = 0;
+  accumulator_ = 0;
+  x_reg_ = 0;
+  y_reg_ = 0;
+  pc_ = 0;
+  next_clock_ = 0;
+  next_ = 0;
 }
 
 std::string Cpu::to_string() const {
@@ -107,4 +115,23 @@ void Cpu::tick(Memory *memory, uint64_t clock) {
     spdlog::default_logger()->flush();
     throw std::runtime_error(msg);
   }
+}
+
+void Cpu::service_interrupt(Memory * memory, uint64_t clock) {
+  if (clock + 1 != next_clock_) {
+    return;
+  }
+  if( is_interrupt()) {
+    return;
+  }
+  spdlog::info( "IRQ");
+  auto pc = pc_ + 1;
+  memory->push_stack(*this, pc >> 8);
+  memory->push_stack(*this, pc & 0xff);
+  // Clear BRK flag
+  auto status = (status_.to_ulong()) & 0xe0;
+  memory->push_stack(*this, status);
+  set_interrupt();
+  pc_ = (memory->at(0xfffe) + (memory->at(0xffff) * 256)) & 0xffff;
+  next_clock_ += 7;
 }

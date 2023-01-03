@@ -7,7 +7,8 @@
 
 #include <vector>
 #include <bitset>
-#include "memory.h"
+
+class Memory;
 
 const uint8_t SR_NEG = 7;
 const uint8_t SR_OVF = 6;
@@ -86,6 +87,8 @@ struct Cpu {
   std::string to_string() const;
 
   void tick(Memory *memory, uint64_t clock_);
+
+  void service_interrupt(Memory *memory, uint64_t clock);
 
   uint32_t pc_;
   std::bitset<8> status_;
