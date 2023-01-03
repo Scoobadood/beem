@@ -132,74 +132,7 @@
   ; ***************************************************************************************
   .systemVIAAuxiliaryControlRegister          = $FE4B     ;
 
-  ; ***************************************************************************************
-  ;
-  ; System VIA, Peripheral Control Register ($FE4C) (aka 'PCR')
-  ;
-  ; bit 0    = CA1 interrupt control
-  ;            Writing to CA1 means "data taken"
-  ;            0 means negative active edge
-  ;            1 means positive active edge
-  ;
-  ; bits 1-3 = CA2 control mode
-  ;            CA2 signifies "data ready"
-  ;
-  ; bit 4    = CB1 interrupt control
-  ;            Writing to CB1 means "data taken"
-  ;            0 means negative active edge
-  ;            1 means positive active edge
-  ;
-  ; bits 5-7 = CB2 control mode
-  ;            CB2 signifies "data ready"
-  ;
-  ; control mode:
-  ;   000 = negative edges active on input
-  ;   001 = independent interrupt; input negative edge
-  ;   010 = positive edges active on input
-  ;   011 = independent interrupt; input positive edge
-  ;   100 = handshake output mode
-  ;   101 = pulse output mode
-  ;   110 = low output
-  ;   111 = high output
-  ;
-  ; The System VIA PCR initialises like so (See .setUpPage2):
-  ;       CA1 has negative active edge       (vertical sync)
-  ;       CA2 positive edges active on input (keyboard)
-  ;       CB1 has negative active edge       (end of analogue conversion)
-  ;       CB2 negative active edges on input (light pen strobe)
-  ; ***************************************************************************************
-  .systemVIAPeripheralControlRegister         = $FE4C     ;
-
-
   .systemVIAInterruptFlagRegister             = $FE4D     ;
-
-  ; ***************************************************************************************
-  ;
-  ; System VIA, Interrupt Enable Register ($FE4E) (aka 'IER')
-  ;
-  ; Each bit controls whether an interrupt is enabled or disabled.
-  ;
-  ; bit 0 = key pressed
-  ; bit 1 = vertical sync occurred
-  ; bit 2 = shift register timeout (unused)
-  ; bit 3 = light pen strobe off screen
-  ; bit 4 = analogue conversion completed
-  ; bit 5 = timer 2 timed out (used for speech)
-  ; bit 6 = timer 1 timed out (100Hz signal)
-  ; bit 7 = enable/disable interrupt value (see below)
-  ;
-  ; Writing:
-  ; --------
-  ; To enable  an interrupt, write a byte with bit 7 set   and set the desired bit(s) (0-6).
-  ; To disable an interrupt, write a byte with bit 7 clear and set the desired bit(s) (0-6).
-  ;
-  ; Reading:
-  ; --------
-  ; Bits 0-6 are read as expected.
-  ; Bit 7 is always set when read.
-  ;
-  ; ***************************************************************************************
-  .systemVIAInterruptEnableRegister           = $FE4E     ;
 
   ; See .systemVIADataDirectionRegisterA.
   .systemVIARegisterANoHandshake              = $FE4F     ; System VIA Register A without handshaking
@@ -211,7 +144,7 @@ class SystemVia {
  public:
   SystemVia(Keyboard * keyboard, SoundChip * sound_chip);
 
-  void set_ddra(uint8_t value);
+
   /*
    * System VIA, Data Direction Register A ($FE43) (aka 'DDRA')
    *
@@ -236,8 +169,49 @@ class SystemVia {
    *           (See .interrogateKeyboard)
    *           (See .scanKeyboard)
    */
+  void set_ddra(uint8_t value);
   uint8_t ddra() const;
-  void set_ddrb(uint8_t value);
+
+
+  /*
+   * System VIA, Peripheral Control Register ($FE4C) (aka 'PCR')
+   *
+   * bit 0    = CA1 interrupt control
+   *            Writing to CA1 means "data taken"
+   *            0 means negative active edge
+   *            1 means positive active edge
+   *
+   * bits 1-3 = CA2 control mode
+   *            CA2 signifies "data ready"
+   *
+   * bit 4    = CB1 interrupt control
+   *            Writing to CB1 means "data taken"
+   *            0 means negative active edge
+   *            1 means positive active edge
+   *
+   * bits 5-7 = CB2 control mode
+   *            CB2 signifies "data ready"
+   *
+   * control mode:
+   *   000 = negative edges active on input
+   *   001 = independent interrupt; input negative edge
+   *   010 = positive edges active on input
+   *   011 = independent interrupt; input positive edge
+   *   100 = handshake output mode
+   *   101 = pulse output mode
+   *   110 = low output
+   *   111 = high output
+   *
+   * The System VIA PCR initialises like so (See .setUpPage2):
+   *       CA1 has negative active edge       (vertical sync)
+   *       CA2 positive edges active on input (keyboard)
+   *       CB1 has negative active edge       (end of analogue conversion)
+   *       CB2 negative active edges on input (light pen strobe)
+   */
+  void set_pcr(uint8_t value);
+
+
+    void set_ddrb(uint8_t value);
   uint8_t ddrb() const;
   void set_ora(uint8_t value);
   void set_orb(uint8_t value);
@@ -441,21 +415,8 @@ class SystemVia {
 
   uint8_t ifr_;
 
-  /*
-   * These two lines can act either as interrupt inputs or as handshake outputs.
-   * Each line controls an internal interrupt flag with a corresponding interrupt enable bit.
-   * In addition, CA1 controls the latching of data on port A input lines.
-   */
-  uint8_t ca1_;
-  uint8_t ca2_;
 
-  /*
-   * The port B control lines act as interrupt inputs or as handshake outputs just like port A.
-   * They can also be programmed to act as a serial port under the control of the shift register.
-   * These lines cannot source 1mA either.
-   */
-  uint8_t cb1_;
-  uint8_t cb2_;
+  uint8_t pcr_;
 
   Keyboard * keyboard_;
   SoundChip * sound_chip_;

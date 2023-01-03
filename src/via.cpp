@@ -95,7 +95,7 @@ void SystemVia::write_port_a() {
     // Keyboard probing
     auto key_code = ora_ & 0x7f;
     if( keyboard_->key_pressed(key_code) ) {
-      ira_ = 0x80;
+      ira_ = 0x80 | key_code;
       spdlog::get("SystemVIA")->info("Probe key 0x{:02x} (pushed)", key_code);
     } else {
       ira_ = 0x00;
@@ -216,4 +216,61 @@ void SystemVia::set_ier(uint8_t value) {
   } else {
     ier_ = ier_ | value;
   }
+  spdlog::get("SystemVIA")->info("Set IER (0x{:02X}) | TIMER 1 {} | TIMER 2 {} | CB1 (EOC) {} | CB2 (LPSTB) {} | SHIFT_REG {} | CA1 (VSYNC) {} | CA2 (KEYB) {} |", value,
+                                 (ier_ & 0x40) ? "X" : " ",
+                                 (ier_ & 0x20) ? "X" : " ",
+                                 (ier_ & 0x10) ? "X" : " ",
+                                 (ier_ & 0x08) ? "X" : " ",
+                                 (ier_ & 0x04) ? "X" : " ",
+                                 (ier_ & 0x02) ? "X" : " ",
+                                 (ier_ & 0x01) ? "X" : " "
+                                 );
+}
+
+void SystemVia::set_pcr(uint8_t value) {
+  /*
+ * System VIA, Peripheral Control Register ($FE4C) (aka 'PCR')
+ *
+ * bit 0    = CA1 interrupt control
+ *            Writing to CA1 means "data taken"
+ *            0 means negative active edge
+ *            1 means positive active edge
+ *
+ * bits 1-3 = CA2 control mode
+ *            CA2 signifies "data ready"
+ *
+ * bit 4    = CB1 interrupt control
+ *            Writing to CB1 means "data taken"
+ *            0 means negative active edge
+ *            1 means positive active edge
+ *
+ * bits 5-7 = CB2 control mode
+ *            CB2 signifies "data ready"
+ *
+ * control mode:
+ *   000 = negative edges active on input
+ *   001 = independent interrupt; input negative edge
+ *   010 = positive edges active on input
+ *   011 = independent interrupt; input positive edge
+ *   100 = handshake output mode
+ *   101 = pulse output mode
+ *   110 = low output
+ *   111 = high output
+ *
+ * The System VIA PCR initialises like so (See .setUpPage2):
+ *       CA1 has negative active edge       (vertical sync)
+ *       CA2 positive edges active on input (keyboard)
+ *       CB1 has negative active edge       (end of analogue conversion)
+ *       CB2 negative active edges on input (light pen strobe)
+ */
+  pcr_ = value;
+  spdlog::get("SystemVIA")->info("Set PCR (0x{:02x}) | TIMER 1 {} | TIMER 2 {} | CB1 (EOC) {} | CB2 (LPSTB) {} | SHIFT_REG {} | CA1 (VSYNC) {} | CA2 (KEYB) {} |", value,
+                                 (ier_ & 0x40) ? "X" : " ",
+                                 (ier_ & 0x20) ? "X" : " ",
+                                 (ier_ & 0x10) ? "X" : " ",
+                                 (ier_ & 0x08) ? "X" : " ",
+                                 (ier_ & 0x04) ? "X" : " ",
+                                 (ier_ & 0x02) ? "X" : " ",
+                                 (ier_ & 0x01) ? "X" : " "
+  );
 }

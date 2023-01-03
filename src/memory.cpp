@@ -152,7 +152,8 @@ void Memory::handle_mmio_writes(uint16_t addr, uint8_t arg) {
     case SystemVIA_ORA:
     case SystemVIA_ORA_NoHshk:system_via_->set_ora(arg);
       break;
-
+    case SystemVIA_int_enable_reg:system_via_->set_ier(arg);
+    break;
     default:spdlog::info("write {:0X} to 0x{:0X}", arg, addr);
       break;
   }
