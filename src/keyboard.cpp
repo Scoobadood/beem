@@ -14,7 +14,7 @@ bool Keyboard::key_pressed(uint8_t key_code, bool shift, bool ctl) const {
   if (key_code >= KEY_DIP_7 && key_code <= KEY_DIP_0) {
     auto s = 9 - key_code;
     auto tst = 0x01 << s;
-    return ((dips_ & tst) == 0);
+    return ((dips_ & tst) == 1);
   }
 
   if ((shift || ctl)
