@@ -79,23 +79,28 @@ void Cpu::tick(Memory *memory, uint64_t clock) {
   }
 
   auto start_pc = pc_;
+  if (start_pc == 0xdeb1) {
+    spdlog::warn("Called print message. Y: {}, msg is at 0x{:02x}{:02x}",
+                 y_reg_ & 0xff,
+                 memory->at(0xfe),
+                 memory->at(0xfd));
+  }
   pc_++;
   iter->second.operation(*this, *memory, next_clock_);
 
-
-
-  auto msg = fmt::format("PC: 0x{:04x} {} {} CLK: {}", start_pc, iter->second.to_string(), to_string(), std::to_string(clock));
+  auto msg =
+      fmt::format("PC: 0x{:04x} {} {} CLK: {}", start_pc, iter->second.to_string(), to_string(), std::to_string(clock));
   history_.at(next_) = msg;
   next_ = (next_ + 1) % history_buffsize_;
   if (should_log_) {
     std::cout << msg << std::endl;
   }
 
-  if( pc_ == start_pc) {
+  if (pc_ == start_pc) {
     auto msg = fmt::format("Hung at PC: 0x{:04x}", start_pc);
     spdlog::error(msg);
 
-    for( auto i=0; i<history_buffsize_; ++i) {
+    for (auto i = 0; i < history_buffsize_; ++i) {
       spdlog::info(history_[next_]);
       next_ = (next_ + 1) % history_buffsize_;
     }
