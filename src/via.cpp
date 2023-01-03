@@ -41,6 +41,7 @@ SystemVia::SystemVia(Keyboard * keyboard, SoundChip * sound_chip) {
 
   try {
     auto logger = spdlog::basic_logger_mt("SystemVIA", "logs/system-via.txt", true);
+    spdlog::flush_every((std::chrono::seconds) 5);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
