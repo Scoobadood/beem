@@ -17,14 +17,15 @@ CycleHandler cycle_handler(uint16_t ir) {
 /**
  * Perform the core of comparison functions for CPY, CPX nd CMP,
  * setting flags appropriately.
- * @param cpu - for settign flags
+ * @param cpu - for setting flags
  * @param reg The register
- * @param val Thre value to compare to reg.
+ * @param val The value to compare to reg.
  */
 void do_cmp(M6502 *cpu, uint8_t reg, uint8_t val) {
   uint16_t t = reg - val;
   cpu->setNZ(t & 0xff);
-  if (t & 0xff00) cpu->setC(); else cpu->clrC();
+  if(( t & 0xff00 )|(t==0)) cpu->setC();
+  else cpu->clrC();
 }
 
 /**
@@ -187,6 +188,31 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       clr_RW(pins);
     }},
     {0x8d3, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+    // BCC #
+    {0x900, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->inc_pc());
+    }},
+    {0x901, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->pc());
+      cpu->set_temp_addr(cpu->pc() + (int8_t) get_data(pins));
+      // Check if we should take the branch
+      if (!cpu->tstC()) fetch(cpu, pins);
+    }},
+    {0x902, [](M6502 *cpu, uint64_t &pins) {
+      // Put un-page wrapped address on the bus
+      set_address(pins, (cpu->pc() & 0xff00) | (cpu->temp_address() & 0xff));
+      if ((cpu->temp_address() & 0xff00) == (cpu->pc() & 0xff00)) {
+        cpu->set_pc(cpu->temp_address());
+//        cpu->irq_pip >>= 1;
+//        cpu->nmi_pip >>= 1;
+        fetch(cpu, pins);
+      }
+    }},
+    {0x903, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_pc(cpu->temp_address());
       fetch(cpu, pins);
     }},
 

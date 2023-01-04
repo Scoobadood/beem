@@ -133,6 +133,10 @@ void clr_RW(uint64_t &pins) {
   pins &= ~PIN_RD_NOT_WR;
 }
 
+bool tst_SYNC(uint64_t pins) {
+  return (pins & PIN_SYNC);
+}
+
 void set_SYNC(uint64_t &pins) {
   pins |= PIN_SYNC;
 }

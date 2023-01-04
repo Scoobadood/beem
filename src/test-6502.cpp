@@ -52,25 +52,27 @@ int main() {
     }
 
     // Log PC to history buffer
-    auto pc = cpu.pc();
-    if (pc == pc_history.at(buffer_idx)) {
-      dup_pc_count++;
-      if (dup_pc_count == 8) {
-        if (pc == 0x3469) {
-          spdlog::info("All tests passed!");
-          return EXIT_SUCCESS;
-        } else {
-          spdlog::critical("Stuck in a loop at PC: 0x{:04x}", pc);
-          for (auto i = 0; i < buffer_size; ++i) {
-            spdlog::info("{:04x}", pc_history.at((buffer_idx + i) % buffer_size));
+    if (tst_SYNC(pins)) {
+      auto pc = cpu.pc();
+      if (pc == pc_history.at(buffer_idx)) {
+        dup_pc_count++;
+        if (dup_pc_count == 8) {
+          if (pc == 0x3469) {
+            spdlog::info("All tests passed!");
+            return EXIT_SUCCESS;
+          } else {
+            spdlog::critical("Stuck in a loop at PC: 0x{:04x}", pc);
+            for (auto i = 1; i <= buffer_size; ++i) {
+              spdlog::info("{:04x}", pc_history.at((buffer_idx + i) % buffer_size));
+            }
+            return EXIT_FAILURE;
           }
-          return EXIT_FAILURE;
         }
+      } else {
+        dup_pc_count = 0;
+        buffer_idx = (buffer_idx + 1) % buffer_size;
+        pc_history.at(buffer_idx) = pc;
       }
-    } else {
-      dup_pc_count = 0;
-      buffer_idx = (buffer_idx + 1) % buffer_size;
-      pc_history.at(buffer_idx) = pc;
     }
   }
 }
