@@ -409,6 +409,17 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       );
     }},
 
+    
+    // CPX #
+    {0xe00, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->inc_pc());
+    }},
+    {0xe01, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->x(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
     // NOP
     {0xea0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->pc());
