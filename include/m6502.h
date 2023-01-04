@@ -101,7 +101,7 @@ class M6502 {
     flags_ &= ~FLAG_Z;
   }
   inline bool tstZ() {
-    return (flags_ &= FLAG_Z);
+    return (flags_ & FLAG_Z);
   }
   inline void setN() {
     flags_ |= FLAG_N;
@@ -110,7 +110,7 @@ class M6502 {
     flags_ &= ~FLAG_N;
   }
   inline bool tstN() {
-    return (flags_ &= FLAG_N);
+    return (flags_ & FLAG_N);
   }
   inline void setNZ(uint8_t value) {
     flags_ = (value) ? (flags_ & ~FLAG_Z) : (flags_ | FLAG_Z);
@@ -157,6 +157,7 @@ void set_RST(uint64_t &pins);
 bool tst_RW(uint64_t pins);
 void set_RW(uint64_t &pins);
 void clr_RW(uint64_t &pins);
+bool tst_SYNC(uint64_t pins);
 void set_SYNC(uint64_t &pins);
 
 #endif //BEEB_CPU_6502_H
