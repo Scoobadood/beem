@@ -267,6 +267,14 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    // CPY #
+    {0xc00, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->inc_pc());
+    }},
+    {0xc01, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->y(), get_data(pins));
+      fetch(cpu, pins);
+    }},
 
     // CMP #
     {0xc90, [](M6502 *cpu, uint64_t &pins) {
