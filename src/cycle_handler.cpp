@@ -24,8 +24,11 @@ CycleHandler cycle_handler(uint16_t ir) {
 void do_cmp(M6502 *cpu, uint8_t reg, uint8_t val) {
   uint16_t t = reg - val;
   cpu->setNZ(t & 0xff);
-  if(( t & 0xff00 )|(t==0)) cpu->setC();
-  else cpu->clrC();
+
+  // The carry flag is set when the value in memory is less than or equal to the accumulator,
+  // reset when it is greater than the accumulator.
+  if( t & 0xff00 ) cpu->clrC();
+  else cpu->setC();
 }
 
 /**
@@ -130,6 +133,31 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    // BMI #
+    {0x300, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->inc_pc());
+    }},
+    {0x301, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->pc());
+      cpu->set_temp_addr(cpu->pc() + (int8_t) get_data(pins));
+      // Check if we should take the branch
+      if (!cpu->tstN()) fetch(cpu, pins);
+    }},
+    {0x302, [](M6502 *cpu, uint64_t &pins) {
+      // Put un-page wrapped address on the bus
+      set_address(pins, (cpu->pc() & 0xff00) | (cpu->temp_address() & 0xff));
+      if ((cpu->temp_address() & 0xff00) == (cpu->pc() & 0xff00)) {
+        cpu->set_pc(cpu->temp_address());
+//        cpu->irq_pip >>= 1;
+//        cpu->nmi_pip >>= 1;
+        fetch(cpu, pins);
+      }
+    }},
+    {0x303, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_pc(cpu->temp_address());
+      fetch(cpu, pins);
+    }},
+
     // EOR #
     {0x490, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->inc_pc());
@@ -199,7 +227,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_address(pins, cpu->pc());
       cpu->set_temp_addr(cpu->pc() + (int8_t) get_data(pins));
       // Check if we should take the branch
-      if (!cpu->tstC()) fetch(cpu, pins);
+      if (cpu->tstC()) fetch(cpu, pins);
     }},
     {0x902, [](M6502 *cpu, uint64_t &pins) {
       // Put un-page wrapped address on the bus
@@ -290,6 +318,31 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0xad3, [](M6502 *cpu, uint64_t &pins) {
       cpu->set_a(get_data(pins));
       cpu->setNZ(cpu->a());
+      fetch(cpu, pins);
+    }},
+
+    // BCS #
+    {0xb00, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->inc_pc());
+    }},
+    {0xb01, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->pc());
+      cpu->set_temp_addr(cpu->pc() + (int8_t) get_data(pins));
+      // Check if we should take the branch
+      if (!cpu->tstC()) fetch(cpu, pins);
+    }},
+    {0xb02, [](M6502 *cpu, uint64_t &pins) {
+      // Put un-page wrapped address on the bus
+      set_address(pins, (cpu->pc() & 0xff00) | (cpu->temp_address() & 0xff));
+      if ((cpu->temp_address() & 0xff00) == (cpu->pc() & 0xff00)) {
+        cpu->set_pc(cpu->temp_address());
+//        cpu->irq_pip >>= 1;
+//        cpu->nmi_pip >>= 1;
+        fetch(cpu, pins);
+      }
+    }},
+    {0xb03, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_pc(cpu->temp_address());
       fetch(cpu, pins);
     }},
 
