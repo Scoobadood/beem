@@ -129,7 +129,15 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
+    // EOR #
+    {0x490, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->inc_pc());
+    }},
+    {0x491, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_a(cpu->a() ^ get_data(pins));
+      cpu->setNZ(cpu->a());
+      fetch(cpu, pins);
+    }},
 
     // JMP
     {0x4c0, [](M6502 *cpu, uint64_t &pins) {
