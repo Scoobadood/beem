@@ -8,7 +8,7 @@
 #include "system_via.h"
 #include "user_via.h"
 #include "acia_6850.h"
-#include "cpu.h"
+#include "m6502.h"
 
 #include <vector>
 #include <iterator>
@@ -20,8 +20,8 @@ class Memory {
 
   explicit Memory(std::ifstream &f);
 
-  void push_stack(Cpu &cpu, uint8_t arg);
-  uint8_t pop_stack(Cpu &cpu) const;
+  void push_stack(M6502 &cpu, uint8_t arg);
+  uint8_t pop_stack(M6502 &cpu) const;
 
   uint8_t at(uint16_t addr) const;
 

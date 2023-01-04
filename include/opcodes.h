@@ -10,11 +10,10 @@
 #include <vector>
 
 #include "opcodes.h"
-#include "cpu.h"
+#include "m6502.h"
 #include "memory.h"
 
-using Operation = std::function<void(Cpu &cpu, Memory &memory, uint64_t &clk)>;
-
+using Operation = std::function<void(M6502 &cpu, Memory &memory, uint64_t &clk)>;
 struct OpCode {
   uint8_t bytes;
   uint8_t cycles;

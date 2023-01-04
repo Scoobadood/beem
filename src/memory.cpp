@@ -4,7 +4,7 @@
 
 #include "memory.h"
 #include "system_via.h"
-#include "cpu.h"
+#include "m6502.h"
 
 #include <iterator>
 #include <fstream>
@@ -106,14 +106,14 @@ void Memory::set_acia(Acia *acia) {
   acia_ = acia;
 }
 
-void Memory::push_stack(Cpu &cpu, uint8_t arg) {
-  set(STACK_BASE + cpu.stack_pointer_, arg & 0xff);
-  cpu.stack_pointer_ = (cpu.stack_pointer_ - 1) & 0xff;
+void Memory::push_stack(M6502 &cpu, uint8_t arg) {
+  set(STACK_BASE + cpu.sp(), arg & 0xff);
+  cpu.set_sp((cpu.sp() - 1) & 0xff);
 }
 
-uint8_t Memory::pop_stack(Cpu &cpu) const {
-  cpu.stack_pointer_ = (cpu.stack_pointer_ + 1) & 0xff;
-  return at(STACK_BASE + cpu.stack_pointer_) & 0xff;
+uint8_t Memory::pop_stack(M6502 &cpu) const {
+  cpu.set_sp((cpu.sp() + 1) & 0xff);
+  return at(STACK_BASE + cpu.sp()) & 0xff;
 }
 
 
@@ -135,118 +135,118 @@ void Memory::set(uint16_t addr, uint8_t arg) {
 }
 
 uint8_t Memory::handle_mmio_reads(uint16_t addr) const {
-  if (system_via_ == nullptr) {
-    spdlog::warn("No SystemVIA!");
-  }
-  if (user_via_ == nullptr) {
-    spdlog::warn("No UserVIA!");
-  }
-  if (acia_ == nullptr) {
-    spdlog::warn("No Acia!");
-  }
-
-  switch (addr) {
-    case SystemVIA_int_enable_reg: {
-      auto ier = system_via_->ier();
-      return ier;
-    }
-
-    case ACIA_STATUS: return acia_->status();
-    case ACIA_RDR: return acia_->rdr();
-
-    case SystemVIA_DDRA:return system_via_->ddra();
-    case SystemVIA_DDRB:return system_via_->ddrb();
-    case SystemVIA_IRB:return system_via_->irb();
-    case SystemVIA_IRA_NoHshk:return system_via_->ira();
-    case SystemVIA_peripheral_ctl_reg: return system_via_->pcr();
-    case SystemVIA_int_flag_reg: return system_via_->ifr();
-
-    case UserVIA_DDRA:return user_via_->ddra();
-    case UserVIA_DDRB:return user_via_->ddrb();
-    case UserVIA_IRA_NoHshk:return user_via_->ira();
-    case UserVIA_IRB:return user_via_->irb();
-    case UserVIA_peripheral_ctl_reg: return user_via_->pcr();
-
-
-    default:spdlog::info("Read from ROM address 0x{:04x} not implemented", addr);
-      return 0x00;
-  }
+//  if (system_via_ == nullptr) {
+//    spdlog::warn("No SystemVIA!");
+//  }
+//  if (user_via_ == nullptr) {
+//    spdlog::warn("No UserVIA!");
+//  }
+//  if (acia_ == nullptr) {
+//    spdlog::warn("No Acia!");
+//  }
+//
+//  switch (addr) {
+//    case SystemVIA_int_enable_reg: {
+//      auto ier = system_via_->ier();
+//      return ier;
+//    }
+//
+//    case ACIA_STATUS: return acia_->status();
+//    case ACIA_RDR: return acia_->rdr();
+//
+//    case SystemVIA_DDRA:return system_via_->ddra();
+//    case SystemVIA_DDRB:return system_via_->ddrb();
+//    case SystemVIA_IRB:return system_via_->irb();
+//    case SystemVIA_IRA_NoHshk:return system_via_->ira();
+//    case SystemVIA_peripheral_ctl_reg: return system_via_->pcr();
+//    case SystemVIA_int_flag_reg: return system_via_->ifr();
+//
+//    case UserVIA_DDRA:return user_via_->ddra();
+//    case UserVIA_DDRB:return user_via_->ddrb();
+//    case UserVIA_IRA_NoHshk:return user_via_->ira();
+//    case UserVIA_IRB:return user_via_->irb();
+//    case UserVIA_peripheral_ctl_reg: return user_via_->pcr();
+//
+//
+//    default:spdlog::info("Read from ROM address 0x{:04x} not implemented", addr);
+//      return 0x00;
+//  }
 }
 
 void Memory::handle_mmio_writes(uint16_t addr, uint8_t arg) {
-  if (system_via_ == nullptr) {
-    spdlog::warn("No SystemVIA!");
-  }
-  if (user_via_ == nullptr) {
-    spdlog::warn("No UserVIA!");
-  }
-  if (acia_ == nullptr) {
-    spdlog::warn("No Acia!");
-  }
-
-  switch (addr) {
-    case CRTC_register_addr:spdlog::info("Select CRTC register 0x{:0X}", arg);
-      break;
-    case CRTC_register_data:spdlog::info("Write CRTC data 0x{:0X}", arg);
-      break;
-    case ACIA_CTL: acia_->set_ctl(arg);
-      break;
-    case ACIA_TDR: acia_->set_tdr(arg);
-      break;
-    case S_ULA_CTL: acia_->set_ula_ctl(arg);
-      break;
-
-    case SystemVIA_DDRB:system_via_->set_ddrb(arg);
-      break;
-    case SystemVIA_DDRA:system_via_->set_ddra(arg);
-      break;
-    case SystemVIA_ORB:system_via_->set_orb(arg);
-      break;
-    case SystemVIA_int_flag_reg: system_via_->set_ifr(arg);
-      break;
-    case SystemVIA_int_enable_reg: system_via_->set_ier(arg);
-      break;
-    case SystemVIA_peripheral_ctl_reg: system_via_->set_pcr(arg);
-      break;
-    case SystemVIA_aux_control_reg: system_via_->set_acr(arg);
-      break;
-    case SystemVIA_ORA:
-    case SystemVIA_ORA_NoHshk:system_via_->set_ora(arg);
-      break;
-    case SystemVIA_t1_high_order_latch:
-      system_via_->set_T1_latch_high(arg);
-      break;
-    case SystemVIA_t1_high_order_cnt:
-      system_via_->set_T1_counter_high(arg);
-      break;
-    case SystemVIA_t1_low_order_latch:
-      system_via_->set_T1_latch_low(arg);
-      break;
-    case SystemVIA_t1_low_order_cnt:
-      system_via_->set_T1_counter_low(arg);
-      break;
-
-    case UserVIA_DDRB:user_via_->set_ddrb(arg);
-      break;
-    case UserVIA_DDRA:user_via_->set_ddra(arg);
-      break;
-    case UserVIA_ORB:user_via_->set_orb(arg);
-      break;
-    case UserVIA_ORA:
-    case UserVIA_ORA_NoHshk:user_via_->set_ora(arg);
-      break;
-    case UserVIA_int_enable_reg:user_via_->set_ier(arg);
-      break;
-    case UserVIA_int_flag_reg: system_via_->set_ifr(arg);
-      break;
-    case UserVIA_peripheral_ctl_reg: system_via_->set_pcr(arg);
-      break;
-    case UserVIA_aux_control_reg: system_via_->set_acr(arg);
-      break;
-
-    default:spdlog::info("write {:0X} to 0x{:0X}", arg, addr);
-      break;
-  }
+//  if (system_via_ == nullptr) {
+//    spdlog::warn("No SystemVIA!");
+//  }
+//  if (user_via_ == nullptr) {
+//    spdlog::warn("No UserVIA!");
+//  }
+//  if (acia_ == nullptr) {
+//    spdlog::warn("No Acia!");
+//  }
+//
+//  switch (addr) {
+//    case CRTC_register_addr:spdlog::info("Select CRTC register 0x{:0X}", arg);
+//      break;
+//    case CRTC_register_data:spdlog::info("Write CRTC data 0x{:0X}", arg);
+//      break;
+//    case ACIA_CTL: acia_->set_ctl(arg);
+//      break;
+//    case ACIA_TDR: acia_->set_tdr(arg);
+//      break;
+//    case S_ULA_CTL: acia_->set_ula_ctl(arg);
+//      break;
+//
+//    case SystemVIA_DDRB:system_via_->set_ddrb(arg);
+//      break;
+//    case SystemVIA_DDRA:system_via_->set_ddra(arg);
+//      break;
+//    case SystemVIA_ORB:system_via_->set_orb(arg);
+//      break;
+//    case SystemVIA_int_flag_reg: system_via_->set_ifr(arg);
+//      break;
+//    case SystemVIA_int_enable_reg: system_via_->set_ier(arg);
+//      break;
+//    case SystemVIA_peripheral_ctl_reg: system_via_->set_pcr(arg);
+//      break;
+//    case SystemVIA_aux_control_reg: system_via_->set_acr(arg);
+//      break;
+//    case SystemVIA_ORA:
+//    case SystemVIA_ORA_NoHshk:system_via_->set_ora(arg);
+//      break;
+//    case SystemVIA_t1_high_order_latch:
+//      system_via_->set_T1_latch_high(arg);
+//      break;
+//    case SystemVIA_t1_high_order_cnt:
+//      system_via_->set_T1_counter_high(arg);
+//      break;
+//    case SystemVIA_t1_low_order_latch:
+//      system_via_->set_T1_latch_low(arg);
+//      break;
+//    case SystemVIA_t1_low_order_cnt:
+//      system_via_->set_T1_counter_low(arg);
+//      break;
+//
+//    case UserVIA_DDRB:user_via_->set_ddrb(arg);
+//      break;
+//    case UserVIA_DDRA:user_via_->set_ddra(arg);
+//      break;
+//    case UserVIA_ORB:user_via_->set_orb(arg);
+//      break;
+//    case UserVIA_ORA:
+//    case UserVIA_ORA_NoHshk:user_via_->set_ora(arg);
+//      break;
+//    case UserVIA_int_enable_reg:user_via_->set_ier(arg);
+//      break;
+//    case UserVIA_int_flag_reg: system_via_->set_ifr(arg);
+//      break;
+//    case UserVIA_peripheral_ctl_reg: system_via_->set_pcr(arg);
+//      break;
+//    case UserVIA_aux_control_reg: system_via_->set_acr(arg);
+//      break;
+//
+//    default:spdlog::info("write {:0X} to 0x{:0X}", arg, addr);
+//      break;
+//  }
 }
 
 void Memory::insert(uint16_t offset, std::vector<uint8_t> &data) {

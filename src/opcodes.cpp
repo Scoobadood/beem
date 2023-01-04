@@ -42,7 +42,7 @@ const uint8_t BRK_FLAG = 0x10;
 
 
 // Implementation taken from http://www.6502.org/tutorials/decimal_mode.html
-void adc_decimal(Cpu &cpu, uint32_t arg) {
+void adc_decimal(M6502 &cpu, uint32_t arg) {
   using namespace std;
 
 #ifdef DEBUG_ADC
@@ -71,9 +71,9 @@ void adc_decimal(Cpu &cpu, uint32_t arg) {
   cpu.accumulator_ = a & 0xff;
 
 //  1g. The carry result is 1 if A >= $100, and is 0 if A < $100
-  cpu.status_.set(SR_CRY, a >= 0x100);
-  cpu.status_.set(SR_ZER, (a & 0xff) == 0);
-  cpu.status_.set(SR_NEG, (a & 0x80));
+  cpu.flags_.set(SR_CRY, a >= 0x100);
+  cpu.flags_.set(SR_ZER, (a & 0xff) == 0);
+  cpu.flags_.set(SR_NEG, (a & 0x80));
 
 #ifdef DEBUG_ADC
   cout << " = "
@@ -83,7 +83,7 @@ void adc_decimal(Cpu &cpu, uint32_t arg) {
 #endif
 }
 
-void adc(Cpu &cpu, uint32_t arg) {
+void adc(M6502 &cpu, uint32_t arg) {
   if (cpu.is_decimal()) {
     adc_decimal(cpu, arg);
     return;
@@ -91,63 +91,63 @@ void adc(Cpu &cpu, uint32_t arg) {
   auto result = cpu.accumulator_;
   result += (arg & 0xff);
   result += (cpu.carry() ? 1 : 0);
-  cpu.status_.set(SR_CRY, (result > 0xff));
+  cpu.flags_.set(SR_CRY, (result > 0xff));
 
   result &= 0xff;
-  cpu.status_.set(SR_NEG, (result & 0x80));
-  cpu.status_.set(SR_ZER, (result == 0));
+  cpu.flags_.set(SR_NEG, (result & 0x80));
+  cpu.flags_.set(SR_ZER, (result == 0));
 
-  cpu.status_.set(SR_OVF, !((cpu.accumulator_ ^ arg) & 0x80) && ((cpu.accumulator_ ^ result) & 0x80));
+  cpu.flags_.set(SR_OVF, !((cpu.accumulator_ ^ arg) & 0x80) && ((cpu.accumulator_ ^ result) & 0x80));
 
   cpu.accumulator_ = result;
 }
 
-void adc_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void adc_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   adc(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void adc_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void adc_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   adc(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
-void adc_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void adc_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   adc(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
-void adc_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void adc_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   adc(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
-void adc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void adc_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   adc(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
-void adc_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void adc_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   adc(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
   if (page_wrap) clk++;
 }
-void adc_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void adc_ind_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   adc(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
-void adc_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void adc_ind_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   adc(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
@@ -172,41 +172,41 @@ void adc_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   (indirect),Y	AND (oper),Y  31	2	    5*
  */
 
-void anda(Cpu &cpu, uint32_t arg) {
+void anda(M6502 &cpu, uint32_t arg) {
   cpu.accumulator_ &= (arg & 0xff);
-  cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
-  cpu.status_.set(SR_ZER, (cpu.accumulator_ == 0));
+  cpu.flags_.set(SR_NEG, (cpu.accumulator_ & 0x80));
+  cpu.flags_.set(SR_ZER, (cpu.accumulator_ == 0));
 }
 
-void and_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void and_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void and_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void and_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void and_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void and_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void and_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void and_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void and_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void and_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -214,7 +214,7 @@ void and_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void and_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void and_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
@@ -222,14 +222,14 @@ void and_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void and_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void and_ind_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
-void and_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void and_ind_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   anda(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
@@ -252,21 +252,21 @@ void and_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute	ASL oper	0E	3	6
  * absolute,X	ASL oper,X	1E	3	7
  */
-uint8_t asl(Cpu &cpu, uint32_t arg) {
-  cpu.status_.set(SR_CRY, (arg & 0x80));
+uint8_t asl(M6502 &cpu, uint32_t arg) {
+  cpu.flags_.set(SR_CRY, (arg & 0x80));
 
   arg = (arg << 1) & 0xff;
-  cpu.status_.set(SR_NEG, (arg & 0x80));
-  cpu.status_.set(SR_ZER, (arg == 0));
+  cpu.flags_.set(SR_NEG, (arg & 0x80));
+  cpu.flags_.set(SR_ZER, (arg == 0));
   return (arg & 0xff);
 }
 
-void asl_a(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void asl_a(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.accumulator_ = asl(cpu, cpu.accumulator_);
   clk += 2;
 }
 
-void asl_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void asl_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageData(cpu, memory, addr, page_wrap);
@@ -275,7 +275,7 @@ void asl_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 5;
 }
 
-void asl_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void asl_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageIndexedXData(cpu, memory, addr, page_wrap);
@@ -284,7 +284,7 @@ void asl_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void asl_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void asl_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteData(cpu, memory, addr, page_wrap);
@@ -293,7 +293,7 @@ void asl_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void asl_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void asl_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteIndexedXData(cpu, memory, addr, page_wrap);
@@ -302,7 +302,7 @@ void asl_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 7;
 }
 
-void do_branch(Cpu &cpu, Memory &memory, int8_t branch, uint64_t &clk) {
+void do_branch(M6502 &cpu, Memory &memory, int8_t branch, uint64_t &clk) {
   // Branch taken, inc clk.
   clk++;
 
@@ -324,7 +324,7 @@ void do_branch(Cpu &cpu, Memory &memory, int8_t branch, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * relative	    BCC oper	90	2	    2**
  */
-void bcc(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bcc(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
   if (cpu.carry_clear()) {
@@ -341,7 +341,7 @@ void bcc(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * relative	    BCS oper	B0	2	    2**
  */
-void bcs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bcs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
   if (cpu.carry()) {
@@ -359,7 +359,7 @@ void bcs(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * relative	    BEQ oper	    2	    2**
  */
-void beq(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void beq(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
   if (cpu.zero()) {
@@ -381,27 +381,27 @@ void beq(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * zeropage	    BIT oper	24	2	3
  * absolute	    BIT oper	2C	3	4
  */
-void bit(Cpu &cpu, uint8_t arg) {
-  cpu.status_.set(SR_NEG, (arg & (1 << SR_NEG)));
-  cpu.status_.set(SR_OVF, (arg & (1 << SR_OVF)));
-  cpu.status_.set(SR_ZER, !(arg & cpu.accumulator_));
+void bit(M6502 &cpu, uint8_t arg) {
+  cpu.flags_.set(SR_NEG, (arg & (1 << SR_NEG)));
+  cpu.flags_.set(SR_OVF, (arg & (1 << SR_OVF)));
+  cpu.flags_.set(SR_ZER, !(arg & cpu.accumulator_));
 }
 
-void bit_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bit_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   bit(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void bit_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bit_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   bit(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void bmi(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bmi(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
   if (cpu.minus()) {
@@ -409,7 +409,7 @@ void bmi(Cpu &cpu, Memory &memory, uint64_t &clk) {
   }
 }
 
-void bne(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bne(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
   if (cpu.not_zero()) {
@@ -417,7 +417,7 @@ void bne(Cpu &cpu, Memory &memory, uint64_t &clk) {
   }
 }
 
-void bpl(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bpl(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = (int8_t) memory.at(cpu.pc_++);
   if (cpu.plus()) {
@@ -445,13 +445,13 @@ void bpl(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	BRK	00	1	7
  */
-void brek(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void brek(M6502 &cpu, Memory &memory, uint64_t &clk) {
   // PC currently points to the reson byte after BRK
   auto pc = cpu.pc_ + 1;
   memory.push_stack(cpu, pc >> 8);
   memory.push_stack(cpu, pc & 0xff);
 
-  auto status = (cpu.status_.to_ulong());
+  auto status = (cpu.flags_.to_ulong());
   status |= BRK_FLAG;
   status |= RES_FLAG;
   memory.push_stack(cpu, status);
@@ -462,7 +462,7 @@ void brek(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 7;
 }
 
-void bvc(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bvc(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
   if (!cpu.is_overflow()) {
@@ -470,7 +470,7 @@ void bvc(Cpu &cpu, Memory &memory, uint64_t &clk) {
   }
 }
 
-void bvs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void bvs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   auto branch = int8_t(memory.at(cpu.pc_++));
   if (cpu.is_overflow()) {
@@ -478,22 +478,22 @@ void bvs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   }
 }
 
-void clc(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void clc(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   cpu.clear_carry();
 }
 
-void cld(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cld(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   cpu.clear_decimal();
 }
 
-void cli(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cli(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   cpu.clear_interrupt();
 }
 
-void clv(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void clv(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
   cpu.clear_overflow();
 }
@@ -534,42 +534,42 @@ void clv(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * +---------------------+---+---+---+
  * *The N flag will be bit 7 of A, X, or Y - Memory
  */
-void cmp(Cpu &cpu, uint8_t arg) {
+void cmp(M6502 &cpu, uint8_t arg) {
   auto t = (cpu.accumulator_ - arg) & 0xff;
-  cpu.status_.set(SR_NEG, (t & 0x80));
-  cpu.status_.set(SR_ZER, (t == 0));
-  cpu.status_.set(SR_CRY, (arg <= cpu.accumulator_));
+  cpu.flags_.set(SR_NEG, (t & 0x80));
+  cpu.flags_.set(SR_ZER, (t == 0));
+  cpu.flags_.set(SR_CRY, (arg <= cpu.accumulator_));
 }
 
-void cmp_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cmp_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cmp(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void cmp_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cmp_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cmp(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void cmp_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cmp_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cmp(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void cmp_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cmp_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cmp(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void cmp_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cmp_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cmp(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -577,7 +577,7 @@ void cmp_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void cmp_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cmp_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cmp(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
@@ -585,14 +585,14 @@ void cmp_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void cmp_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cmp_ind_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cmp(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
-void cmp_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cmp_ind_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cmp(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
@@ -612,28 +612,28 @@ void cmp_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * zeropage	    CPX oper	E4	2	3
  * absolute	    CPX oper	EC	3	4
  */
-void cpx(Cpu &cpu, uint8_t arg) {
+void cpx(M6502 &cpu, uint8_t arg) {
   auto t = (cpu.x_reg_ - arg) & 0xff;
-  cpu.status_.set(SR_NEG, (t & 0x80));
-  cpu.status_.set(SR_ZER, (t == 0));
-  cpu.status_.set(SR_CRY, (arg <= cpu.x_reg_));
+  cpu.flags_.set(SR_NEG, (t & 0x80));
+  cpu.flags_.set(SR_ZER, (t == 0));
+  cpu.flags_.set(SR_CRY, (arg <= cpu.x_reg_));
 }
 
-void cpx_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cpx_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cpx(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void cpx_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cpx_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cpx(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void cpx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cpx_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cpx(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
@@ -652,28 +652,28 @@ void cpx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * zeropage	CPY oper	C4	2	3
  * absolute	CPY oper	CC	3	4
 */
-void cpy(Cpu &cpu, uint8_t arg) {
+void cpy(M6502 &cpu, uint8_t arg) {
   auto t = (cpu.y_reg_ - arg) & 0xff;
-  cpu.status_.set(SR_NEG, (t & 0x80));
-  cpu.status_.set(SR_ZER, (t == 0));
-  cpu.status_.set(SR_CRY, (arg <= cpu.y_reg_));
+  cpu.flags_.set(SR_NEG, (t & 0x80));
+  cpu.flags_.set(SR_ZER, (t == 0));
+  cpu.flags_.set(SR_CRY, (arg <= cpu.y_reg_));
 }
 
-void cpy_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cpy_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cpy(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void cpy_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cpy_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cpy(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void cpy_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void cpy_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   cpy(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
@@ -693,14 +693,14 @@ void cpy_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute	    DEC oper	CE	3	6
  * absolute,X	DEC oper,X	DE	3	7
  */
-uint8_t dec(Cpu &cpu, uint8_t arg) {
+uint8_t dec(M6502 &cpu, uint8_t arg) {
   arg = (arg - 1) & 0xff;
-  cpu.status_.set(SR_NEG, (arg & 0x80));
-  cpu.status_.set(SR_ZER, (arg == 0));
+  cpu.flags_.set(SR_NEG, (arg & 0x80));
+  cpu.flags_.set(SR_ZER, (arg == 0));
   return arg;
 }
 
-void dec_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void dec_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto ans = dec(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
@@ -708,7 +708,7 @@ void dec_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 5;
 }
 
-void dec_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void dec_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto ans = dec(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
@@ -716,7 +716,7 @@ void dec_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void dec_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void dec_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto ans = dec(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
@@ -724,7 +724,7 @@ void dec_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void dec_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void dec_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto ans = dec(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -743,10 +743,10 @@ void dec_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	    DEX	        CA	  1	    2
 */
-void dex(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void dex(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.x_reg_ = (cpu.x_reg_ - 1) & 0xff;
-  cpu.status_.set(SR_NEG, (cpu.x_reg_ & 0x80));
-  cpu.status_.set(SR_ZER, (cpu.x_reg_ == 0));
+  cpu.flags_.set(SR_NEG, (cpu.x_reg_ & 0x80));
+  cpu.flags_.set(SR_ZER, (cpu.x_reg_ == 0));
   clk += 2;
 }
 
@@ -760,10 +760,10 @@ void dex(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	DEY	88	1	2
 */
-void dey(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void dey(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.y_reg_ = (cpu.y_reg_ - 1) & 0xff;
-  cpu.status_.set(SR_NEG, (cpu.y_reg_ & 0x80));
-  cpu.status_.set(SR_ZER, (cpu.y_reg_ == 0));
+  cpu.flags_.set(SR_NEG, (cpu.y_reg_ & 0x80));
+  cpu.flags_.set(SR_ZER, (cpu.y_reg_ == 0));
   clk += 2;
 }
 
@@ -785,41 +785,41 @@ void dey(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * (indirect,X)	EOR (oper,X)  41	2	6
  * (indirect),Y	EOR (oper),Y  51	2	5*
  */
-void eor(Cpu &cpu, uint8_t arg) {
+void eor(M6502 &cpu, uint8_t arg) {
   cpu.accumulator_ = (cpu.accumulator_ ^ arg);
-  cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
-  cpu.status_.set(SR_ZER, (cpu.accumulator_ == 0));
+  cpu.flags_.set(SR_NEG, (cpu.accumulator_ & 0x80));
+  cpu.flags_.set(SR_ZER, (cpu.accumulator_ == 0));
 }
 
-void eor_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void eor_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   eor(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void eor_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void eor_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   eor(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void eor_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void eor_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   eor(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void eor_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void eor_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   eor(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void eor_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void eor_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   eor(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -827,7 +827,7 @@ void eor_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void eor_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void eor_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   eor(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
@@ -835,14 +835,14 @@ void eor_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void eor_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void eor_ind_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   eor(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
-void eor_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void eor_ind_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   eor(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
@@ -863,14 +863,14 @@ void eor_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute	    INC oper	EE	3	6
  * absolute,X	INC oper,X	FE	3	7
  */
-uint8_t inc(Cpu &cpu, uint8_t arg) {
+uint8_t inc(M6502 &cpu, uint8_t arg) {
   arg = (arg + 1) & 0xff;
-  cpu.status_.set(SR_NEG, (arg & 0x80));
-  cpu.status_.set(SR_ZER, (arg == 0));
+  cpu.flags_.set(SR_NEG, (arg & 0x80));
+  cpu.flags_.set(SR_ZER, (arg == 0));
   return arg;
 }
 
-void inc_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void inc_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto ans = inc(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
@@ -878,7 +878,7 @@ void inc_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 5;
 }
 
-void inc_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void inc_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto ans = inc(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
@@ -886,7 +886,7 @@ void inc_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void inc_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void inc_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto ans = inc(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
@@ -894,7 +894,7 @@ void inc_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void inc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void inc_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto ans = inc(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -912,7 +912,7 @@ void inc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	INX	E8	1	2
  */
-void inx(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void inx(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.x_reg_ = (cpu.x_reg_ + 1) & 0xff;
   if (cpu.x_reg_ & 0x80) cpu.set_neg(); else cpu.clear_neg();
   if (cpu.x_reg_ == 0) cpu.set_zero(); else cpu.clear_zero();
@@ -929,7 +929,7 @@ void inx(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	INY	C8	1	2
  */
-void iny(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void iny(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.y_reg_ = (cpu.y_reg_ + 1) & 0xff;
   if (cpu.y_reg_ & 0x80) cpu.set_neg(); else cpu.clear_neg();
   if (cpu.y_reg_ == 0) cpu.set_zero(); else cpu.clear_zero();
@@ -949,12 +949,12 @@ void iny(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute	JMP oper	4C	3	3
  * indirect	JMP (oper)	6C	3	5
  */
-void jmp(Cpu &cpu, uint8_t lo, uint8_t hi) {
+void jmp(M6502 &cpu, uint8_t lo, uint8_t hi) {
   auto addr = ((hi * 256) + lo) & 0xffff;
   cpu.pc_ = addr;
 }
 
-void jmp_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void jmp_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   auto pcl = memory.at(cpu.pc_++);
   auto pch = memory.at(cpu.pc_++);
   jmp(cpu, pcl, pch);
@@ -966,7 +966,7 @@ void jmp_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * indirect pointer crosses a page boundary.
  * JMP ($xxFF) will fetch the address from $xxFF and $xx00.
  */
-void jmp_ind(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void jmp_ind(M6502 &cpu, Memory &memory, uint64_t &clk) {
   auto al = memory.at(cpu.pc_++);
   auto ah = memory.at(cpu.pc_++);
   auto addr = ((ah * 256) + al) & 0xffff;
@@ -993,7 +993,7 @@ void jmp_ind(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes cycles
  * absolute	    JSR oper	20	  3	  6
  */
-void jsr(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void jsr(M6502 &cpu, Memory &memory, uint64_t &clk) {
   // PC currently points at first byte of arg
   auto ret_addr = cpu.pc_ + 1;
 
@@ -1023,41 +1023,41 @@ void jsr(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * (indirect),Y	LDA (oper),Y  B1	2	5*
  */
 
-void lda(Cpu &cpu, uint32_t arg) {
-  cpu.status_.set(SR_NEG, (arg & 0x80));
-  cpu.status_.set(SR_ZER, (arg == 0));
+void lda(M6502 &cpu, uint32_t arg) {
+  cpu.flags_.set(SR_NEG, (arg & 0x80));
+  cpu.flags_.set(SR_ZER, (arg == 0));
   cpu.accumulator_ = arg;
 }
 
-void lda_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lda_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   lda(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void lda_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lda_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   lda(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void lda_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lda_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   lda(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void lda_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lda_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   lda(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void lda_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lda_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   lda(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -1065,7 +1065,7 @@ void lda_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void lda_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lda_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   lda(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
@@ -1073,14 +1073,14 @@ void lda_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void lda_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lda_ind_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   lda(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
-void lda_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lda_ind_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   lda(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
@@ -1101,41 +1101,41 @@ void lda_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute	    LDX oper	AE	3	4
  * absolute,Y	LDX oper,Y	BE	3	4*
  */
-void ldx(Cpu &cpu, uint32_t arg) {
-  cpu.status_.set(SR_NEG, (arg & 0x80));
-  cpu.status_.set(SR_ZER, (arg == 0));
+void ldx(M6502 &cpu, uint32_t arg) {
+  cpu.flags_.set(SR_NEG, (arg & 0x80));
+  cpu.flags_.set(SR_ZER, (arg == 0));
   cpu.x_reg_ = (arg & 0xff);
 }
 
-void ldx_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldx_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldx(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void ldx_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldx_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldx(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void ldx_zpg_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldx_zpg_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldx(cpu, ZeroPageIndexedYData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void ldx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldx_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldx(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void ldx_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldx_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldx(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
@@ -1156,41 +1156,41 @@ void ldx_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute	    LDY oper	AC	3	4
  * absolute,X	LDY oper,X	BC	3	4*
  */
-void ldy(Cpu &cpu, uint32_t arg) {
-  cpu.status_.set(SR_NEG, (arg & 0x80));
-  cpu.status_.set(SR_ZER, (arg == 0));
+void ldy(M6502 &cpu, uint32_t arg) {
+  cpu.flags_.set(SR_NEG, (arg & 0x80));
+  cpu.flags_.set(SR_ZER, (arg == 0));
   cpu.y_reg_ = (arg & 0xff);
 }
 
-void ldy_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldy_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldy(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void ldy_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldy_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldy(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void ldy_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldy_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldy(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void ldy_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldy_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldy(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void ldy_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ldy_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   ldy(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -1214,20 +1214,20 @@ void ldy_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute	    LSR oper	4E	3	6
  * absolute,X	LSR oper,X	5E	3	7
  */
-uint8_t lsr(Cpu &cpu, uint32_t arg) {
-  cpu.status_.set(SR_CRY, (arg & 0x01));
+uint8_t lsr(M6502 &cpu, uint32_t arg) {
+  cpu.flags_.set(SR_CRY, (arg & 0x01));
   arg = (arg >> 1) & 0x7f;
-  cpu.status_.set(SR_NEG, false);
-  cpu.status_.set(SR_ZER, (arg == 0));
+  cpu.flags_.set(SR_NEG, false);
+  cpu.flags_.set(SR_ZER, (arg == 0));
   return arg;
 }
 
-void lsr_a(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lsr_a(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.accumulator_ = lsr(cpu, cpu.accumulator_);
   clk += 2;
 }
 
-void lsr_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lsr_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageData(cpu, memory, addr, page_wrap);
@@ -1235,7 +1235,7 @@ void lsr_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 5;
 }
 
-void lsr_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lsr_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageIndexedXData(cpu, memory, addr, page_wrap);
@@ -1243,7 +1243,7 @@ void lsr_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void lsr_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lsr_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteData(cpu, memory, addr, page_wrap);
@@ -1251,7 +1251,7 @@ void lsr_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void lsr_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void lsr_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteIndexedXData(cpu, memory, addr, page_wrap);
@@ -1267,7 +1267,7 @@ void lsr_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	    NOP	EA	    1        	2
  */
-void nop(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void nop(M6502 &cpu, Memory &memory, uint64_t &clk) {
   clk += 2;
 }
 
@@ -1291,41 +1291,41 @@ void nop(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * (indirect),Y	ORA (oper),Y  11	2	5*
  */
 
-void or_a(Cpu &cpu, uint32_t arg) {
+void or_a(M6502 &cpu, uint32_t arg) {
   cpu.accumulator_ |= (arg & 0xff);
   if (cpu.accumulator_ & 0x80) cpu.set_neg(); else cpu.clear_neg();
   if (cpu.accumulator_ == 0) cpu.set_zero(); else cpu.clear_zero();
 }
 
-void ora_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ora_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   or_a(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void ora_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ora_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   or_a(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void ora_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ora_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   or_a(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void ora_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ora_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   or_a(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void ora_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ora_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   or_a(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -1333,7 +1333,7 @@ void ora_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void ora_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ora_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   or_a(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
@@ -1341,14 +1341,14 @@ void ora_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void ora_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ora_ind_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   or_a(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
-void ora_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ora_ind_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   or_a(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
@@ -1365,7 +1365,7 @@ void ora_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	    PHA	        48	1	3
  */
-void pha(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void pha(M6502 &cpu, Memory &memory, uint64_t &clk) {
   memory.push_stack(cpu, cpu.accumulator_);
   clk += 3;
 }
@@ -1381,8 +1381,8 @@ void pha(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	PHP	08	1	3
  */
-void php(Cpu &cpu, Memory &memory, uint64_t &clk) {
-  auto arg = cpu.status_.to_ulong();
+void php(M6502 &cpu, Memory &memory, uint64_t &clk) {
+  auto arg = cpu.flags_.to_ulong();
   arg |= BRK_FLAG;
   arg |= RES_FLAG;
   memory.push_stack(cpu, arg);
@@ -1399,10 +1399,10 @@ void php(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	PLA	68	1	4
  */
-void pla(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void pla(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.accumulator_ = memory.pop_stack(cpu);
-  cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
-  cpu.status_.set(SR_ZER, (cpu.accumulator_ == 0));
+  cpu.flags_.set(SR_NEG, (cpu.accumulator_ & 0x80));
+  cpu.flags_.set(SR_ZER, (cpu.accumulator_ == 0));
   clk += 4;
 }
 
@@ -1417,8 +1417,8 @@ void pla(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	PLP	28	1	4
  */
-void plp(Cpu &cpu, Memory &memory, uint64_t &clk) {
-  cpu.status_ = memory.pop_stack(cpu);
+void plp(M6502 &cpu, Memory &memory, uint64_t &clk) {
+  cpu.flags_ = memory.pop_stack(cpu);
   clk += 4;
 }
 
@@ -1437,7 +1437,7 @@ void plp(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute	    ROL oper	2E	3	6
  * absolute,X	ROL oper,X	3E	3	7
  */
-uint8_t rol(Cpu &cpu, uint32_t arg) {
+uint8_t rol(M6502 &cpu, uint32_t arg) {
   auto carry = cpu.carry() ? 0x01 : 0x00;
   if (arg & 0x80) cpu.set_carry(); else cpu.clear_carry();
   arg = ((arg << 1) | carry) & 0xff;
@@ -1447,14 +1447,14 @@ uint8_t rol(Cpu &cpu, uint32_t arg) {
   return arg;
 }
 
-void rol_a(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void rol_a(M6502 &cpu, Memory &memory, uint64_t &clk) {
   auto arg = cpu.accumulator_;
   arg = rol(cpu, arg);
   cpu.accumulator_ = arg;
   clk += 2;
 }
 
-void rol_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void rol_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageData(cpu, memory, addr, page_wrap);
@@ -1463,7 +1463,7 @@ void rol_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 5;
 }
 
-void rol_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void rol_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageIndexedXData(cpu, memory, addr, page_wrap);
@@ -1472,7 +1472,7 @@ void rol_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void rol_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void rol_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteData(cpu, memory, addr, page_wrap);
@@ -1481,7 +1481,7 @@ void rol_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void rol_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void rol_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteIndexedXData(cpu, memory, addr, page_wrap);
@@ -1504,7 +1504,7 @@ void rol_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * absolute,X	ROR oper,X	7E	3	7
  */
 
-uint8_t ror(Cpu &cpu, uint32_t arg) {
+uint8_t ror(M6502 &cpu, uint32_t arg) {
   auto carry = cpu.carry() ? 0x80 : 0x00;
   if (arg & 0x01) cpu.set_carry(); else cpu.clear_carry();
   arg = ((arg >> 1) | carry) & 0xff;
@@ -1514,14 +1514,14 @@ uint8_t ror(Cpu &cpu, uint32_t arg) {
   return arg;
 }
 
-void ror_a(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ror_a(M6502 &cpu, Memory &memory, uint64_t &clk) {
   auto arg = cpu.accumulator_;
   arg = ror(cpu, arg);
   cpu.accumulator_ = arg;
   clk += 2;
 }
 
-void ror_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ror_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageData(cpu, memory, addr, page_wrap);
@@ -1530,7 +1530,7 @@ void ror_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 5;
 }
 
-void ror_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ror_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = ZeroPageIndexedXData(cpu, memory, addr, page_wrap);
@@ -1539,7 +1539,7 @@ void ror_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void ror_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ror_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteData(cpu, memory, addr, page_wrap);
@@ -1548,7 +1548,7 @@ void ror_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
   clk += 6;
 }
 
-void ror_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void ror_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   auto arg = AbsoluteIndexedXData(cpu, memory, addr, page_wrap);
@@ -1570,8 +1570,8 @@ void ror_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * implied	RTI	40	1	6
 */
 
-void rti(Cpu &cpu, Memory &memory, uint64_t &clk) {
-  cpu.status_ = memory.pop_stack(cpu);
+void rti(M6502 &cpu, Memory &memory, uint64_t &clk) {
+  cpu.flags_ = memory.pop_stack(cpu);
 
   auto pcl = memory.pop_stack(cpu);
   auto pch = memory.pop_stack(cpu);
@@ -1591,7 +1591,7 @@ void rti(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	    RTS	        60	1	6
  */
-void rts(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void rts(M6502 &cpu, Memory &memory, uint64_t &clk) {
   auto pcl = memory.pop_stack(cpu);
   auto pch = memory.pop_stack(cpu);
   cpu.pc_ = ((pch * 256) + pcl) & 0xffff;
@@ -1619,7 +1619,7 @@ void rts(Cpu &cpu, Memory &memory, uint64_t &clk) {
  */
 
 // Per http://www.6502.org/tutorials/decimal_mode.html
-void sbc_decimal(Cpu &cpu, uint32_t arg) {
+void sbc_decimal(M6502 &cpu, uint32_t arg) {
   using namespace std;
 
 #ifdef DEBUG_SBC
@@ -1645,14 +1645,14 @@ void sbc_decimal(Cpu &cpu, uint32_t arg) {
   //  3d. If A < 0, then A = A - $60
   if (a < 0) a -= 0x60;
 
-  cpu.status_.set(SR_CRY, cpu.accumulator_ >= (arg + borrow));
+  cpu.flags_.set(SR_CRY, cpu.accumulator_ >= (arg + borrow));
 
   //  3e. The accumulator result is the lower 8 bits of A
   cpu.accumulator_ = a & 0xff;
 
   /* The flags are set just like in Binary mode. */
-  cpu.status_.set(SR_ZER, (cpu.accumulator_ & 0xff) == 0);
-  cpu.status_.set(SR_NEG, (cpu.accumulator_ & 0x80));
+  cpu.flags_.set(SR_ZER, (cpu.accumulator_ & 0xff) == 0);
+  cpu.flags_.set(SR_NEG, (cpu.accumulator_ & 0x80));
 
 #ifdef DEBUG_SBC
   cout << " = "
@@ -1662,7 +1662,7 @@ void sbc_decimal(Cpu &cpu, uint32_t arg) {
 #endif
 }
 
-void sbc(Cpu &cpu, uint32_t arg) {
+void sbc(M6502 &cpu, uint32_t arg) {
   if (cpu.is_decimal()) {
     sbc_decimal(cpu, arg);
     return;
@@ -1673,35 +1673,35 @@ void sbc(Cpu &cpu, uint32_t arg) {
   adc(cpu, (0xff - arg));
 }
 
-void sbc_imm(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sbc_imm(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, ImmediateData(cpu, memory, addr, page_wrap));
   clk += 2;
 }
 
-void sbc_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sbc_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, ZeroPageData(cpu, memory, addr, page_wrap));
   clk += 3;
 }
 
-void sbc_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sbc_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, ZeroPageIndexedXData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void sbc_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sbc_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, AbsoluteData(cpu, memory, addr, page_wrap));
   clk += 4;
 }
 
-void sbc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sbc_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, AbsoluteIndexedXData(cpu, memory, addr, page_wrap));
@@ -1709,7 +1709,7 @@ void sbc_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void sbc_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sbc_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, AbsoluteIndexedYData(cpu, memory, addr, page_wrap));
@@ -1717,14 +1717,14 @@ void sbc_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
   if (page_wrap) clk++;
 }
 
-void sbc_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sbc_ind_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, IndexedIndirectData(cpu, memory, addr, page_wrap));
   clk += 6;
 }
 
-void sbc_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sbc_ind_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   uint32_t addr;
   sbc(cpu, IndirectIndexedData(cpu, memory, addr, page_wrap));
@@ -1742,7 +1742,7 @@ void sbc_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	SEC	38	1	2
  */
-void sec(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sec(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.set_carry();
   clk += 2;
 }
@@ -1757,7 +1757,7 @@ void sec(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	SED	F8	1	2
  */
-void sed(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sed(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.set_decimal();
   clk += 2;
 }
@@ -1772,7 +1772,7 @@ void sed(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	SEI	78	1	2
  */
-void sei(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sei(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.set_interrupt();
   clk += 2;
 }
@@ -1794,49 +1794,49 @@ void sei(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * (indirect,X)	STA (oper,X)  81	2	6
  * (indirect),Y	STA (oper),Y  91	2	6
  */
-void sta_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sta_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = ZeroPageAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 3;
 }
 
-void sta_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sta_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = ZeroPageIndexedXAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 4;
 }
 
-void sta_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sta_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = AbsoluteAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 4;
 }
 
-void sta_abs_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sta_abs_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = AbsoluteIndexedXAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 5;
 }
 
-void sta_abs_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sta_abs_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = AbsoluteIndexedYAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 5;
 }
 
-void sta_ind_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sta_ind_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = IndexedIndirectAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
   clk += 6;
 }
 
-void sta_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sta_ind_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = IndirectIndexedAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.accumulator_);
@@ -1855,19 +1855,19 @@ void sta_ind_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * zeropage,Y	STX oper,Y	96	2	4
  * absolute	    STX oper	8E	3	4
  */
-void stx_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void stx_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = ZeroPageAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.x_reg_);
   clk += 3;
 }
-void stx_zpg_y(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void stx_zpg_y(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = ZeroPageIndexedYAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.x_reg_);
   clk += 4;
 }
-void stx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void stx_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = AbsoluteAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.x_reg_);
@@ -1886,19 +1886,19 @@ void stx_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * zeropage,X	STY oper,X	94	2	4
  * absolute	    STY oper	8C	3	4
  */
-void sty_zpg(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sty_zpg(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = ZeroPageAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.y_reg_);
   clk += 3;
 }
-void sty_zpg_x(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sty_zpg_x(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = ZeroPageIndexedXAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.y_reg_);
   clk += 4;
 }
-void sty_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void sty_abs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   bool page_wrap;
   auto addr = AbsoluteAddress(cpu, memory, page_wrap);
   memory.set(addr, cpu.y_reg_);
@@ -1913,7 +1913,7 @@ void sty_abs(Cpu &cpu, Memory &memory, uint64_t &clk) {
 //+	+	-	-	-	-
 //addressing	assembler	opc	bytes	cycles
 //    implied	TAX	AA	1	2
-void tax(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void tax(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.x_reg_ = cpu.accumulator_;
   if (cpu.x_reg_ & 0x80) cpu.set_neg(); else cpu.clear_neg();
   if (cpu.x_reg_ == 0) cpu.set_zero(); else cpu.clear_zero();
@@ -1928,7 +1928,7 @@ void tax(Cpu &cpu, Memory &memory, uint64_t &clk) {
 //+	+	-	-	-	-
 //addressing	assembler	opc	bytes	cycles
 //    implied	TAY	A8	1	2
-void tay(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void tay(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.y_reg_ = cpu.accumulator_;
   if (cpu.y_reg_ & 0x80) cpu.set_neg(); else cpu.clear_neg();
   if (cpu.y_reg_ == 0) cpu.set_zero(); else cpu.clear_zero();
@@ -1945,10 +1945,10 @@ void tay(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	    TSX	        BA	1	    2
  */
-void tsx(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void tsx(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.x_reg_ = (cpu.stack_pointer_ & 0xff);
-  cpu.status_.set(SR_NEG, cpu.x_reg_ & 0x80);
-  cpu.status_.set(SR_ZER, cpu.x_reg_ == 0);
+  cpu.flags_.set(SR_NEG, cpu.x_reg_ & 0x80);
+  cpu.flags_.set(SR_ZER, cpu.x_reg_ == 0);
   clk += 2;
 }
 
@@ -1962,7 +1962,7 @@ void tsx(Cpu &cpu, Memory &memory, uint64_t &clk) {
  * addressing	assembler	opc	bytes	cycles
  * implied	    TXA         8A  1       2
  */
-void txa(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void txa(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.accumulator_ = cpu.x_reg_;
   if (cpu.accumulator_ & 0x80) cpu.set_neg(); else cpu.clear_neg();
   if (cpu.accumulator_ == 0) cpu.set_zero(); else cpu.clear_zero();
@@ -1978,7 +1978,7 @@ void txa(Cpu &cpu, Memory &memory, uint64_t &clk) {
 //addressing	assembler	opc	bytes	cycles
 //    implied	TXS	9A	1	2
 
-void txs(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void txs(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.stack_pointer_ = (cpu.x_reg_ & 0xff);
   clk += 2;
 }
@@ -1991,7 +1991,7 @@ void txs(Cpu &cpu, Memory &memory, uint64_t &clk) {
 //+	+	-	-	-	-
 //addressing	assembler	opc	bytes	cycles
 //    implied	TYA	98	1	2
-void tya(Cpu &cpu, Memory &memory, uint64_t &clk) {
+void tya(M6502 &cpu, Memory &memory, uint64_t &clk) {
   cpu.accumulator_ = cpu.y_reg_;
   if (cpu.accumulator_ & 0x80) cpu.set_neg(); else cpu.clear_neg();
   if (cpu.accumulator_ == 0) cpu.set_zero(); else cpu.clear_zero();

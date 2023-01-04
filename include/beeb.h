@@ -6,7 +6,7 @@
 #define M6502_SRC_BEEB_H_
 
 #include "memory.h"
-#include "cpu.h"
+#include "m6502.h"
 #include "system_via.h"
 #include "keyboard.h"
 
@@ -20,7 +20,7 @@ class Beeb {
   Memory * memory_;
   Keyboard * keyboard_;
   SystemVia * system_via_;
-  Cpu * cpu_;
+  M6502 * cpu_;
 };
 
 #endif //M6502_SRC_BEEB_H_
