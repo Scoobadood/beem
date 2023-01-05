@@ -1054,6 +1054,24 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // CMP zp,X
+    {0xd50, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xd51, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0xd52, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+    }},
+    {0xd53, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->A(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
     // CLD implied
     {0xd80, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
