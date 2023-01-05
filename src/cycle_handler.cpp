@@ -502,6 +502,16 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
 
 
+    // SEI
+    {0x780, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x781, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setI();
+      fetch(cpu, pins);
+    }},
+
+
     // DEY
     {0x880, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -732,6 +742,16 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // CLV
+    {0xb80, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0xb81, [](M6502 *cpu, uint64_t &pins) {
+      cpu->clrV();
+      fetch(cpu, pins);
+    }},
+
+
     // LDA $0102,X
     {0xbd0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -885,6 +905,19 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0xf03, [](M6502 *cpu, uint64_t &pins) {
       do_branch_3(cpu, pins);
     }},
+
+
+    // SED
+    {0xf80, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0xf81, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setD();
+      fetch(cpu, pins);
+    }},
+
+
+
 };
 
 const std::map<uint8_t, OpCode> op_codes = {
