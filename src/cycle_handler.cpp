@@ -834,6 +834,24 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // LDX Abs
+    {0xae0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xae1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xae2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0xae3, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setX(get_data(pins));
+      cpu->setNZ(cpu->X());
+      fetch(cpu, pins);
+    }},
+
+
     // BCS #
     {0xb00, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
