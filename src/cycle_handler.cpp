@@ -457,6 +457,35 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
+    // STA Zpg
+    {0x850, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x851, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+      set_data( pins, cpu->A());
+      clr_RW(pins);
+    }},
+    {0x852, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
+    // STX Zpg
+    {0x860, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x861, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+      set_data( pins, cpu->X());
+      clr_RW(pins);
+    }},
+    {0x862, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
     // TXA Implied
     {0x8a0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
