@@ -526,13 +526,16 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // DEY
-    {0x880, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
+    // STY Zpg
+    {0x840, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
     }},
-    {0x881, [](M6502 *cpu, uint64_t &pins) {
-      cpu->decY();
-      cpu->setNZ(cpu->Y());
+    {0x841, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+      set_data(pins, cpu->Y());
+      clr_RW(pins);
+    }},
+    {0x842, [](M6502 *cpu, uint64_t &pins) {
       fetch(cpu, pins);
     }},
 
@@ -561,6 +564,17 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       clr_RW(pins);
     }},
     {0x862, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
+    // DEY
+    {0x880, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x881, [](M6502 *cpu, uint64_t &pins) {
+      cpu->decY();
+      cpu->setNZ(cpu->Y());
       fetch(cpu, pins);
     }},
 
@@ -848,6 +862,24 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // LDY Abs
+    {0xac0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xac1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xac2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0xac3, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setY(get_data(pins));
+      cpu->setNZ(cpu->Y());
+      fetch(cpu, pins);
+    }},
+
+
     // LDA Abs
     {0xad0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -1079,6 +1111,19 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // CPY zp
+    {0xc40, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xc41, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+    }},
+    {0xc42, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->Y(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
     // CMP zp
     {0xc50, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -1120,6 +1165,23 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0xca1, [](M6502 *cpu, uint64_t &pins) {
       cpu->decX();
       cpu->setNZ(cpu->X());
+      fetch(cpu, pins);
+    }},
+
+
+    // CPY abs
+    {0xcc0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xcc1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xcc2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0xcc3, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->Y(), get_data(pins));
       fetch(cpu, pins);
     }},
 
