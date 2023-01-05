@@ -1289,6 +1289,32 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // CP (zp,X)
+    {0xc10, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xc11, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0xc12, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr((cpu->temp_addr() + cpu->X()) & 0xff);
+      set_address(pins, cpu->temp_addr());
+    }},
+    {0xc13, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + 1) & 0xff);
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xc14, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr());
+    }},
+    {0xc15, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->A(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
     // CPY zp
     {0xc40, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
