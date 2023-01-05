@@ -361,6 +361,31 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // ASL zp,X
+    {0x160, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x161, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x162, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+    }},
+    {0x163, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0x164, [](M6502 *cpu, uint64_t &pins) {
+      set_data(pins, do_asl(cpu, cpu->temp_addr()));
+      clr_RW(pins);
+    }},
+    {0x165, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
     // CLC implied
     {0x180, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -512,6 +537,31 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // ROL zp,X
+    {0x360, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x361, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x362, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+    }},
+    {0x363, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0x364, [](M6502 *cpu, uint64_t &pins) {
+      set_data(pins, do_rol(cpu, cpu->temp_addr()));
+      clr_RW(pins);
+    }},
+    {0x365, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
     // SEC
     {0x380, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -650,6 +700,31 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x503, [](M6502 *cpu, uint64_t &pins) {
       do_branch_3(cpu, pins);
+    }},
+
+
+    // LSR zp,X
+    {0x560, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x561, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x562, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+    }},
+    {0x563, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0x564, [](M6502 *cpu, uint64_t &pins) {
+      set_data(pins, do_lsr(cpu, cpu->temp_addr()));
+      clr_RW(pins);
+    }},
+    {0x565, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
     }},
 
 
@@ -805,6 +880,30 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+
+    // ROR zp,X
+    {0x760, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x761, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x762, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+    }},
+    {0x763, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0x764, [](M6502 *cpu, uint64_t &pins) {
+      set_data(pins, do_ror(cpu, cpu->temp_addr()));
+      clr_RW(pins);
+    }},
+    {0x765, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
 
     // SEI
     {0x780, [](M6502 *cpu, uint64_t &pins) {
