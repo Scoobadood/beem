@@ -744,6 +744,28 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // STA abs,X
+    {0x9d0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x9d1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x9d2, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->X()) & 0xff));
+    }},
+    {0x9d3, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->X());
+      set_data(pins, cpu->A());
+      clr_RW(pins);
+    }},
+    {0x9d4, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
     // TAX Implied
     {0xaa0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
