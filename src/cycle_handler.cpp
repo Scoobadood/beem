@@ -500,6 +500,17 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // AND #
+    {0x290, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x291, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(cpu->A() & get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+
     // ROL A
     {0x2a0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -2062,6 +2073,37 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
 
 
+    // DEC abs,X
+    {0xde0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xde1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xde2, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->X()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->X());
+    }},
+    {0xde3, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->X());
+    }},
+    {0xde4, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0xde5, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(cpu->temp_addr_low() - 1);
+      cpu->setNZ(cpu->temp_addr_low());
+      set_data(pins, cpu->temp_addr());
+      clr_RW(pins);
+    }},
+    {0xde6, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
     // CPX #
     {0xe00, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -2219,6 +2261,36 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0xf81, [](M6502 *cpu, uint64_t &pins) {
       cpu->setD();
+      fetch(cpu, pins);
+    }},
+
+    // INC abs,X
+    {0xfe0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xfe1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xfe2, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->X()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->X());
+    }},
+    {0xfe3, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->X());
+    }},
+    {0xfe4, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0xfe5, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(cpu->temp_addr_low() + 1);
+      cpu->setNZ(cpu->temp_addr_low());
+      set_data(pins, cpu->temp_addr());
+      clr_RW(pins);
+    }},
+    {0xfe6, [](M6502 *cpu, uint64_t &pins) {
       fetch(cpu, pins);
     }},
 
