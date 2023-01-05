@@ -292,6 +292,29 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // RTS
+    {0x600, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x601, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->SP());
+    }},
+    {0x602, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->incSP());
+    }},
+    {0x603, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->incSP());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x604, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setPC(get_data(pins) << 8 | cpu->temp_addr_low());
+      set_address(pins, cpu->incPC());
+    }},
+    {0x605, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
     // PLA implied
     {0x680, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
