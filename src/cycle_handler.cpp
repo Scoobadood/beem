@@ -247,6 +247,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_branch_3(cpu, pins);
     }},
 
+
     // CLC implied
     {0x180, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -728,6 +729,25 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0xb03, [](M6502 *cpu, uint64_t &pins) {
       do_branch_3(cpu, pins);
+    }},
+
+
+    // LDX ZP,Y
+    {0xb60, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xb61, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0xb62, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->Y()) & 0xff);
+    }},
+    {0xb63, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setX(get_data(pins));
+      cpu->setNZ(cpu->X());
+      fetch(cpu, pins);
     }},
 
 
