@@ -454,6 +454,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // BCS #
     {0xb00, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
@@ -486,6 +487,17 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0xc01, [](M6502 *cpu, uint64_t &pins) {
       do_cmp(cpu, cpu->Y(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
+    // INY
+    {0xc80, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0xc81, [](M6502 *cpu, uint64_t &pins) {
+      cpu->incY();
+      cpu->setNZ(cpu->Y());
       fetch(cpu, pins);
     }},
 
@@ -560,6 +572,17 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0xe01, [](M6502 *cpu, uint64_t &pins) {
       do_cmp(cpu, cpu->X(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
+    // INX
+    {0xe80, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0xe81, [](M6502 *cpu, uint64_t &pins) {
+      cpu->incX();
+      cpu->setNZ(cpu->X());
       fetch(cpu, pins);
     }},
 

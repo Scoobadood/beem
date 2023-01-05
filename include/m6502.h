@@ -30,10 +30,12 @@ class M6502 {
   /* General registers */
   inline void setX(uint8_t x) { x_reg_ = x; }
   inline void decX() { x_reg_--; }
+  inline void incX() { x_reg_++; }
   inline uint8_t X() const { return x_reg_; }
 
   inline void setY(uint8_t y) { y_reg_ = y; }
   inline void decY() { y_reg_--; }
+  inline void incY() { y_reg_++; }
   inline uint8_t Y() const { return y_reg_; }
 
   inline void setA(uint8_t a) { accumulator_ = a; }
