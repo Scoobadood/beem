@@ -607,6 +607,25 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // STY Zpg,X
+    {0x940, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x941, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x942, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+      set_data(pins, cpu->Y());
+      clr_RW(pins);
+    }},
+    {0x943, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+
     // STX Zpg,Y
     {0x960, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
