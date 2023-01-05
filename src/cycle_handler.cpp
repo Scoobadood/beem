@@ -106,6 +106,18 @@ void do_add(M6502 *cpu, uint8_t val) {
 }
 
 /**
+ * And with bits in accumulator  and set NZV accordingly
+ * @param cpu For flags
+ * @param val To test with acc
+ */
+void do_bit(M6502 *cpu, uint8_t val) {
+  if (val & 0x80) cpu->setN(); else cpu->clrN();
+  if (val & 0x40) cpu->setV(); else cpu->clrV();
+  if (val & cpu->A()) cpu->clrZ();
+  else cpu->setZ();
+}
+
+/**
  * Some operations take an extra cycle when a page crossing occurs
  * This checks for crossings and adjusts the cycle offset appropriately.
  */
@@ -296,6 +308,19 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // BIT zp
+    {0x240, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x241, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+    }},
+    {0x242, [](M6502 *cpu, uint64_t &pins) {
+      do_bit(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
     // PLP implied
     {0x280, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -311,6 +336,23 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
+
+    // BIT abs
+    {0x2c0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x2c1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x2c2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0x2c3, [](M6502 *cpu, uint64_t &pins) {
+      do_bit(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
 
     // BMI #
