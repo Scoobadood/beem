@@ -110,32 +110,51 @@ void fetch(M6502 *cpu, uint64_t &pins) {
   set_SYNC(pins);
 }
 
+/*
+ * Common branch steps
+ */
+void do_branch_0(M6502 *cpu, uint64_t &pins) { set_address(pins, cpu->incPC()); }
+void do_branch_1(M6502 *cpu, uint64_t &pins, uint8_t flag, bool branch_if_set) {
+  set_address(pins, cpu->PC());
+  cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
+
+  // Can we avoid the branch?
+  bool flag_set = (cpu->flags() & flag);
+  if (flag_set == branch_if_set) return;
+
+  // Skip branch
+  fetch(cpu, pins);
+}
+void do_branch_2(M6502 *cpu, uint64_t &pins) {
+  // Put un-page wrapped address on the bus
+  set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
+  if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
+    cpu->setPC(cpu->temp_address());
+//        cpu->irq_pip >>= 1;
+//        cpu->nmi_pip >>= 1;
+    fetch(cpu, pins);
+  }
+}
+void do_branch_3(M6502 *cpu, uint64_t &pins) {
+  cpu->setPC(cpu->temp_address());
+  fetch(cpu, pins);
+}
+
 const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
 
     // BPL #
     {0x100, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      do_branch_0(cpu, pins);
     }},
     {0x101, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-      cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
-      // Check if we should take the branch
-      if (cpu->tstN()) fetch(cpu, pins);
+      do_branch_1(cpu, pins, FLAG_N, false);
     }},
     {0x102, [](M6502 *cpu, uint64_t &pins) {
-      // Put un-page wrapped address on the bus
-      set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
-      if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
-        cpu->setPC(cpu->temp_address());
-//        cpu->irq_pip >>= 1;
-//        cpu->nmi_pip >>= 1;
-        fetch(cpu, pins);
-      }
+      do_branch_2(cpu, pins);
     }},
     {0x103, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setPC(cpu->temp_address());
-      fetch(cpu, pins);
+      do_branch_3(cpu, pins);
     }},
 
     // CLC implied
@@ -158,7 +177,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_address(pins, cpu->incSP());
     }},
     {0x283, [](M6502 *cpu, uint64_t &pins) {
-      cpu->set_flags((get_data(pins)|FLAG_B)& ~FLAG_X);
+      cpu->set_flags((get_data(pins) | FLAG_B) & ~FLAG_X);
       fetch(cpu, pins);
     }},
 
@@ -166,28 +185,18 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
     // BMI #
     {0x300, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      do_branch_0(cpu, pins);
     }},
     {0x301, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-      cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
-      // Check if we should take the branch
-      if (!cpu->tstN()) fetch(cpu, pins);
+      do_branch_1(cpu, pins, FLAG_N, true);
     }},
     {0x302, [](M6502 *cpu, uint64_t &pins) {
-      // Put un-page wrapped address on the bus
-      set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
-      if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
-        cpu->setPC(cpu->temp_address());
-//        cpu->irq_pip >>= 1;
-//        cpu->nmi_pip >>= 1;
-        fetch(cpu, pins);
-      }
+      do_branch_2(cpu, pins);
     }},
     {0x303, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setPC(cpu->temp_address());
-      fetch(cpu, pins);
+      do_branch_3(cpu, pins);
     }},
+
 
     // PHA
     {0x480, [](M6502 *cpu, uint64_t &pins) {
@@ -228,28 +237,18 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
     // BVC #
     {0x500, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      do_branch_0(cpu, pins);
     }},
     {0x501, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-      cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
-      // Check if we should take the branch
-      if (cpu->tstV()) fetch(cpu, pins);
+      do_branch_1(cpu, pins, FLAG_V, false);
     }},
     {0x502, [](M6502 *cpu, uint64_t &pins) {
-      // Put un-page wrapped address on the bus
-      set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
-      if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
-        cpu->setPC(cpu->temp_address());
-//        cpu->irq_pip >>= 1;
-//        cpu->nmi_pip >>= 1;
-        fetch(cpu, pins);
-      }
+      do_branch_2(cpu, pins);
     }},
     {0x503, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setPC(cpu->temp_address());
-      fetch(cpu, pins);
+      do_branch_3(cpu, pins);
     }},
+
 
     // PLA implied
     {0x680, [](M6502 *cpu, uint64_t &pins) {
@@ -277,6 +276,22 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_add(cpu, get_data(pins));
       fetch(cpu, pins);
     }},
+
+
+    // BVS #
+    {0x700, [](M6502 *cpu, uint64_t &pins) {
+      do_branch_0(cpu, pins);
+    }},
+    {0x701, [](M6502 *cpu, uint64_t &pins) {
+      do_branch_1(cpu, pins, FLAG_V, true);
+    }},
+    {0x702, [](M6502 *cpu, uint64_t &pins) {
+      do_branch_2(cpu, pins);
+    }},
+    {0x703, [](M6502 *cpu, uint64_t &pins) {
+      do_branch_3(cpu, pins);
+    }},
+
 
 
     // DEY
@@ -319,28 +334,18 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
     // BCC #
     {0x900, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      do_branch_0(cpu, pins);
     }},
     {0x901, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-      cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
-      // Check if we should take the branch
-      if (cpu->tstC()) fetch(cpu, pins);
+      do_branch_1(cpu, pins, FLAG_C, false);
     }},
     {0x902, [](M6502 *cpu, uint64_t &pins) {
-      // Put un-page wrapped address on the bus
-      set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
-      if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
-        cpu->setPC(cpu->temp_address());
-//        cpu->irq_pip >>= 1;
-//        cpu->nmi_pip >>= 1;
-        fetch(cpu, pins);
-      }
+      do_branch_2(cpu, pins);
     }},
     {0x903, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setPC(cpu->temp_address());
-      fetch(cpu, pins);
+      do_branch_3(cpu, pins);
     }},
+
 
     // TYA Implied
     {0x980, [](M6502 *cpu, uint64_t &pins) {
@@ -352,6 +357,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // TXS Implied
     {0x9a0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -360,6 +366,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       cpu->setSP(cpu->X());
       fetch(cpu, pins);
     }},
+
 
     // LDY #
     {0xa00, [](M6502 *cpu, uint64_t &pins) {
@@ -382,6 +389,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // TAY Implied
     {0xa80, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -403,6 +411,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // TAX Implied
     {0xaa0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -412,6 +421,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       cpu->setNZ(cpu->X());
       fetch(cpu, pins);
     }},
+
 
     // LDA Abs
     {0xad0, [](M6502 *cpu, uint64_t &pins) {
@@ -432,28 +442,18 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
     // BCS #
     {0xb00, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      do_branch_0(cpu, pins);
     }},
     {0xb01, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-      cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
-      // Check if we should take the branch
-      if (!cpu->tstC()) fetch(cpu, pins);
+      do_branch_1(cpu, pins, FLAG_C, true);
     }},
     {0xb02, [](M6502 *cpu, uint64_t &pins) {
-      // Put un-page wrapped address on the bus
-      set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
-      if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
-        cpu->setPC(cpu->temp_address());
-//        cpu->irq_pip >>= 1;
-//        cpu->nmi_pip >>= 1;
-        fetch(cpu, pins);
-      }
+      do_branch_2(cpu, pins);
     }},
     {0xb03, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setPC(cpu->temp_address());
-      fetch(cpu, pins);
+      do_branch_3(cpu, pins);
     }},
+
 
     // TSX Implied
     {0xba0, [](M6502 *cpu, uint64_t &pins) {
@@ -465,6 +465,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // CPY #
     {0xc00, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -473,6 +474,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_cmp(cpu, cpu->Y(), get_data(pins));
       fetch(cpu, pins);
     }},
+
 
     // CMP #
     {0xc90, [](M6502 *cpu, uint64_t &pins) {
@@ -483,6 +485,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // DEX
     {0xca0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -492,6 +495,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       cpu->setNZ(cpu->X());
       fetch(cpu, pins);
     }},
+
 
     // CMP abs
     {0xcd0, [](M6502 *cpu, uint64_t &pins) {
@@ -512,28 +516,18 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
     // BNE #
     {0xd00, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      do_branch_0(cpu, pins);
     }},
     {0xd01, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-      cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
-      // Check if we should take the branch
-      if (cpu->tstZ()) fetch(cpu, pins);
+      do_branch_1(cpu, pins, FLAG_Z, false);
     }},
     {0xd02, [](M6502 *cpu, uint64_t &pins) {
-      // Put un-page wrapped address on the bus
-      set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
-      if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
-        cpu->setPC(cpu->temp_address());
-//        cpu->irq_pip >>= 1;
-//        cpu->nmi_pip >>= 1;
-        fetch(cpu, pins);
-      }
+      do_branch_2(cpu, pins);
     }},
     {0xd03, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setPC(cpu->temp_address());
-      fetch(cpu, pins);
+      do_branch_3(cpu, pins);
     }},
+
 
     // CLD implied
     {0xd80, [](M6502 *cpu, uint64_t &pins) {
@@ -555,6 +549,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // NOP
     {0xea0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -563,29 +558,19 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // BEQ #
     {0xf00, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      do_branch_0(cpu, pins);
     }},
     {0xf01, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-      cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
-      // Check if we should take the branch
-      if (!cpu->tstZ()) fetch(cpu, pins);
+      do_branch_1(cpu, pins, FLAG_Z, true);
     }},
     {0xf02, [](M6502 *cpu, uint64_t &pins) {
-      // Put un-page wrapped address on the bus
-      set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
-      if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
-        cpu->setPC(cpu->temp_address());
-//        cpu->irq_pip >>= 1;
-//        cpu->nmi_pip >>= 1;
-        fetch(cpu, pins);
-      }
+      do_branch_2(cpu, pins);
     }},
     {0xf03, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setPC(cpu->temp_address());
-      fetch(cpu, pins);
+      do_branch_3(cpu, pins);
     }},
 };
 

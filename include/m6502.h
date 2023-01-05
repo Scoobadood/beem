@@ -52,6 +52,7 @@ class M6502 {
 
   /* Flag manipulation */
   inline void set_flags(uint8_t flags) { flags_ = flags; }
+  inline uint8_t flags() const { return flags_; }
 
   inline void setC() { flags_ |= FLAG_C; }
   inline void clrC() { flags_ &= ~FLAG_C; }
