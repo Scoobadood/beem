@@ -831,9 +831,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_address(pins, cpu->incPC());
     }},
     {0x911, [](M6502 *cpu, uint64_t &pins) {
-      auto ta =   get_data(pins);
+      auto ta = get_data(pins);
       cpu->set_temp_addr(ta);
-      set_address(pins,ta);
+      set_address(pins, ta);
     }},
     {0x912, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
@@ -845,7 +845,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x914, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->temp_addr() + cpu->Y());
-      set_data( pins, cpu->A());
+      set_data(pins, cpu->A());
       clr_RW(pins);
     }},
     {0x915, [](M6502 *cpu, uint64_t &pins) {
@@ -896,6 +896,39 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0x9d4, [](M6502 *cpu, uint64_t &pins) {
       fetch(cpu, pins);
     }},
+
+
+    // LDA (zp,X)
+    {0xa10, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xa11, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0xa12, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr((cpu->temp_addr() + cpu->X()) & 0xff);
+      set_address(pins, cpu->temp_addr());
+    }},
+    {0xa13, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + 1) & 0xff);
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xa14, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr());
+    }},
+    {0xa15, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+
+
+
+
+
 
 
     // TAX Implied
@@ -983,9 +1016,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_address(pins, cpu->incPC());
     }},
     {0xb11, [](M6502 *cpu, uint64_t &pins) {
-      auto ta =   get_data(pins);
+      auto ta = get_data(pins);
       cpu->set_temp_addr(ta);
-      set_address(pins,ta);
+      set_address(pins, ta);
     }},
     {0xb12, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
@@ -1299,9 +1332,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_address(pins, cpu->incPC());
     }},
     {0xd11, [](M6502 *cpu, uint64_t &pins) {
-      auto ta =   get_data(pins);
+      auto ta = get_data(pins);
       cpu->set_temp_addr(ta);
-      set_address(pins,ta);
+      set_address(pins, ta);
     }},
     {0xd12, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
