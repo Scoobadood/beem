@@ -12,14 +12,14 @@ const uint8_t HIGH = 1;
 const uint8_t LOW = 0;
 
 // Status Register flags
-const uint8_t FLAG_C = 1 << 0;
-const uint8_t FLAG_Z = 1 << 1;
-const uint8_t FLAG_I = 1 << 2;
-const uint8_t FLAG_D = 1 << 3;
-const uint8_t FLAG_B = 1 << 4;
-const uint8_t FLAG_X = 1 << 4;
-const uint8_t FLAG_V = 1 << 6;
 const uint8_t FLAG_N = 1 << 7;
+const uint8_t FLAG_V = 1 << 6;
+const uint8_t FLAG_X = 1 << 5;
+const uint8_t FLAG_B = 1 << 4;
+const uint8_t FLAG_D = 1 << 3;
+const uint8_t FLAG_I = 1 << 2;
+const uint8_t FLAG_Z = 1 << 1;
+const uint8_t FLAG_C = 1 << 0;
 
 class M6502 {
  public:
