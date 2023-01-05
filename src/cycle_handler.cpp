@@ -222,6 +222,17 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // ORA #
+    {0x090, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x091, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(cpu->A() | get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+
     // BPL #
     {0x100, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
