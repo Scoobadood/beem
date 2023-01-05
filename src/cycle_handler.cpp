@@ -1294,6 +1294,33 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // CMP (zp),Y
+    {0xd10, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xd11, [](M6502 *cpu, uint64_t &pins) {
+      auto ta =   get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins,ta);
+    }},
+    {0xd12, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xd13, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0xd14, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0xd15, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->A(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
     // CMP zp,X
     {0xd50, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
