@@ -105,6 +105,18 @@ void do_add(M6502 *cpu, uint8_t val) {
   }
 }
 
+
+/**
+ * Some operations take an extra cycle when a page crossing occurs
+ * This checks for crossings and adjusts the cycle offset appropriately.
+ */
+void skip_cycle_on_page_crossing( M6502 * cpu, uint8_t offset) {
+  if ((cpu->temp_addr_high() >> 8) == ((cpu->temp_addr() + offset) >> 8)) {
+    // No page crossing, skip a cycle
+    cpu->skip_cycle();
+  }
+}
+
 void fetch(M6502 *cpu, uint64_t &pins) {
   set_address(pins, cpu->PC());
   set_SYNC(pins);
@@ -805,10 +817,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0xbd2, [](M6502 *cpu, uint64_t &pins) {
       cpu->set_temp_addr_high(get_data(pins));
       set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->X()) & 0xff));
-      // Skip th un-needed next step if there's no change to high byte of address
-      if ((cpu->temp_addr_high() >> 8) == ((cpu->temp_addr() + cpu->X()) >> 8)) {
-        cpu->skip_cycle();
-      }
+      skip_cycle_on_page_crossing(cpu, cpu->X());
     }},
     {0xbd3, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->temp_addr() + cpu->X());
@@ -902,6 +911,29 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins
       );
     }},
+
+
+    // CMP abs,Y
+    {0xd90, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xd91, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xd92, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0xd93, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0xd94, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->A(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
 
 
     // CPX #
