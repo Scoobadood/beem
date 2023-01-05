@@ -92,6 +92,66 @@ void do_add_binary(M6502 *cpu, uint8_t val) {
   cpu->setNZ(cpu->A());
 }
 
+void do_sub_bcd(M6502 *cpu, uint8_t val) {
+  uint8_t carry = cpu->tstC() ? 0 : 1;
+
+  cpu->clrN();
+  cpu->clrV();
+  cpu->clrZ();
+  cpu->clrC();
+
+  uint16_t diff = cpu->A() - val - carry;
+  uint8_t al = (cpu->A() & 0x0F) - (val & 0x0F) - carry;
+  if ((int8_t) al < 0) {
+    al -= 6;
+  }
+  uint8_t ah = (cpu->A() >> 4) - (val >> 4) - ((int8_t) al < 0);
+
+  if ((uint8_t) diff == 0) {
+    cpu->setZ();
+  } else if (diff & 0x80) {
+    cpu->setN();
+  }
+
+  if ((cpu->A() ^ val) & (cpu->A() ^ diff) & 0x80) {
+    cpu->setV();
+  }
+
+  if (!(diff & 0xff00)) {
+    cpu->setC();
+  }
+  if (ah & 0x80) {
+    ah -= 6;
+  }
+  cpu->setA((ah << 4) | (al & 0x0f));
+}
+
+void do_sub_binary(M6502 *cpu, uint8_t val) {
+  uint16_t diff = cpu->A() - val - (cpu->tstC() ? 0 : 1);
+
+  cpu->clrV();
+  cpu->clrC();
+
+  cpu->setNZ(diff & 0xff);
+
+  if ((cpu->A() ^ val) & (cpu->A() ^ diff) & 0x80) {
+    cpu->setV();
+  }
+
+  if (!(diff & 0xff00)) {
+    cpu->setC();
+  }
+  cpu->setA(diff & 0xff);
+}
+
+void do_sub(M6502 *cpu, uint8_t val) {
+  if (cpu->tstD()) {
+    do_sub_bcd(cpu, val);
+  } else {
+    do_sub_binary(cpu, val);
+  }
+}
+
 /**
  * Perform addition
  * @param cpu For flags
@@ -107,8 +167,8 @@ void do_add(M6502 *cpu, uint8_t val) {
 
 uint8_t do_and(M6502 *cpu, uint8_t val) {
   auto tmp = cpu->A() & val;
-  if( tmp ==0) cpu->setZ() ; else cpu->clrZ();
-  if( tmp &0x80) cpu->setZ() ; else cpu->clrZ();
+  if (tmp == 0) cpu->setZ(); else cpu->clrZ();
+  if (tmp & 0x80) cpu->setZ(); else cpu->clrZ();
   return tmp;
 }
 
@@ -211,7 +271,9 @@ void do_branch_3(M6502 *cpu, uint64_t &pins) {
 }
 
 const std::map<uint16_t, CycleHandler> cycle_handlers = {
-    // BRK
+    /*******************
+     *       BRK       *
+     *******************/
     {0x000, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -275,8 +337,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-
-    // ORA (zp,X)
+    /*******************
+     *   ORA (zp, X)   *
+     *******************/
     {0x010, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -303,26 +366,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-
-    // ORA abs
-    {0x0d0, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0x0d1, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-      cpu->set_temp_addr(get_data(pins));
-    }},
-    {0x0d2, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
-    }},
-    {0x0d3, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setA(cpu->A() | get_data(pins));
-      cpu->setNZ(cpu->A());
-      fetch(cpu, pins);
-    }},
-
-
-    // ORA zp
+    /*******************
+     *   ORA zp        *
+     *******************/
     {0x050, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -335,8 +381,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // ASL zp
+    /*******************
+     *   ASL zp        *
+     *******************/
     {0x060, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -355,7 +402,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-    // PHP
+    /*******************
+     *   PHP           *
+     *******************/
     {0x080, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -368,8 +417,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // ORA #
+    /*******************
+     *   ORA #         *
+     *******************/
     {0x090, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -379,8 +429,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // ASL A
+    /*******************
+     *   ASL A         *
+     *******************/
     {0x0a0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -390,7 +441,28 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // ASL abs
+    /*******************
+     *   ORA abs      *
+     *******************/
+    {0x0d0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x0d1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x0d2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0x0d3, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(cpu->A() | get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   ASL abs       *
+     *******************/
     {0x0e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -413,8 +485,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BPL #
+    /*******************
+     *   BPL #         *
+     *******************/
     {0x100, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
     }},
@@ -429,7 +502,38 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // ORA zp,X
+    /*******************
+     *   ORA (zp),Y)   *
+     *******************/
+    {0x110, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x111, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x112, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x113, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0x114, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0x115, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(cpu->A() | get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   ORA zp,X      *
+     *******************/
     {0x150, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -447,8 +551,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // ASL zp,X
+    /*******************
+     *   ASL zp,X      *
+     *******************/
     {0x160, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -473,7 +578,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // CLC implied
+    /*******************
+     *   CLC           *
+     *******************/
     {0x180, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -482,8 +589,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // ORA Abs,Y
+    /*******************
+     *   ORA abs,Y     *
+     *******************/
     {0x190, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -506,7 +614,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // ORA Abs,X
+    /*******************
+     *   ORA abs,X     *
+     *******************/
     {0x1d0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -529,7 +639,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // ASL abs,X
+    /*******************
+     *   ASL abs,X     *
+     *******************/
     {0x1e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -558,7 +670,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // JSR (stack return address, load jmp address,)
+    /*******************
+     *   JSR           *
+     *******************/
     {0x200, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -585,7 +699,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // AND (zp,X)
+    /*******************
+     *   AND (zp,X)    *
+     *******************/
     {0x210, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -611,8 +727,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BIT zp
+    /*******************
+     *   BIT zp        *
+     *******************/
     {0x240, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -625,7 +742,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // AND zp
+    /*******************
+     *   AND zp        *
+     *******************/
     {0x250, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -638,7 +757,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-    // ROL zp
+    /*******************
+     *   ROL zp        *
+     *******************/
     {0x260, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -657,7 +778,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-    // PLP implied
+    /*******************
+     *   PLP           *
+     *******************/
     {0x280, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -672,8 +795,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // AND #
+    /*******************
+     *   AND #         *
+     *******************/
     {0x290, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -684,7 +808,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // ROL A
+    /*******************
+     *   ROL A         *
+     *******************/
     {0x2a0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -694,7 +820,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // BIT abs
+    /*******************
+     *   BIT abs       *
+     *******************/
     {0x2c0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -710,8 +838,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // AND abs
+    /*******************
+     *   AND abs       *
+     *******************/
     {0x2d0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -728,8 +857,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // ROL abs
+    /*******************
+     *   ROL abs       *
+     *******************/
     {0x2e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -752,8 +882,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BMI #
+    /*******************
+     *   BMI rel       *
+     *******************/
     {0x300, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
     }},
@@ -767,9 +898,38 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_branch_3(cpu, pins);
     }},
 
+    /*******************
+     *   AND (zp),Y    *
+     *******************/
+    {0x310, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x311, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x312, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x313, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0x314, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0x315, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(cpu->A() & get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
 
-
-    // AND zp,X
+    /*******************
+     *   AND zp,X      *
+     *******************/
     {0x350, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -787,8 +947,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // ROL zp,X
+    /*******************
+     *   ROL zp,X      *
+     *******************/
     {0x360, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -812,8 +973,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // SEC
+    /*******************
+     *   SEC           *
+     *******************/
     {0x380, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -822,8 +984,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // AND Abs,Y
+    /*******************
+     *   AND abs,Y     *
+     *******************/
     {0x390, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -845,8 +1008,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // AND Abs,X
+    /*******************
+     *   AND abs,X     *
+     *******************/
     {0x3d0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -868,9 +1032,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-
-    // ROL abs,X
+    /*******************
+     *   ROL abs,X     *
+     *******************/
     {0x3e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -898,8 +1062,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // RTI
+    /*******************
+     *   RTI           *
+     *******************/
     {0x400, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -922,8 +1087,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // EOR (zp,X)
+    /*******************
+     *   EOR zp,X      *
+     *******************/
     {0x410, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -949,8 +1115,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // EOR zp
+    /*******************
+     *   EOR zp        *
+     *******************/
     {0x450, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -963,8 +1130,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LSR zp
+    /*******************
+     *   LSR zp        *
+     *******************/
     {0x460, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -983,8 +1151,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // PHA
+    /*******************
+     *   PHA           *
+     *******************/
     {0x480, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -997,8 +1166,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // EOR #
+    /*******************
+     *   EOR #         *
+     *******************/
     {0x490, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1008,8 +1178,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LSR A
+    /*******************
+     *   LSR A         *
+     *******************/
     {0x4a0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1018,7 +1189,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-    // JMP
+    /*******************
+     *   JMP           *
+     *******************/
     {0x4c0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1031,8 +1204,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // EOR abs
+    /*******************
+     *   EOR abs       *
+     *******************/
     {0x4d0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1049,8 +1223,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LSR abs
+    /*******************
+     *   LSR abs       *
+     *******************/
     {0x4e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1073,8 +1248,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BVC #
+    /*******************
+     *   BVC rel       *
+     *******************/
     {0x500, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
     }},
@@ -1088,8 +1264,38 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_branch_3(cpu, pins);
     }},
 
+    /*******************
+     *   EOR (zp),Y    *
+     *******************/
+    {0x510, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x511, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x512, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x513, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0x514, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0x515, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(cpu->A() ^ get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
 
-    // EOR zp,X
+    /*******************
+     *   EOR zp,X      *
+     *******************/
     {0x550, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1107,8 +1313,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LSR zp,X
+    /*******************
+     *   LSR zp,X      *
+     *******************/
     {0x560, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1132,8 +1339,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CLI
+    /*******************
+     *   CLI           *
+     *******************/
     {0x580, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1142,31 +1350,33 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // EOR Abs,Y
-    {0x190, [](M6502 *cpu, uint64_t &pins) {
+    /*******************
+     *   EOR abs,Y     *
+     *******************/
+    {0x590, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
-    {0x191, [](M6502 *cpu, uint64_t &pins) {
+    {0x591, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
       cpu->set_temp_addr(get_data(pins));
     }},
-    {0x192, [](M6502 *cpu, uint64_t &pins) {
+    {0x592, [](M6502 *cpu, uint64_t &pins) {
       cpu->set_temp_addr_high(get_data(pins));
       set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
       skip_cycle_on_page_crossing(cpu, cpu->Y());
     }},
-    {0x193, [](M6502 *cpu, uint64_t &pins) {
+    {0x593, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->temp_addr() + cpu->Y());
     }},
-    {0x194, [](M6502 *cpu, uint64_t &pins) {
+    {0x594, [](M6502 *cpu, uint64_t &pins) {
       cpu->setA(cpu->A() ^ get_data(pins));
       cpu->setNZ(cpu->A());
       fetch(cpu, pins);
     }},
 
-
-    // AND Abs,X
+    /*******************
+     *   EOR abs,X     *
+     *******************/
     {0x5d0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1188,8 +1398,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LSR abs,X
+    /*******************
+     *   LSR abs,X     *
+     *******************/
     {0x5e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1217,8 +1428,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // RTS
+    /*******************
+     *   RTS           *
+     *******************/
     {0x600, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1240,8 +1452,50 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   ADC (zp,X)    *
+     *******************/
+    {0x610, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x611, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x612, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr((cpu->temp_addr() + cpu->X()) & 0xff);
+      set_address(pins, cpu->temp_addr());
+    }},
+    {0x613, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + 1) & 0xff);
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x614, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr());
+    }},
+    {0x615, [](M6502 *cpu, uint64_t &pins) {
+      do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
-    // ROR zp
+    /*******************
+     *   ADC zp        *
+     *******************/
+    {0x650, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x651, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+    }},
+    {0x652, [](M6502 *cpu, uint64_t &pins) {
+      do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   ROR zp        *
+     *******************/
     {0x660, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1260,7 +1514,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-    // PLA implied
+    /*******************
+     *   PLA           *
+     *******************/
     {0x680, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1276,9 +1532,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-
-    // ADC #
+    /*******************
+     *   ADC #         *
+     *******************/
     {0x690, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1287,8 +1543,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // ROR A
+    /*******************
+     *   ROR A         *
+     *******************/
     {0x6a0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1297,8 +1554,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // JMP Indirect
+    /*******************
+     *   JMP I         *
+     *******************/
     {0x6c0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1321,7 +1579,27 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // ROR abs
+    /*******************
+     *   ADC abs       *
+     *******************/
+    {0x6d0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x6d1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x6d2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0x6d3, [](M6502 *cpu, uint64_t &pins) {
+      do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   ROR abs       *
+     *******************/
     {0x6e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1344,8 +1622,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BVS #
+    /*******************
+     *   BVS rel       *
+     *******************/
     {0x700, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
     }},
@@ -1359,9 +1638,56 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_branch_3(cpu, pins);
     }},
 
+    /*******************
+     *   ADC (zp),Y    *
+     *******************/
+    {0x710, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x711, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x712, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x713, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0x714, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0x715, [](M6502 *cpu, uint64_t &pins) {
+      do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
+    /*******************
+     *   ADC zp,X      *
+     *******************/
+    {0x750, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x751, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x752, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+    }},
+    {0x753, [](M6502 *cpu, uint64_t &pins) {
+      do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
-    // ROR zp,X
+    /*******************
+     *   ROR zp,X      *
+     *******************/
     {0x760, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1385,7 +1711,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-    // SEI
+    /*******************
+     *   SEI           *
+     *******************/
     {0x780, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1394,8 +1722,55 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   ADC abs,Y     *
+     *******************/
+    {0x790, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x791, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x792, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0x793, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0x794, [](M6502 *cpu, uint64_t &pins) {
+      do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
-    // ROR abs,X
+    /*******************
+     *   ADC abs,X     *
+     *******************/
+    {0x7d0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x7d1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x7d2, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->X()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->X());
+    }},
+    {0x7d3, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->X());
+    }},
+    {0x7d4, [](M6502 *cpu, uint64_t &pins) {
+      do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   ROR abs,X     *
+     *******************/
     {0x7e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1424,7 +1799,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // STA (zp,X)
+    /*******************
+     *   STA zp,X      *
+     *******************/
     {0x810, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1450,8 +1827,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // STY Zpg
+    /*******************
+     *   STY zp        *
+     *******************/
     {0x840, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1464,8 +1842,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // STA Zpg
+    /*******************
+     *   STA zp        *
+     *******************/
     {0x850, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1478,8 +1857,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // STX Zpg
+    /*******************
+     *   STX zp        *
+     *******************/
     {0x860, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1492,8 +1872,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // DEY
+    /*******************
+     *   DEY           *
+     *******************/
     {0x880, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1503,8 +1884,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // TXA Implied
+    /*******************
+     *   TXA           *
+     *******************/
     {0x8a0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1514,8 +1896,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // STY Absolute
+    /*******************
+     *   STY abs       *
+     *******************/
     {0x8c0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1532,8 +1915,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // STA Absolute
+    /*******************
+     *   STA abs       *
+     *******************/
     {0x8d0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1550,8 +1934,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // STX Absolute
+    /*******************
+     *   STX abs       *
+     *******************/
     {0x8e0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1568,8 +1953,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BCC #
+    /*******************
+     *   BCC rel       *
+     *******************/
     {0x900, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
     }},
@@ -1583,175 +1969,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_branch_3(cpu, pins);
     }},
 
-
-    // STY Zpg,X
-    {0x940, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0x941, [](M6502 *cpu, uint64_t &pins) {
-      auto ta = get_data(pins);
-      cpu->set_temp_addr(ta);
-      set_address(pins, ta);
-    }},
-    {0x942, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
-      set_data(pins, cpu->Y());
-      clr_RW(pins);
-    }},
-    {0x943, [](M6502 *cpu, uint64_t &pins) {
-      fetch(cpu, pins);
-    }},
-
-
-    // STA Zpg,X
-    {0x950, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0x951, [](M6502 *cpu, uint64_t &pins) {
-      auto ta = get_data(pins);
-      cpu->set_temp_addr(ta);
-      set_address(pins, ta);
-    }},
-    {0x952, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
-      set_data(pins, cpu->A());
-      clr_RW(pins);
-    }},
-    {0x953, [](M6502 *cpu, uint64_t &pins) {
-      fetch(cpu, pins);
-    }},
-
-
-    // STX Zpg,Y
-    {0x960, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0x961, [](M6502 *cpu, uint64_t &pins) {
-      auto ta = get_data(pins);
-      cpu->set_temp_addr(ta);
-      set_address(pins, ta);
-    }},
-    {0x962, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, (cpu->temp_addr() + cpu->Y()) & 0xff);
-      set_data(pins, cpu->X());
-      clr_RW(pins);
-    }},
-    {0x963, [](M6502 *cpu, uint64_t &pins) {
-      fetch(cpu, pins);
-    }},
-
-
-
-
-
-// TYA Implied
-    {0x980, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-    }},
-    {0x981, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setA(cpu->Y());
-      cpu->setNZ(cpu->A());
-      fetch(cpu, pins);
-    }},
-
-
-    // TXS Implied
-    {0x9a0, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-    }},
-    {0x9a1, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setSP(cpu->X());
-      fetch(cpu, pins);
-    }},
-
-
-    // LDY #
-    {0xa00, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0xa01, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setY(get_data(pins));
-      cpu->setNZ(cpu->Y());
-      fetch(cpu, pins);
-    }},
-
-
-    // LDX #
-    {0xa20, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0xa21, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setX(get_data(pins));
-      cpu->setNZ(cpu->X());
-      fetch(cpu, pins);
-    }},
-
-
-    // LDY ZP
-    {0xa40, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0xa41, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, get_data(pins));
-    }},
-    {0xa42, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setY(get_data(pins));
-      cpu->setNZ(cpu->Y());
-      fetch(cpu, pins);
-    }},
-
-
-    // LDA ZP
-    {0xa50, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0xa51, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, get_data(pins));
-    }},
-    {0xa52, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setA(get_data(pins));
-      cpu->setNZ(cpu->A());
-      fetch(cpu, pins);
-    }},
-
-
-    // LDX ZP
-    {0xa60, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0xa61, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, get_data(pins));
-    }},
-    {0xa62, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setX(get_data(pins));
-      cpu->setNZ(cpu->X());
-      fetch(cpu, pins);
-    }},
-
-
-    // TAY Implied
-    {0xa80, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-    }},
-    {0xa81, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setY(cpu->A());
-      cpu->setNZ(cpu->Y());
-      fetch(cpu, pins);
-    }},
-
-
-    // LDA #
-    {0xa90, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
-    }},
-    {0xa91, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setA(get_data(pins));
-      cpu->setNZ(cpu->A());
-      fetch(cpu, pins);
-    }},
-
-
-    // STA (zp),Y
+    /*******************
+     *   STA (zp),Y    *
+     *******************/
     {0x910, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1777,9 +1997,81 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   STY zp,X      *
+     *******************/
+    {0x940, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x941, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x942, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+      set_data(pins, cpu->Y());
+      clr_RW(pins);
+    }},
+    {0x943, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
 
+    /*******************
+     *   STA zp,X      *
+     *******************/
+    {0x950, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x951, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x952, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+      set_data(pins, cpu->A());
+      clr_RW(pins);
+    }},
+    {0x953, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
 
-    // STA abs,Y
+    /*******************
+     *   STX zp,Y      *
+     *******************/
+    {0x960, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x961, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0x962, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->Y()) & 0xff);
+      set_data(pins, cpu->X());
+      clr_RW(pins);
+    }},
+    {0x963, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   TYA           *
+     *******************/
+    {0x980, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x981, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(cpu->Y());
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   STA abs,Y     *
+     *******************/
     {0x990, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1800,8 +2092,20 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   TXS           *
+     *******************/
+    {0x9a0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x9a1, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setSP(cpu->X());
+      fetch(cpu, pins);
+    }},
 
-    // STA abs,X
+    /*******************
+     *   STA abs,X     *
+     *******************/
     {0x9d0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1822,8 +2126,21 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   LDY #         *
+     *******************/
+    {0xa00, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xa01, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setY(get_data(pins));
+      cpu->setNZ(cpu->Y());
+      fetch(cpu, pins);
+    }},
 
-    // LDA (zp,X)
+    /*******************
+     *   LDA (zp,X)    *
+     *******************/
     {0xa10, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1849,8 +2166,92 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   LDX #         *
+     *******************/
+    {0xa20, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xa21, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setX(get_data(pins));
+      cpu->setNZ(cpu->X());
+      fetch(cpu, pins);
+    }},
 
-    // TAX Implied
+
+    /*******************
+     *   LDY zp        *
+     *******************/
+    {0xa40, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xa41, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+    }},
+    {0xa42, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setY(get_data(pins));
+      cpu->setNZ(cpu->Y());
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   LDA zp        *
+     *******************/
+    {0xa50, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xa51, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+    }},
+    {0xa52, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   LDX zp        *
+     *******************/
+    {0xa60, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xa61, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+    }},
+    {0xa62, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setX(get_data(pins));
+      cpu->setNZ(cpu->X());
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   TAY           *
+     *******************/
+    {0xa80, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0xa81, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setY(cpu->A());
+      cpu->setNZ(cpu->Y());
+      fetch(cpu, pins);
+    }},
+
+
+    /*******************
+     *   LDA #         *
+     *******************/
+    {0xa90, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xa91, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   TAX           *
+     *******************/
     {0xaa0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -1860,8 +2261,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LDY Abs
+    /*******************
+     *   LDY abs       *
+     *******************/
     {0xac0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1896,8 +2298,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LDX Abs
+    /*******************
+     *   LDX abs       *
+     *******************/
     {0xae0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1914,8 +2317,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BCS #
+    /*******************
+     *   BCS #         *
+     *******************/
     {0xb00, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
     }},
@@ -1930,7 +2334,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // LDA (zp),Y
+    /*******************
+     *   LDA (zp),Y    *
+     *******************/
     {0xb10, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1957,9 +2363,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-
-    // LDY ZP,X
+    /*******************
+     *   LDY zp,X      *
+     *******************/
     {0xb40, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1977,8 +2383,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LDA zp,X
+    /*******************
+     *   LDA zp,X      *
+     *******************/
     {0xb50, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -1996,8 +2403,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LDX ZP,Y
+    /*******************
+     *   LDX zp,Y      *
+     *******************/
     {0xb60, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2015,8 +2423,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CLV
+    /*******************
+     *   CLV           *
+     *******************/
     {0xb80, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -2025,8 +2434,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LDA $0102,Y
+    /*******************
+     *   LDA abs,Y     *
+     *******************/
     {0xb90, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2048,8 +2458,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // TSX Implied
+    /*******************
+     *   TSX           *
+     *******************/
     {0xba0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -2059,8 +2470,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LDY abs,X
+    /*******************
+     *   LDY abs,X     *
+     *******************/
     {0xbc0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2082,8 +2494,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LDA Abs,X
+    /*******************
+     *   LDA abs,X     *
+     *******************/
     {0xbd0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2105,8 +2518,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // LDX abs,Y
+    /*******************
+     *   LDX abs,Y     *
+     *******************/
     {0xbe0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2128,8 +2542,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CPY #
+    /*******************
+     *   CPY #         *
+     *******************/
     {0xc00, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2138,8 +2553,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CP (zp,X)
+    /*******************
+     *   CMP (zp,X)    *
+     *******************/
     {0xc10, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2164,8 +2580,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CPY zp
+    /*******************
+     *   CPY zp        *
+     *******************/
     {0xc40, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2177,8 +2594,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CMP zp
+    /*******************
+     *   CMP zp        *
+     *******************/
     {0xc50, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2190,8 +2608,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // DEC zp
+    /*******************
+     *   DEC zp        *
+     *******************/
     {0xc60, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2212,8 +2631,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // INY
+    /*******************
+     *   INY           *
+     *******************/
     {0xc80, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -2223,8 +2643,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CMP #
+    /*******************
+     *   CMP #         *
+     *******************/
     {0xc90, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2233,8 +2654,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // DEX
+    /*******************
+     *   DEX           *
+     *******************/
     {0xca0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -2244,8 +2666,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CPY abs
+    /*******************
+     *   CPY abs       *
+     *******************/
     {0xcc0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2261,8 +2684,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CMP abs
+    /*******************
+     *   CMP abs       *
+     *******************/
     {0xcd0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2278,8 +2702,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // DEC abs
+    /*******************
+     *   DEC abs       *
+     *******************/
     {0xce0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2304,8 +2729,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BNE #
+    /*******************
+     *   BNE #         *
+     *******************/
     {0xd00, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
     }},
@@ -2319,8 +2745,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_branch_3(cpu, pins);
     }},
 
-
-    // CMP (zp),Y
+    /*******************
+     *   CMP (zp),Y    *
+     *******************/
     {0xd10, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2346,8 +2773,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CMP zp,X
+    /*******************
+     *   CMP zp,X      *
+     *******************/
     {0xd50, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2364,8 +2792,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // DEC zp,X
+    /*******************
+     *   DEC zp,X      *
+     *******************/
     {0xd60, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2391,8 +2820,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CLD implied
+    /*******************
+     *   CLD           *
+     *******************/
     {0xd80, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -2402,8 +2832,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       );
     }},
 
-
-    // CMP abs,Y
+    /*******************
+     *   CMP abs,Y     *
+     *******************/
     {0xd90, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2424,9 +2855,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-
-    // CMP abs,X
+    /*******************
+     *   CMP abs,X     *
+     *******************/
     {0xdd0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2447,9 +2878,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-
-    // DEC abs,X
+    /*******************
+     *   DEC abs,X     *
+     *******************/
     {0xde0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2479,8 +2910,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CPX #
+    /*******************
+     *   CPX #         *
+     *******************/
     {0xe00, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2489,8 +2921,37 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   SBC (zp,X)    *
+     *******************/
+    {0xE10, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xE11, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0xE12, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr((cpu->temp_addr() + cpu->X()) & 0xff);
+      set_address(pins, cpu->temp_addr());
+    }},
+    {0xE13, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + 1) & 0xff);
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xE14, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr());
+    }},
+    {0xE15, [](M6502 *cpu, uint64_t &pins) {
+      do_sub(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
-    // CPX zp
+
+    /*******************
+     *   CPX zp        *
+     *******************/
     {0xe40, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2502,8 +2963,24 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   SBC zp        *
+     *******************/
+    {0xe50, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xe51, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins));
+    }},
+    {0xe52, [](M6502 *cpu, uint64_t &pins) {
+      do_sub(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
-    // INC zp
+
+    /*******************
+     *   INC zp        *
+     *******************/
     {0xe60, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2524,9 +3001,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-
-    // INX
+    /*******************
+     *   INX           *
+     *******************/
     {0xe80, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -2536,8 +3013,21 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   SBC #         *
+     *******************/
+    {0xE90, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xE91, [](M6502 *cpu, uint64_t &pins) {
+      do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
-    // NOP
+
+    /*******************
+     *   NOP           *
+     *******************/
     {0xea0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -2545,8 +3035,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // CPX abs
+    /*******************
+     *   CPX abs       *
+     *******************/
     {0xec0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2562,8 +3053,28 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    /*******************
+     *   SBC abs       *
+     *******************/
+    {0xed0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xed1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xed2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0xed3, [](M6502 *cpu, uint64_t &pins) {
+      do_sub(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
-    // INC abs
+
+    /*******************
+     *   INC abs       *
+     *******************/
     {0xee0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2588,8 +3099,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // BEQ #
+    /*******************
+     *   BEQ rel       *
+     *******************/
     {0xf00, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
     }},
@@ -2603,8 +3115,57 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       do_branch_3(cpu, pins);
     }},
 
+    /*******************
+     *   SBC (zp),Y    *
+     *******************/
+    {0xf10, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xf11, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0xf12, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, ((cpu->temp_addr_low() + 1) & 0xff));
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xf13, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0xf14, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0xf15, [](M6502 *cpu, uint64_t &pins) {
+      do_sub(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
 
-    // INC zp,X
+    /*******************
+     *   SBC zp,X      *
+     *******************/
+    {0xf50, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xf51, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0xf52, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+    }},
+    {0xf53, [](M6502 *cpu, uint64_t &pins) {
+      do_sub(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
+    /*******************
+     *   INC zp,X      *
+     *******************/
     {0xf60, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
@@ -2630,8 +3191,9 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-
-    // SED
+    /*******************
+     *   SED           *
+     *******************/
     {0xf80, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
@@ -2640,7 +3202,55 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
-    // INC abs,X
+    /*******************
+     *   SBC abs,Y     *
+     *******************/
+    {0xf90, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xf91, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xf92, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0xf93, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0xf94, [](M6502 *cpu, uint64_t &pins) {
+      do_sub(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   SBC abs,X     *
+     *******************/
+    {0xfd0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xfd1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xfd2, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->X()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->X());
+    }},
+    {0xfd3, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->X());
+    }},
+    {0xfd4, [](M6502 *cpu, uint64_t &pins) {
+      do_sub(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+    /*******************
+     *   INC abs,X     *
+     *******************/
     {0xfe0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
