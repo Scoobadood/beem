@@ -5,6 +5,8 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
+#include <iomanip>
+#include <sstream>
 
 void debug_flags_regs(M6502 * cpu) {
   spdlog::info("        a:${:02x}  x:${:02x}  y:${:02x} {}{}{}{}{}{}{}{}",
@@ -18,7 +20,19 @@ void debug_flags_regs(M6502 * cpu) {
                cpu->tstZ() ? "Z" : "z",
                cpu->tstC() ? "C" : "c"
   );
+}
 
+void debug_stack(M6502 * cpu, Memory * memory) {
+  std::stringstream s;
+  auto sp = cpu->SP();
+  for (auto spc = 255; spc >= sp-1; --spc) {
+    auto v = memory->at(0x100 | spc);
+    s << (( spc == sp) ? " [" : "  ");
+    s << "0x" << std::setw(2) << std::hex << std::setfill('0') << (int)memory->at(0x100 | spc);
+    s << (( spc == sp) ? "] " : "  ");
+  }
+
+  spdlog::info("        sp:$1{:02x}:  {}", sp, s.str());
 }
 
 void debug(M6502 * cpu, Memory * memory) {
@@ -140,6 +154,7 @@ int main() {
     // Log PC to history buffer
     if (tst_SYNC(pins)) {
       debug_flags_regs(&cpu);
+      debug_stack(&cpu, &memory);
       debug(&cpu, &memory);
 
       auto pc = cpu.PC();
