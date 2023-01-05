@@ -128,9 +128,9 @@ void do_branch_1(M6502 *cpu, uint64_t &pins, uint8_t flag, bool branch_if_set) {
 
 void do_branch_2(M6502 *cpu, uint64_t &pins) {
   // Put un-page wrapped address on the bus
-  set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
-  if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
-    cpu->setPC(cpu->temp_address());
+  set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_addr_low()));
+  if ((cpu->temp_addr_high()) == (cpu->PC() & 0xff00)) {
+    cpu->setPC(cpu->temp_addr());
 //        cpu->irq_pip >>= 1;
 //        cpu->nmi_pip >>= 1;
     fetch(cpu, pins);
@@ -138,7 +138,7 @@ void do_branch_2(M6502 *cpu, uint64_t &pins) {
 }
 
 void do_branch_3(M6502 *cpu, uint64_t &pins) {
-  cpu->setPC(cpu->temp_address());
+  cpu->setPC(cpu->temp_addr());
   fetch(cpu, pins);
 }
 
@@ -241,10 +241,10 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x4c1, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
-      cpu->set_temp_addr_low(get_data(pins));
+      cpu->set_temp_addr(get_data(pins));
     }},
     {0x4c2, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setPC(get_data(pins) << 8 | cpu->temp_address());
+      cpu->setPC(get_data(pins) << 8 | cpu->temp_addr_low());
       fetch(cpu, pins);
     }},
 
@@ -292,6 +292,29 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // JMP Indirect
+    {0x6c0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x6c1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x6c2, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr());
+    }},
+    {0x6c3, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr_high() |
+          ((cpu->temp_addr_low() + 1) & 0xff));
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x6c4, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setPC(get_data(pins) << 8 | cpu->temp_addr_low());
+      fetch(cpu, pins);
+    }},
+
+
     // BVS #
     {0x700, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
@@ -335,10 +358,10 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x8d1, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
-      cpu->set_temp_addr_low(get_data(pins));
+      cpu->set_temp_addr(get_data(pins));
     }},
     {0x8d2, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, get_data(pins) << 8 | cpu->temp_address());
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
       set_data(pins, cpu->A());
       clr_RW(pins);
     }},
@@ -443,10 +466,10 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0xad1, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
-      cpu->set_temp_addr_low(get_data(pins));
+      cpu->set_temp_addr(get_data(pins));
     }},
     {0xad2, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, get_data(pins) << 8 | cpu->temp_address());
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
     }},
     {0xad3, [](M6502 *cpu, uint64_t &pins) {
       cpu->setA(get_data(pins));
@@ -529,10 +552,10 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0xcd1, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
-      cpu->set_temp_addr_low(get_data(pins));
+      cpu->set_temp_addr(get_data(pins));
     }},
     {0xcd2, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, get_data(pins) << 8 | cpu->temp_address());
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
     }},
     {0xcd3, [](M6502 *cpu, uint64_t &pins) {
       do_cmp(cpu, cpu->A(), get_data(pins));
