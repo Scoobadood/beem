@@ -10,11 +10,11 @@ void debug_flags_regs(M6502 * cpu) {
   spdlog::info("        a:${:02x}  x:${:02x}  y:${:02x} {}{}{}{}{}{}{}{}",
                cpu->A(), cpu->X(), cpu->Y(),
                cpu->tstN() ? "N" : "n",
-               "?",
-               "_",
-               "?",
+               cpu->tstV() ? "V" : "v",
+               (cpu->flags() & FLAG_X) ? "X" : "x",
+               (cpu->flags() & FLAG_B) ? "B" : "b",
                cpu->tstD() ? "D" : "d",
-               "?",
+               (cpu->flags() & FLAG_I) ? "I" : "i",
                cpu->tstZ() ? "Z" : "z",
                cpu->tstC() ? "C" : "c"
   );
