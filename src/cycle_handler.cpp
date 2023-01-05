@@ -125,6 +125,7 @@ void do_branch_1(M6502 *cpu, uint64_t &pins, uint8_t flag, bool branch_if_set) {
   // Skip branch
   fetch(cpu, pins);
 }
+
 void do_branch_2(M6502 *cpu, uint64_t &pins) {
   // Put un-page wrapped address on the bus
   set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
@@ -135,12 +136,25 @@ void do_branch_2(M6502 *cpu, uint64_t &pins) {
     fetch(cpu, pins);
   }
 }
+
 void do_branch_3(M6502 *cpu, uint64_t &pins) {
   cpu->setPC(cpu->temp_address());
   fetch(cpu, pins);
 }
 
 const std::map<uint16_t, CycleHandler> cycle_handlers = {
+    // PHP
+    {0x080, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x081, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->decSP());
+      set_data(pins, cpu->flags() | FLAG_X);
+      clr_RW(pins);
+    }},
+    {0x082, [](M6502 *cpu, uint64_t &pins) {
+      fetch(cpu, pins);
+    }},
 
 
     // BPL #
@@ -171,10 +185,10 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_address(pins, cpu->PC());
     }},
     {0x281, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->SP());
+      set_address(pins, 0x100 | cpu->SP());
     }},
     {0x282, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incSP());
+      set_address(pins, 0x100 | cpu->incSP());
     }},
     {0x283, [](M6502 *cpu, uint64_t &pins) {
       cpu->set_flags((get_data(pins) | FLAG_B) & ~FLAG_X);
