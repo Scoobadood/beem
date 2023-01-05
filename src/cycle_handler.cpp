@@ -412,6 +412,23 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    // CMP abs
+    {0xcd0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xcd1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr_low(get_data(pins));
+    }},
+    {0xcd2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_address());
+    }},
+    {0xcd3, [](M6502 *cpu, uint64_t &pins) {
+      do_cmp(cpu, cpu->A(), get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
     // BNE #
     {0xd00, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
