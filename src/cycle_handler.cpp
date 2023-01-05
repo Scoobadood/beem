@@ -229,6 +229,17 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    // TXA Implied
+    {0x8a0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x8a1, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(cpu->X());
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+
     // STA Absolute
     {0x8d0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -381,6 +392,16 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0xb03, [](M6502 *cpu, uint64_t &pins) {
       cpu->setPC(cpu->temp_address());
+      fetch(cpu, pins);
+    }},
+
+    // TSX Implied
+    {0xba0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0xba1, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setX(cpu->SP());
+      cpu->setNZ(cpu->X());
       fetch(cpu, pins);
     }},
 
