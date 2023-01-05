@@ -105,12 +105,11 @@ void do_add(M6502 *cpu, uint8_t val) {
   }
 }
 
-
 /**
  * Some operations take an extra cycle when a page crossing occurs
  * This checks for crossings and adjusts the cycle offset appropriately.
  */
-void skip_cycle_on_page_crossing( M6502 * cpu, uint8_t offset) {
+void skip_cycle_on_page_crossing(M6502 *cpu, uint8_t offset) {
   if ((cpu->temp_addr_high() >> 8) == ((cpu->temp_addr() + offset) >> 8)) {
     // No page crossing, skip a cycle
     cpu->skip_cycle();
@@ -376,6 +375,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // EOR #
     {0x490, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -385,6 +385,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       cpu->setNZ(cpu->A());
       fetch(cpu, pins);
     }},
+
 
     // JMP
     {0x4c0, [](M6502 *cpu, uint64_t &pins) {
@@ -848,6 +849,25 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // LDA zp,X
+    {0xb50, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xb51, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = get_data(pins);
+      cpu->set_temp_addr(ta);
+      set_address(pins, ta);
+    }},
+    {0xb52, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, (cpu->temp_addr() + cpu->X()) & 0xff);
+    }},
+    {0xb53, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+
     // LDX ZP,Y
     {0xb60, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -862,17 +882,6 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0xb63, [](M6502 *cpu, uint64_t &pins) {
       cpu->setX(get_data(pins));
-      cpu->setNZ(cpu->X());
-      fetch(cpu, pins);
-    }},
-
-
-    // TSX Implied
-    {0xba0, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->PC());
-    }},
-    {0xba1, [](M6502 *cpu, uint64_t &pins) {
-      cpu->setX(cpu->SP());
       cpu->setNZ(cpu->X());
       fetch(cpu, pins);
     }},
@@ -907,6 +916,17 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0xb94, [](M6502 *cpu, uint64_t &pins) {
       cpu->setA(get_data(pins));
       cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+
+    // TSX Implied
+    {0xba0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0xba1, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setX(cpu->SP());
+      cpu->setNZ(cpu->X());
       fetch(cpu, pins);
     }},
 
