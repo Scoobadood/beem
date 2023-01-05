@@ -85,7 +85,6 @@ class M6502 {
 
   inline void setB() { flags_ |= FLAG_B; }
 
-
   inline void setNZ(uint8_t value) {
     // Turn off N and Z
     flags_ = flags_ & ~(FLAG_N | FLAG_Z);
@@ -102,8 +101,10 @@ class M6502 {
   inline uint16_t temp_addr_high() const { return temp_addr_ & 0xff00; }
   inline uint16_t temp_addr() const { return temp_addr_; }
 
-  uint8_t brk_flags;
+  // Used by indirect addressing modes when page doesn't wrap
+  inline void skip_cycle() { ir_++; };
 
+  uint8_t brk_flags;
 
  private:
   uint16_t pc_;
@@ -115,7 +116,7 @@ class M6502 {
 
   // Temp address data
   uint16_t temp_addr_;
-  // Instruction register with 3 bits of phasing
+  // Instruction register with 4 bits of phasing
   uint16_t ir_;
   bool reset_in_process_;
   uint8_t reset_cycle_;

@@ -649,6 +649,31 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // LDA $0102,X
+    {0xbd0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xbd1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xbd2, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->X()) & 0xff));
+      // Skip th un-needed next step if there's no change to high byte of address
+      if(( cpu->temp_addr_high() >> 8) == ((cpu->temp_addr() + cpu->X()) >> 8)) {
+        cpu->skip_cycle();
+      }
+    }},
+    {0xbd3, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->X());
+    }},
+    {0xbd4, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
     // CPY #
     {0xc00, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
