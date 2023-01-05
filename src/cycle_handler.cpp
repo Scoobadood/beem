@@ -828,6 +828,29 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // LDA $0102,Y
+    {0xb90, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0xb91, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0xb92, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr_high(get_data(pins));
+      set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->Y()) & 0xff));
+      skip_cycle_on_page_crossing(cpu, cpu->Y());
+    }},
+    {0xb93, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr() + cpu->Y());
+    }},
+    {0xb94, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+
     // LDA $0102,X
     {0xbd0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
