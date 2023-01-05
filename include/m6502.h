@@ -44,6 +44,10 @@ class M6502 {
   inline uint16_t PC() const { return pc_; }
 
   inline void setSP(uint8_t sp) { stack_pointer_ = sp; }
+  /* Return SP and decrement */
+  inline uint8_t decSP() { return stack_pointer_--; }
+  /* Increment SP and return */
+  inline uint8_t incSP() { return ++stack_pointer_; }
   inline uint8_t SP() const { return stack_pointer_; }
 
   /* Flag manipulation */
