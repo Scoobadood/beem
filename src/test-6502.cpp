@@ -6,6 +6,21 @@
 #include <iostream>
 #include <vector>
 
+void debug_flags_regs(M6502 * cpu) {
+  spdlog::info("        a:${:02x}  x:${:02x}  y:${:02x} {}{}{}{}{}{}{}{}",
+               cpu->A(), cpu->X(), cpu->Y(),
+               cpu->tstN() ? "N" : "n",
+               "?",
+               "_",
+               "?",
+               cpu->tstD() ? "D" : "d",
+               "?",
+               cpu->tstZ() ? "Z" : "z",
+               cpu->tstC() ? "C" : "c"
+  );
+
+}
+
 void debug(M6502 * cpu, Memory * memory) {
   auto opcode = memory->at(cpu->PC());
   auto op = op_codes.at(opcode);
@@ -72,17 +87,7 @@ void debug(M6502 * cpu, Memory * memory) {
       msg = fmt::format("{:5s} ${:04x}", op.name, cpu->PC() + 2 + (int8_t)arg);
       break;
   }
-  spdlog::info("0x{:04x}  {:15} ; a:${:02x}  x:${:02x}  y:${:02x} {}{}{}{}{}{}{}{}", cpu->PC(), msg,
-               cpu->A(), cpu->X(), cpu->Y(),
-               cpu->tstN() ? "N" : "n",
-               "?",
-               "_",
-               "?",
-               cpu->tstD() ? "D" : "d",
-               "?",
-               cpu->tstZ() ? "Z" : "z",
-               cpu->tstC() ? "C" : "c"
-               );
+  spdlog::info("0x{:04x}  {:15}", cpu->PC(), msg);
 }
 
 int main() {
@@ -134,6 +139,7 @@ int main() {
 
     // Log PC to history buffer
     if (tst_SYNC(pins)) {
+      debug_flags_regs(&cpu);
       debug(&cpu, &memory);
 
       auto pc = cpu.PC();

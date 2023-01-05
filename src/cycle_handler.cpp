@@ -299,10 +299,10 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
     // TAY Implied
-    {0xaa0, [](M6502 *cpu, uint64_t &pins) {
+    {0xa80, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
     }},
-    {0xaa1, [](M6502 *cpu, uint64_t &pins) {
+    {0xa81, [](M6502 *cpu, uint64_t &pins) {
       cpu->setY(cpu->A());
       cpu->setNZ(cpu->Y());
       fetch(cpu, pins);
@@ -554,7 +554,7 @@ const std::map<uint8_t, OpCode> op_codes = {
     {(uint8_t) 0x20, {3, 6, false, "jsr", OpCode::AddressingMode::Absolute}},
     {(uint8_t) 0xa5, {2, 2, false, "lda", OpCode::AddressingMode::ZeroPage}},
     {(uint8_t) 0xa9, {2, 3, false, "lda", OpCode::AddressingMode::Immediate}},
-    {(uint8_t) 0xad, {2, 4, false, "lda", OpCode::AddressingMode::Absolute}},
+    {(uint8_t) 0xad, {3, 4, false, "lda", OpCode::AddressingMode::Absolute}},
     {(uint8_t) 0xb5, {3, 4, false, "lda", OpCode::AddressingMode::ZeroPageIndexedX}},
     {(uint8_t) 0xb9, {3, 4, true, "lda", OpCode::AddressingMode::AbsoluteIndexedY}},
     {(uint8_t) 0xbd, {3, 4, true, "lda", OpCode::AddressingMode::AbsoluteIndexedX}},
