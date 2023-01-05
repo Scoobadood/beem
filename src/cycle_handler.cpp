@@ -143,6 +143,71 @@ void do_branch_3(M6502 *cpu, uint64_t &pins) {
 }
 
 const std::map<uint16_t, CycleHandler> cycle_handlers = {
+    // BRK
+    {0x000, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x001, [](M6502 *cpu, uint64_t &pins) {
+      // If breaks are disabled
+      if (!(cpu->brk_flags & (BRK_IRQ | BRK_NMI))) {
+        cpu->incPC();
+      }
+
+      set_address(pins, 0x100 | cpu->decSP());
+      set_data(pins, cpu->PC() >> 8);
+
+      // Only push data if we're not doing a RES
+      if (!(cpu->brk_flags & BRK_RST)) {
+        clr_RW(pins);
+      }
+    }},
+    {0x002, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->decSP());
+      set_data(pins, cpu->PC());
+      // Only push data if we're not doing a RES
+      if (!(cpu->brk_flags & BRK_RST)) {
+        clr_RW(pins);
+      }
+    }},
+    {0x003, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->decSP());
+      set_data(pins, cpu->flags() | FLAG_X);
+
+      // If this is a reset, read the RST vector to populate PC
+      if (cpu->brk_flags & BRK_RST) {
+        cpu->set_temp_addr(0xfffc);
+      } else {
+        clr_RW(pins);
+        if (cpu->brk_flags & BRK_NMI) {
+          // Set up NMI vector
+          cpu->set_temp_addr(0xfffa);
+        } else {
+          // Set up with IRQ vector
+          cpu->set_temp_addr(0xfffe);
+        }
+      }
+    }},
+    {0x004, [](M6502 *cpu, uint64_t &pins) {
+      auto ta = cpu->temp_addr();
+      set_address(pins, ta);
+      cpu->set_temp_addr(ta + 1);
+
+      cpu->setI();
+      cpu->setB();
+      cpu->brk_flags = 0;
+      /* RES/NMI hijacking */
+    }},
+    {0x005, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->temp_addr());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x006, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setPC(get_data(pins) << 8 | cpu->temp_addr_low());
+      fetch(cpu, pins);
+    }},
+
+
+
     // PHP
     {0x080, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());

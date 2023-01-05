@@ -21,6 +21,11 @@ const uint8_t FLAG_I = 1 << 2;
 const uint8_t FLAG_Z = 1 << 1;
 const uint8_t FLAG_C = 1 << 0;
 
+// internal BRK flags - what sort of BRK is being services
+const uint8_t BRK_IRQ = 1 << 0;   /* IRQ was triggered */
+const uint8_t BRK_NMI = 1 << 1;  /* NMI was triggered */
+const uint8_t BRK_RST = 1 << 2;  /* RES was triggered */
+
 class M6502 {
  public:
   M6502();
@@ -76,6 +81,11 @@ class M6502 {
   inline void clrN() { flags_ &= ~FLAG_N; }
   inline bool tstN() const { return (flags_ & FLAG_N); }
 
+  inline void setI() { flags_ |= FLAG_I; }
+
+  inline void setB() { flags_ |= FLAG_B; }
+
+
   inline void setNZ(uint8_t value) {
     // Turn off N and Z
     flags_ = flags_ & ~(FLAG_N | FLAG_Z);
@@ -91,6 +101,9 @@ class M6502 {
   inline uint16_t temp_addr_low() const { return temp_addr_ & 0xff; }
   inline uint16_t temp_addr_high() const { return temp_addr_ & 0xff00; }
   inline uint16_t temp_addr() const { return temp_addr_; }
+
+  uint8_t brk_flags;
+
 
  private:
   uint16_t pc_;
