@@ -180,6 +180,34 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
+    // JSR (stack return address, load jmp address,)
+    {0x200, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x201, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->SP());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x202, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->decSP());
+      set_data(pins, cpu->PC() >> 8);
+      clr_RW(pins);
+    }},
+    {0x203, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->decSP());
+      set_data(pins, cpu->PC());
+      clr_RW(pins);
+    }},
+    {0x204, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x205, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setPC(get_data(pins) << 8 | cpu->temp_addr_low());
+      fetch(cpu, pins);
+    }},
+
+
     // PLP implied
     {0x280, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
