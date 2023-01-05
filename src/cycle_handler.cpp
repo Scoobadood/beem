@@ -105,6 +105,44 @@ void do_add(M6502 *cpu, uint8_t val) {
   }
 }
 
+uint8_t do_asl(M6502 *cpu, uint8_t val) {
+  if (val & 0x80) cpu->setC(); else cpu->clrC();
+  val = (val << 1) & 0xff;
+  if (val & 0x80) cpu->setN(); else cpu->clrN();
+  if (!val) cpu->setZ(); else cpu->clrZ();
+  return val;
+}
+
+uint8_t do_lsr(M6502 *cpu, uint8_t val) {
+  if (val & 0x01) cpu->setC(); else cpu->clrC();
+  cpu->clrN();
+  val = (val >> 1) & 0x7f;
+  if (!val) cpu->setZ(); else cpu->clrZ();
+  return val;
+}
+
+uint8_t do_rol(M6502 *cpu, uint8_t val) {
+  bool tmp = (val & 0x80);
+  val <<= 1;
+  val |= cpu->tstC() ? 1 : 0;
+
+  if (!val) cpu->setZ(); else cpu->clrZ();
+  if (val & 0x80) cpu->setN(); else cpu->clrN();
+  if (tmp) cpu->setC(); else cpu->clrC();
+  return val;
+}
+
+uint8_t do_ror(M6502 *cpu, uint8_t val) {
+  bool tmp = (val & 0x01);
+  val = (val >> 1) & 0x7f;
+  val |= cpu->tstC() ? 0x80 : 0;
+
+  if (!val) cpu->setZ(); else cpu->clrZ();
+  if (val & 0x80) cpu->setN(); else cpu->clrN();
+  if (tmp) cpu->setC(); else cpu->clrC();
+  return val;
+}
+
 /**
  * And with bits in accumulator  and set NZV accordingly
  * @param cpu For flags
@@ -256,6 +294,16 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // ASL A
+    {0x0a0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x0a1, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(do_asl(cpu, cpu->A()));
+      fetch(cpu, pins);
+    }},
+
+
     // BPL #
     {0x100, [](M6502 *cpu, uint64_t &pins) {
       do_branch_0(cpu, pins);
@@ -336,6 +384,15 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
+    // ROL A
+    {0x2a0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x2a1, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(do_rol(cpu, cpu->A()));
+      fetch(cpu, pins);
+    }},
 
 
     // BIT abs
@@ -429,6 +486,15 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // LSR A
+    {0x4a0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x4a1, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(do_lsr(cpu, cpu->A()));
+      fetch(cpu, pins);
+    }},
+
     // JMP
     {0x4c0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
@@ -515,6 +581,16 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x691, [](M6502 *cpu, uint64_t &pins) {
       do_add(cpu, get_data(pins));
+      fetch(cpu, pins);
+    }},
+
+
+    // ROR A
+    {0x6a0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x6a1, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(do_ror(cpu, cpu->A()));
       fetch(cpu, pins);
     }},
 
