@@ -225,6 +225,32 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
+    // BVC #
+    {0x500, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x501, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+      cpu->set_temp_addr(cpu->PC() + (int8_t) get_data(pins));
+      // Check if we should take the branch
+      if (cpu->tstV()) fetch(cpu, pins);
+    }},
+    {0x502, [](M6502 *cpu, uint64_t &pins) {
+      // Put un-page wrapped address on the bus
+      set_address(pins, (cpu->PC() & 0xff00) | (cpu->temp_address() & 0xff));
+      if ((cpu->temp_address() & 0xff00) == (cpu->PC() & 0xff00)) {
+        cpu->setPC(cpu->temp_address());
+//        cpu->irq_pip >>= 1;
+//        cpu->nmi_pip >>= 1;
+        fetch(cpu, pins);
+      }
+    }},
+    {0x503, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setPC(cpu->temp_address());
+      fetch(cpu, pins);
+    }},
+
     // PLA implied
     {0x680, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());

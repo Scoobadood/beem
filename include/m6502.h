@@ -63,6 +63,7 @@ class M6502 {
 
   inline void setV() { flags_ |= FLAG_V; }
   inline void clrV() { flags_ &= ~FLAG_V; }
+  inline bool tstV() const { return (flags_ & FLAG_V); }
 
   inline void setZ() { flags_ |= FLAG_Z; }
   inline void clrZ() { flags_ &= ~FLAG_Z; }
