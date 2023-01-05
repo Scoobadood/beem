@@ -208,6 +208,23 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    // PLA implied
+    {0x680, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x681, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->SP());
+    }},
+    {0x682, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->incSP());
+    }},
+    {0x683, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setA(get_data(pins));
+      cpu->setNZ(cpu->A());
+      fetch(cpu, pins);
+    }},
+
+
 
     // ADC #
     {0x690, [](M6502 *cpu, uint64_t &pins) {
