@@ -316,6 +316,15 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // SEC
+    {0x380, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x381, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setC();
+      fetch(cpu, pins);
+    }},
+
     // RTI
     {0x400, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
