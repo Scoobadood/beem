@@ -10,7 +10,6 @@ void debug(M6502 * cpu, Memory * memory) {
   auto opcode = memory->at(cpu->PC());
   auto op = op_codes.at(opcode);
   auto data_size = op.bytes - 1;
-  uint8_t data[data_size];
   uint16_t arg = 0;
   if(data_size == 1) {
     arg = memory->at(cpu->PC() + 1);
@@ -109,7 +108,6 @@ int main() {
   // Pull reset low
   uint64_t pins = 0;
 
-  int32_t test_case = -1;
   while (true) {
     pins = cpu.tick(pins);
     set_RST(pins);
