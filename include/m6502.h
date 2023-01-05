@@ -82,6 +82,7 @@ class M6502 {
   inline bool tstN() const { return (flags_ & FLAG_N); }
 
   inline void setI() { flags_ |= FLAG_I; }
+  inline void clrI() { flags_ &= ~FLAG_I; }
 
   inline void setB() { flags_ |= FLAG_B; }
 

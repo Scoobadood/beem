@@ -325,6 +325,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+
     // RTI
     {0x400, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -398,6 +399,16 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x503, [](M6502 *cpu, uint64_t &pins) {
       do_branch_3(cpu, pins);
+    }},
+
+
+    // CLI
+    {0x580, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x581, [](M6502 *cpu, uint64_t &pins) {
+      cpu->clrI();
+      fetch(cpu, pins);
     }},
 
 
