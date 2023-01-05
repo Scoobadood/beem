@@ -51,6 +51,8 @@ class M6502 {
   inline uint8_t SP() const { return stack_pointer_; }
 
   /* Flag manipulation */
+  inline void set_flags(uint8_t flags) { flags_ = flags; }
+
   inline void setC() { flags_ |= FLAG_C; }
   inline void clrC() { flags_ &= ~FLAG_C; }
   inline bool tstC() const { return (flags_ & FLAG_C); }

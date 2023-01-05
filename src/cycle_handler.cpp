@@ -147,6 +147,23 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       fetch(cpu, pins);
     }},
 
+    // PLP implied
+    {0x280, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x281, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->SP());
+    }},
+    {0x282, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incSP());
+    }},
+    {0x283, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_flags((get_data(pins)|FLAG_B)& ~FLAG_X);
+      fetch(cpu, pins);
+    }},
+
+
+
     // BMI #
     {0x300, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
