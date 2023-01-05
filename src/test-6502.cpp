@@ -1,9 +1,90 @@
 #include "m6502.h"
 #include "memory.h"
+#include "cycle_handler.h"
 
 #include <fstream>
 #include <iostream>
 #include <vector>
+
+void debug(M6502 * cpu, Memory * memory) {
+  auto opcode = memory->at(cpu->PC());
+  auto op = op_codes.at(opcode);
+  auto data_size = op.bytes - 1;
+  uint8_t data[data_size];
+  uint16_t arg = 0;
+  if(data_size == 1) {
+    arg = memory->at(cpu->PC() + 1);
+  }
+  if(data_size == 2) {
+    arg = memory->at(cpu->PC() + 1) + (memory->at(cpu->PC() + 2) * 256);
+  }
+
+  std::string msg;
+  switch( op.addressing_mode) {
+    case OpCode::Accumulator:
+      msg = fmt::format("{:5s} A", op.name);
+      break;
+
+    case OpCode::Immediate:
+      msg = fmt::format("{:5s} #${:02x}", op.name, arg);
+      break;
+
+    case OpCode::Absolute:
+      msg = fmt::format("{:5s} ${:04x}", op.name, arg);
+      break;
+
+    case OpCode::AbsoluteIndexedX:
+      msg = fmt::format("{:5s} ${:04x},X", op.name, arg);
+      break;
+
+    case OpCode::AbsoluteIndexedY:
+      msg = fmt::format("{:5s} ${:04x},Y", op.name, arg);
+      break;
+
+    case OpCode::Indirect:
+      msg = fmt::format("{:5s} (${:04x})", op.name, arg);
+      break;
+
+    case OpCode::ZeroPage:
+      msg = fmt::format("{:5s} ${:02x}", op.name, arg);
+      break;
+
+    case OpCode::ZeroPageIndexedX:
+      msg = fmt::format("{:5s} ${:02x},X", op.name, arg);
+      break;
+
+    case OpCode::ZeroPageIndexedY:
+      msg = fmt::format("{:5s} ${:02x},Y", op.name, arg);
+      break;
+
+    case OpCode::IndirectIndexedX:
+      msg = fmt::format("{:5s} (${:02x},X)", op.name, arg);
+      break;
+
+    case OpCode::IndirectIndexedY:
+      msg = fmt::format("{:5s} (${:02x}),Y", op.name, arg);
+      break;
+
+    case OpCode::Implied:
+      msg = fmt::format("{:5s}", op.name);
+      break;
+
+    case OpCode::Relative:
+      msg = fmt::format("{:5s} ${:04x}", op.name, cpu->PC() + 2 + (int8_t)arg);
+      break;
+  }
+  spdlog::info("0x{:04x}  {:15} ; a:${:02x}  x:${:02x}  y:${:02x} {}{}{}{}{}{}{}{}", cpu->PC(), msg,
+               cpu->A(), cpu->X(), cpu->Y(),
+               cpu->tstN() ? "N" : "n",
+               "?",
+               "_",
+               "?",
+               cpu->tstD() ? "D" : "d",
+               "?",
+               cpu->tstZ() ? "Z" : "z",
+               cpu->tstC() ? "C" : "c"
+               );
+}
 
 int main() {
   using namespace std;
@@ -20,13 +101,15 @@ int main() {
   M6502 cpu;
 
   // Histoyr buffer for PC
-  uint32_t buffer_size = 50;
+  uint32_t buffer_size = 200;
   uint32_t dup_pc_count = 0;
   uint32_t buffer_idx = 0;
   std::vector<uint16_t> pc_history(buffer_size, 0);
 
   // Pull reset low
   uint64_t pins = 0;
+
+  int32_t test_case = -1;
   while (true) {
     pins = cpu.tick(pins);
     set_RST(pins);
@@ -53,7 +136,9 @@ int main() {
 
     // Log PC to history buffer
     if (tst_SYNC(pins)) {
-      auto pc = cpu.pc();
+      debug(&cpu, &memory);
+
+      auto pc = cpu.PC();
       if (pc == pc_history.at(buffer_idx)) {
         dup_pc_count++;
         if (dup_pc_count == 8) {

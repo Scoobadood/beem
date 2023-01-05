@@ -107,13 +107,13 @@ void Memory::set_acia(Acia *acia) {
 }
 
 void Memory::push_stack(M6502 &cpu, uint8_t arg) {
-  set(STACK_BASE + cpu.sp(), arg & 0xff);
-  cpu.set_sp((cpu.sp() - 1) & 0xff);
+  set(STACK_BASE + cpu.SP(), arg & 0xff);
+  cpu.setSP((cpu.SP() - 1) & 0xff);
 }
 
 uint8_t Memory::pop_stack(M6502 &cpu) const {
-  cpu.set_sp((cpu.sp() + 1) & 0xff);
-  return at(STACK_BASE + cpu.sp()) & 0xff;
+  cpu.setSP((cpu.SP() + 1) & 0xff);
+  return at(STACK_BASE + cpu.SP()) & 0xff;
 }
 
 

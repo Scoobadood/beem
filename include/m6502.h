@@ -28,105 +28,56 @@ class M6502 {
   uint64_t tick(uint64_t pins);
 
   /* General registers */
-  inline void set_x(uint8_t x) {
-    x_reg_ = x;
-  }
-  inline uint8_t x() const {
-    return x_reg_;
-  }
-  inline void dec_x() {
-    x_reg_--;
-  }
-  inline void set_y(uint8_t y) {
-    y_reg_ = y;
-  }
-  inline uint8_t y() const {
-    return y_reg_;
-  }
-  inline void dec_y() {
-    y_reg_--;
-  }
-  inline void set_a(uint8_t a) {
-    accumulator_ = a;
-  }
-  inline uint8_t a() const {
-    return accumulator_;
-  }
+  inline void setX(uint8_t x) { x_reg_ = x; }
+  inline void decX() { x_reg_--; }
+  inline uint8_t X() const { return x_reg_; }
 
-  inline uint16_t pc() const {
-    return pc_;
-  }
-  inline uint16_t inc_pc() {
-    return pc_++;
-  }
-  inline void set_pc(uint16_t pc) {
-    pc_ = pc;
-  }
-  inline uint8_t sp() const {
-    return stack_pointer_;
-  }
-  inline void set_sp(uint8_t sp) {
-    stack_pointer_ = sp;
-  }
+  inline void setY(uint8_t y) { y_reg_ = y; }
+  inline void decY() { y_reg_--; }
+  inline uint8_t Y() const { return y_reg_; }
+
+  inline void setA(uint8_t a) { accumulator_ = a; }
+  inline uint8_t A() const { return accumulator_; }
+
+  inline void setPC(uint16_t pc) { pc_ = pc; }
+  inline uint16_t incPC() { return pc_++; }
+  inline uint16_t PC() const { return pc_; }
+
+  inline void setSP(uint8_t sp) { stack_pointer_ = sp; }
+  inline uint8_t SP() const { return stack_pointer_; }
 
   /* Flag manipulation */
-  inline void setC() {
-    flags_ |= FLAG_C;
-  }
-  inline void clrC() {
-    flags_ &= ~FLAG_C;
-  }
-  inline bool tstC() const {
-    return (flags_ & FLAG_C);
-  }
-  inline void setD() {
-    flags_ |= FLAG_D;
-  }
-  inline void clrD() {
-    flags_ &= ~FLAG_D;
-  }
-  inline bool tstD() const {
-    return (flags_ & FLAG_D);
-  }
-  inline void setV() {
-    flags_ |= FLAG_V;
-  }
-  inline void clrV() {
-    flags_ &= ~FLAG_V;
-  }
-  inline void setZ() {
-    flags_ |= FLAG_Z;
-  }
-  inline void clrZ() {
-    flags_ &= ~FLAG_Z;
-  }
-  inline bool tstZ() {
-    return (flags_ & FLAG_Z);
-  }
-  inline void setN() {
-    flags_ |= FLAG_N;
-  }
-  inline void clrN() {
-    flags_ &= ~FLAG_N;
-  }
-  inline bool tstN() {
-    return (flags_ & FLAG_N);
-  }
+  inline void setC() { flags_ |= FLAG_C; }
+  inline void clrC() { flags_ &= ~FLAG_C; }
+  inline bool tstC() const { return (flags_ & FLAG_C); }
+
+  inline void setD() { flags_ |= FLAG_D; }
+  inline void clrD() { flags_ &= ~FLAG_D; }
+  inline bool tstD() const { return (flags_ & FLAG_D); }
+
+  inline void setV() { flags_ |= FLAG_V; }
+  inline void clrV() { flags_ &= ~FLAG_V; }
+
+  inline void setZ() { flags_ |= FLAG_Z; }
+  inline void clrZ() { flags_ &= ~FLAG_Z; }
+  inline bool tstZ() const { return (flags_ & FLAG_Z); }
+
+  inline void setN() { flags_ |= FLAG_N; }
+  inline void clrN() { flags_ &= ~FLAG_N; }
+  inline bool tstN() const { return (flags_ & FLAG_N); }
+
   inline void setNZ(uint8_t value) {
-    flags_ = (value) ? (flags_ & ~FLAG_Z) : (flags_ | FLAG_Z);
-    flags_ = (value & 0x80) ? (flags_ | FLAG_N) : (flags_ &= ~FLAG_N);
+    // Turn off N and Z
+    flags_ = flags_ & ~(FLAG_N | FLAG_Z);
+
+    // Turn on Z or N
+    flags_ |= ((value & 0xff) ? (value & FLAG_N) : FLAG_Z);
   }
 
   /* Temporary storage buffers */
-  inline void set_temp_addr_low(uint8_t low) {
-    temp_addr_ = low;
-  }
-  inline void set_temp_addr(uint16_t addr) {
-    temp_addr_ = addr;
-  }
-  inline uint16_t temp_address() const {
-    return temp_addr_;
-  }
+  inline void set_temp_addr_low(uint8_t low) { temp_addr_ = low; }
+  inline void set_temp_addr(uint16_t addr) { temp_addr_ = addr; }
+  inline uint16_t temp_address() const { return temp_addr_; }
 
  private:
   uint16_t pc_;
