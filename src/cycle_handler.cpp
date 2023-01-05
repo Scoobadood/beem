@@ -280,7 +280,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       clr_RW(pins);
     }},
     {0x063, [](M6502 *cpu, uint64_t &pins) {
-      set_data(pins, do_asl(cpu, get_data(pins)));
+      set_data(pins, do_asl(cpu, cpu->temp_addr_low()));
       clr_RW(pins);
     }},
     {0x064, [](M6502 *cpu, uint64_t &pins) {
@@ -319,6 +319,30 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0x0a1, [](M6502 *cpu, uint64_t &pins) {
       cpu->setA(do_asl(cpu, cpu->A()));
       fetch(cpu, pins);
+    }},
+
+
+    // ASL abs
+    {0x0e0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x0e1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x0e2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0x0e3, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0x0e4, [](M6502 *cpu, uint64_t &pins) {
+      set_data(pins, do_asl( cpu, cpu->temp_addr_low()));
+      clr_RW(pins);
+    }},
+    {0x0e5, [](M6502 *cpu, uint64_t &pins) {
+      fetch( cpu, pins);
     }},
 
 
@@ -399,7 +423,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       clr_RW(pins);
     }},
     {0x263, [](M6502 *cpu, uint64_t &pins) {
-      set_data(pins, do_rol(cpu, get_data(pins)));
+      set_data(pins, do_rol(cpu, cpu->temp_addr_low()));
       clr_RW(pins);
     }},
     {0x264, [](M6502 *cpu, uint64_t &pins) {
@@ -446,6 +470,30 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0x2c3, [](M6502 *cpu, uint64_t &pins) {
       do_bit(cpu, get_data(pins));
       fetch(cpu, pins);
+    }},
+
+
+    // ROL abs
+    {0x2e0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x2e1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x2e2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0x2e3, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0x2e4, [](M6502 *cpu, uint64_t &pins) {
+      set_data(pins, do_rol( cpu, cpu->temp_addr_low()));
+      clr_RW(pins);
+    }},
+    {0x2e5, [](M6502 *cpu, uint64_t &pins) {
+      fetch( cpu, pins);
     }},
 
 
@@ -510,7 +558,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       clr_RW(pins);
     }},
     {0x463, [](M6502 *cpu, uint64_t &pins) {
-      set_data(pins, do_lsr(cpu, get_data(pins)));
+      set_data(pins, do_lsr(cpu, cpu->temp_addr_low()));
       clr_RW(pins);
     }},
     {0x464, [](M6502 *cpu, uint64_t &pins) {
@@ -563,6 +611,30 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0x4c2, [](M6502 *cpu, uint64_t &pins) {
       cpu->setPC(get_data(pins) << 8 | cpu->temp_addr_low());
       fetch(cpu, pins);
+    }},
+
+
+    // LSR abs
+    {0x4e0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x4e1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x4e2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0x4e3, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0x4e4, [](M6502 *cpu, uint64_t &pins) {
+      set_data(pins, do_lsr( cpu, cpu->temp_addr_low()));
+      clr_RW(pins);
+    }},
+    {0x4e5, [](M6502 *cpu, uint64_t &pins) {
+      fetch( cpu, pins);
     }},
 
 
@@ -626,7 +698,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       clr_RW(pins);
     }},
     {0x663, [](M6502 *cpu, uint64_t &pins) {
-      set_data(pins, do_ror(cpu, get_data(pins)));
+      set_data(pins, do_ror(cpu, cpu->temp_addr_low()));
       clr_RW(pins);
     }},
     {0x664, [](M6502 *cpu, uint64_t &pins) {
@@ -691,6 +763,30 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     {0x6c4, [](M6502 *cpu, uint64_t &pins) {
       cpu->setPC(get_data(pins) << 8 | cpu->temp_addr_low());
       fetch(cpu, pins);
+    }},
+
+
+    // ROR abs
+    {0x6e0, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+    }},
+    {0x6e1, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->incPC());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x6e2, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, get_data(pins) << 8 | cpu->temp_addr_low());
+    }},
+    {0x6e3, [](M6502 *cpu, uint64_t &pins) {
+      cpu->set_temp_addr(get_data(pins));
+      clr_RW(pins);
+    }},
+    {0x6e4, [](M6502 *cpu, uint64_t &pins) {
+      set_data(pins, do_ror( cpu, cpu->temp_addr_low()));
+      clr_RW(pins);
+    }},
+    {0x6e5, [](M6502 *cpu, uint64_t &pins) {
+      fetch( cpu, pins);
     }},
 
 
@@ -1181,7 +1277,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
-    // LDA Abs
+    // LDA abs
     {0xad0, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->incPC());
     }},
