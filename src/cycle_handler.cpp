@@ -318,7 +318,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
     // SEC
     {0x380, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      set_address(pins, cpu->PC());
     }},
     {0x381, [](M6502 *cpu, uint64_t &pins) {
       cpu->setC();
@@ -404,7 +404,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
     // CLI
     {0x580, [](M6502 *cpu, uint64_t &pins) {
-      set_address(pins, cpu->incPC());
+      set_address(pins, cpu->PC());
     }},
     {0x581, [](M6502 *cpu, uint64_t &pins) {
       cpu->clrI();
