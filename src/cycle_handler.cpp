@@ -305,6 +305,30 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
 
 
+    // RTI
+    {0x400, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, cpu->PC());
+    }},
+    {0x401, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->SP());
+    }},
+    {0x402, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->incSP());
+    }},
+    {0x403, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->incSP());
+      cpu->set_flags((get_data(pins) | FLAG_B) & ~FLAG_X);
+    }},
+    {0x404, [](M6502 *cpu, uint64_t &pins) {
+      set_address(pins, 0x100 | cpu->incSP());
+      cpu->set_temp_addr(get_data(pins));
+    }},
+    {0x405, [](M6502 *cpu, uint64_t &pins) {
+      cpu->setPC(get_data(pins) << 8 | cpu->temp_addr_low());
+      fetch(cpu, pins);
+    }},
+
+
     // PHA
     {0x480, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, cpu->PC());
@@ -464,7 +488,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x851, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, get_data(pins));
-      set_data( pins, cpu->A());
+      set_data(pins, cpu->A());
       clr_RW(pins);
     }},
     {0x852, [](M6502 *cpu, uint64_t &pins) {
@@ -478,7 +502,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x861, [](M6502 *cpu, uint64_t &pins) {
       set_address(pins, get_data(pins));
-      set_data( pins, cpu->X());
+      set_data(pins, cpu->X());
       clr_RW(pins);
     }},
     {0x862, [](M6502 *cpu, uint64_t &pins) {
@@ -689,7 +713,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       cpu->set_temp_addr_high(get_data(pins));
       set_address(pins, cpu->temp_addr_high() | ((cpu->temp_addr_low() + cpu->X()) & 0xff));
       // Skip th un-needed next step if there's no change to high byte of address
-      if(( cpu->temp_addr_high() >> 8) == ((cpu->temp_addr() + cpu->X()) >> 8)) {
+      if ((cpu->temp_addr_high() >> 8) == ((cpu->temp_addr() + cpu->X()) >> 8)) {
         cpu->skip_cycle();
       }
     }},
