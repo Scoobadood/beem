@@ -85,9 +85,12 @@ class M6502 {
   }
 
   /* Temporary storage buffers */
-  inline void set_temp_addr_low(uint8_t low) { temp_addr_ = low; }
+  inline void set_temp_addr_high(uint8_t high) { temp_addr_ |= (high << 8); }
+  inline void set_temp_addr_low(uint8_t low) { temp_addr_ |= low; }
   inline void set_temp_addr(uint16_t addr) { temp_addr_ = addr; }
-  inline uint16_t temp_address() const { return temp_addr_; }
+  inline uint16_t temp_addr_low() const { return temp_addr_ & 0xff; }
+  inline uint16_t temp_addr_high() const { return temp_addr_ & 0xff00; }
+  inline uint16_t temp_addr() const { return temp_addr_; }
 
  private:
   uint16_t pc_;
