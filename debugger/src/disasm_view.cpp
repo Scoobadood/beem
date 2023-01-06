@@ -149,7 +149,8 @@ void DisasmView::disassembly_complete() {
     ++row;
   }
   auto show_row = pc_to_row_.at(disassemble_from_);
-  auto cursor(ui->txt_disassembly->document()->findBlockByLineNumber(show_row));
+  QTextCursor cursor(ui->txt_disassembly->document()->  findBlockByLineNumber(show_row));
+  ui->txt_disassembly->setTextCursor(cursor);
   enable_view();
 }
 
@@ -162,17 +163,20 @@ void DisasmView::dis_start_addr_changed() {
 
   auto new_start_addr_text = ui->txt_dis_addr->text();
   if (new_start_addr_text.startsWith("0x")) {
-    new_addr = new_start_addr_text.mid(2).toShort(&ok, 16);
+    new_start_addr_text = new_start_addr_text.mid(2, new_start_addr_text.size() - 2);
+    new_addr = new_start_addr_text.toInt(&ok, 16);
   } else if (
       new_start_addr_text.startsWith("x") ||
           new_start_addr_text.startsWith("$") ||
           new_start_addr_text.startsWith("&")) {
-    new_addr = new_start_addr_text.mid(1).toShort(&ok, 16);
+    new_start_addr_text = new_start_addr_text.mid(1, new_start_addr_text.size() - 1);
+    new_addr = new_start_addr_text.toInt(&ok, 16);
   } else {
-    new_addr = new_start_addr_text.toShort(&ok, 10);
+    new_addr = new_start_addr_text.toInt(&ok, 10);
   }
   if (!ok) new_addr = 0;
 
+  new_addr &= 0xffff;
   if (new_addr != disassemble_from_) {
     disassemble_from_ = new_addr;
     start_disassembly();

@@ -3,9 +3,7 @@
 
 #include <spdlog/spdlog-inl.h>
 
-Disassembler::Disassembler() {
-
-}
+Disassembler::Disassembler() = default;
 
 Operation Disassembler::disassemble_one(//
     const std::vector<uint8_t> &memory //
@@ -47,12 +45,14 @@ std::vector<Operation> Disassembler::disassemble_all( //
   using namespace std;
 
   vector<Operation> operations;
+  err = 0;
   while (true) {
     auto last_offset = offset;
-    operations.emplace_back(disassemble_one(memory, offset, err));
+    auto op = disassemble_one(memory, offset, err);
     if (err) {
       break;
     }
+    operations.emplace_back(op);
     if( offset < last_offset) {
       break;
     }
