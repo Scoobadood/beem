@@ -7,9 +7,14 @@
 #include <vector>
 
 struct Operation {
+  const uint16_t address;
   const OpCode opcode;
   const uint16_t data;
-  Operation(OpCode op_code, const uint16_t data) : opcode{std::move(op_code)}, data{data} {}
+  Operation(uint16_t address, OpCode op_code, const uint16_t data) //
+      : address{address} //
+      , opcode{std::move(op_code)} //
+      , data{data} //
+  {}
 };
 
 class Disassembler {
