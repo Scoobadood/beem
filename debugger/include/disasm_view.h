@@ -17,6 +17,9 @@ class DisasmView : public QWidget {
   void set_data(std::shared_ptr<std::vector<uint8_t>> memory);
 
  private:
+  void dis_start_addr_changed();
+  void update_view();
+
   Ui::DisasmView *ui;
   std::shared_ptr<std::vector<uint8_t>> memory_;
   uint16_t disassemble_from_;
