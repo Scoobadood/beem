@@ -1,4 +1,4 @@
-#include "m6502.h"
+#include "../include/m6502.h"
 #include "cycle_handler.h"
 #include "spdlog/spdlog.h"
 

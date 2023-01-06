@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(m6502
+project(Chips/M6502
         VERSION 0.1
         LANGUAGES CXX)
 
@@ -26,14 +26,4 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(spdlog)
 include_directories(${spdlog_SOURCE_DIR}/include)
 
-add_executable(test-6502
-        src/test-6502.cpp
-        include/m6502.h src/m6502.cpp
-        include/cycle_handler.h src/cycle_handler.cpp
-        include/memory.h src/memory.cpp
-        )
-
-target_include_directories(test-6502
-        PRIVATE
-        include
-        )
+add_subdirectory(Chips)

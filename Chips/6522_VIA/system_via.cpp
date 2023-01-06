@@ -5,8 +5,8 @@
 #include "system_via.h"
 #include "keyboard.h"
 #include "sound_76489.h"
-#include <spdlog/spdlog-inl.h>
-#include <spdlog/sinks/basic_file_sink.h>
+#include "spdlog/spdlog-inl.h"
+#include "spdlog/sinks/basic_file_sink.h"
 
 static const std::string control_modes[] = {
     "negative edges active on input",

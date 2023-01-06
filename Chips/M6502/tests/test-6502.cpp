@@ -1,4 +1,4 @@
-#include "m6502.h"
+#include "../include/m6502.h"
 #include "memory.h"
 #include "cycle_handler.h"
 

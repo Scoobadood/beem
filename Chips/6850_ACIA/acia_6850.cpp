@@ -4,8 +4,8 @@
 
 #include "acia_6850.h"
 
-#include <spdlog/spdlog-inl.h>
-#include <spdlog/sinks/basic_file_sink.h>
+#include "spdlog/spdlog-inl.h"
+#include "spdlog/sinks/basic_file_sink.h"
 
 Acia::Acia() {
   status_ = 0x00;

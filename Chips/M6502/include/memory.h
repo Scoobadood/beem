@@ -5,9 +5,9 @@
 #ifndef M6502_INCLUDE_MEMORY_H_
 #define M6502_INCLUDE_MEMORY_H_
 
-#include "system_via.h"
-#include "user_via.h"
-#include "acia_6850.h"
+#include "../../6522VIA/system_via.h"
+#include "../../6522VIA/user_via.h"
+#include "../../6850ACIA/acia_6850.h"
 #include "m6502.h"
 
 #include <vector>

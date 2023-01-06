@@ -4,12 +4,12 @@
 
 #include "memory.h"
 #include "system_via.h"
-#include "m6502.h"
+#include "../include/m6502.h"
 
 #include <iterator>
 #include <fstream>
 
-#include <spdlog/spdlog-inl.h>
+#include "spdlog/spdlog-inl.h"
 
 const uint32_t STACK_BASE = 0x100;
 

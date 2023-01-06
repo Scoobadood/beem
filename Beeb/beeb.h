@@ -5,10 +5,10 @@
 #ifndef M6502_SRC_BEEB_H_
 #define M6502_SRC_BEEB_H_
 
-#include "memory.h"
-#include "m6502.h"
-#include "system_via.h"
-#include "keyboard.h"
+#include "../M6502/include/memory.h"
+#include "../M6502/include/m6502.h"
+#include "../6522VIA/system_via.h"
+#include "../Keyboard/keyboard.h"
 
 class Beeb {
  public:

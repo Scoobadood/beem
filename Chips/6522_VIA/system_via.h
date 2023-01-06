@@ -25,8 +25,8 @@
 #define M6502_SRC_VIA_H_
 
 #include "spdlog/spdlog-inl.h"
-#include "keyboard.h"
-#include "sound_76489.h"
+#include "../../Keyboard/keyboard.h"
+#include "../../SN76489/sound_76489.h"
 
 /*
 
