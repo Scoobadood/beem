@@ -20,7 +20,7 @@ DisasmView::~DisasmView()
 QString format_for_display(const Operation& op) {
 
   QString addr = QString("%1")
-      .arg(0,4,16, QChar('0'));
+      .arg(op.address,4,16, QChar('0'));
   QString label = QString::fromStdString("");
   QString opc = QString::fromStdString(op.opcode.name);
   QString arg;
@@ -62,7 +62,7 @@ QString format_for_display(const Operation& op) {
       arg = QString("$%1,X").arg(op.data, 2, 16);
       break;
     case OpCode::Relative:
-      arg = QString("$%1").arg(0 + 2 + (int8_t) op.data, 4, 16, QChar('0'));
+      arg = QString("$%1").arg(op.address + 2 + (int8_t) op.data, 4, 16, QChar('0'));
       break;
   }
   return QString("%1%2%3%4")
