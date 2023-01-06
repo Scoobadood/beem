@@ -1,7 +1,3 @@
-/**
- * All tests
- */
-
 #include <gtest/gtest.h>
 
 /**
