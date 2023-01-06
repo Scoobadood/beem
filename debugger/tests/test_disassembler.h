@@ -1,63 +1,20 @@
 #pragma once
-
-#include <Eigen/Core>
-#include <vector>
 #include "gtest/gtest.h"
+#include "disassembler.h"
 
-typedef enum {
-    PT_ZERO,
-    PT_XY_PLANE,
-    PT_XY_PLANE_COLO,
-    PT_3D,
-    PT_3D_COLO
-} tP1P2_Mode;
+#include <vector>
 
-typedef enum {
-    NRM_Z_AXIS,
-    NRM_1_1_1
-} tNormalsMode;
+class TestDisassembler : public ::testing::Test {
+ public:
+  Disassembler d_;
 
-typedef enum {
-    ROT_NONE,
-    ROT_20_0_0,
-    ROT_0_30_0,
-    ROT_0_0_40,
-    ROT_20_30_40
-} tRotationMode;
+  std::vector<uint8_t> asla;
+  std::vector<uint8_t> lda_imm_x12;
+  std::vector<uint8_t> sta_abs_x1234;
+  std::vector<uint8_t> adc_zp_x56;
+  std::vector<uint8_t> bad_args_adc_zp_x56;
+  std::vector<uint8_t> unknown;
 
-class TestGeom : public ::testing::Test {
-public:
-	Eigen::Vector3f vec_1_0_0{ 1.0f, 0.0f, 0.0f };
-	Eigen::Vector3f vec_0_1_0{ 0.0f, 1.0f, 0.0f };
-	Eigen::Vector3f vec_0_0_1{ 0.0f, 0.0f, 1.0f };
-    Eigen::Vector3f vec_1_0_1{ 1.0f, 0.0f, 1.0f };
-    Eigen::Vector3f vec_0_1_1{ 0.0f, 1.0f, 1.0f };
-    Eigen::Vector3f vec_0_1_m1{ 0.0f, 1.0f, -1.0f };
-    Eigen::Vector3f vec_0_0_m1{ 0.0f, 0.0f, -1.0f };
-    Eigen::Vector3f vec_0_m1_m1{ 0.0f, -1.0, -1.0};
-    Eigen::Vector3f vec_0_m1_0{ 0.0f, -1.0, 0.0};
-    Eigen::Vector3f vec_0_m1_1{ 0.0f, -1.0, 1.0};
-
-
-	Eigen::Vector3f vec_0_1_R3{ 0.0f, 1.0f, sqrt( 3.0f ) };
-	Eigen::Vector3f vec_0_R3_1{ 0.0f, sqrt( 3.0f ), 1.0f };
-
-	std::vector<Eigen::Vector3f> BaseP;
-
-	void SetUp( );
-	void TearDown();
-	void init_p_q_n2( std::vector<Eigen::Vector3f>& P, std::vector<Eigen::Vector3f>& Q, 
-    	const Eigen::Matrix3f& R, 
-    	const Eigen::Vector3f& P1,
-    	const Eigen::Vector3f& P2, 
-    	const Eigen::Vector3f& N1, 
-        	  Eigen::Vector3f& N2 );
-	void run_test( tP1P2_Mode pMode, tNormalsMode nMode, tRotationMode rMode );
-	void check_results( const std::vector<Eigen::Vector3f>& P, 
-                    const std::vector<Eigen::Vector3f>& Q, 
-                    const Eigen::Vector3f& P1, 
-                    const Eigen::Vector3f& P2, 
-                    const Eigen::Matrix3f& m );
-
-
+  void SetUp();
+  void TearDown();
 };
