@@ -19,12 +19,13 @@ struct Operation {
 
 class Disassembler {
  public:
-  static Operation disassemble_one(const std::vector<uint8_t> &memory,
-                                   uint16_t &offset,
-                                   uint8_t &err);
-  static std::vector<Operation> disassemble_all(const std::vector<uint8_t> &memory,
-                                                uint16_t &offset,
-                                                uint8_t &err);
+  Disassembler();
+  Operation disassemble_one(const std::vector<uint8_t> &memory,
+                            uint16_t &offset,
+                            uint8_t &err);
+  std::vector<Operation> disassemble_all(const std::vector<uint8_t> &memory,
+                                         uint16_t &offset,
+                                         uint8_t &err);
 };
 
 #endif //M6502_DEBUGGER_SRC_DISASSEMBLER_H_
