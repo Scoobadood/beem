@@ -7,7 +7,7 @@ Operation Disassembler::disassemble_one(//
     const std::vector<uint8_t> & memory //
     , uint16_t & offset //
     , uint8_t & err //
-) const //
+) //
 {
   if( offset>= memory.size()) {
     spdlog::warn( "offset ({}) out of range ({}) in disassemble_one()", offset, memory.size());
@@ -37,7 +37,7 @@ std::vector<Operation> Disassembler::disassemble_all( //
     const std::vector<uint8_t> & memory //
     , uint16_t & offset //
     , uint8_t & err //
-    ) const //
+    ) //
 {
   using namespace std;
 
