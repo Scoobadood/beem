@@ -16,19 +16,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <widget class="DisasmView" name="disasm_view_" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>1</horstretch>
-        <verstretch>1</verstretch>
-       </sizepolicy>
-      </property>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QTextEdit" name="txt_disassembly_"/>
-       </item>
-      </layout>
-     </widget>
+     <widget class="DisasmView" name="disasm_view" native="true"/>
     </item>
    </layout>
   </widget>
