@@ -1,4 +1,4 @@
-#include "../include/m6502.h"
+#include "m6502.h"
 #include "memory.h"
 #include "cycle_handler.h"
 
@@ -8,6 +8,8 @@
 #include <vector>
 #include <iomanip>
 #include <sstream>
+
+#include <spdlog/spdlog-inl.h>
 
 void debug_flags_regs(M6502 *cpu) {
   spdlog::info("        a:${:02x}  x:${:02x}  y:${:02x} {}{}{}{}{}{}{}{}",
@@ -134,14 +136,7 @@ int main(int argc, const char *argv[]) {
       continue;
     }
 
-    // Read and write memory
-    if (tst_RW(pins)) {
-      auto data = memory.at(addr);
-      set_data(pins, data);
-    } else {
-      auto data = get_data(pins);
-      memory.set(addr, data);
-    }
+    pins = memory.tick(pins);
 
     // Log PC to history buffer
     if (tst_SYNC(pins)) {

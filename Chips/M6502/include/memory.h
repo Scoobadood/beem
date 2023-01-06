@@ -5,14 +5,7 @@
 #ifndef M6502_INCLUDE_MEMORY_H_
 #define M6502_INCLUDE_MEMORY_H_
 
-#include "../../6522VIA/system_via.h"
-#include "../../6522VIA/user_via.h"
-#include "../../6850ACIA/acia_6850.h"
-#include "m6502.h"
-
 #include <vector>
-#include <iterator>
-#include <fstream>
 
 class Memory {
  public:
@@ -20,28 +13,22 @@ class Memory {
 
   explicit Memory(std::ifstream &f);
 
-  void push_stack(M6502 &cpu, uint8_t arg);
-  uint8_t pop_stack(M6502 &cpu) const;
+  uint64_t tick(uint64_t pins);
 
-  uint8_t at(uint16_t addr) const;
-
-  void set(uint16_t addr, uint8_t arg);
-
-  void set_system_via(SystemVia *system_via);
-  void set_user_via(UserVia *user_via);
-  void set_acia(Acia *acia);
-
+  // Convenience methods; used for tooling, not emulation.
+  /**
+   * Bulkload ROM data or test code.
+   */
   void insert(uint16_t offset, std::vector<uint8_t> &data);
 
- private:
-  uint8_t handle_mmio_reads(uint16_t addr) const;
-  void handle_mmio_writes(uint16_t addr, uint8_t arg);
+  /**
+   * Peek memory
+   */
+   uint8_t at(uint16_t addr) const;
 
-  SystemVia *system_via_;
-  UserVia *user_via_;
-  Acia *acia_;
+
+ private:
   std::vector<uint8_t> memory_;
-  uint32_t size_;
 };
 
 #endif //M6502_INCLUDE_MEMORY_H_
