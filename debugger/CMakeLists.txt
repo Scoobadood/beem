@@ -10,6 +10,7 @@ add_executable(deeb
         src/deeb_window.cpp  include/deeb_window.h src/deeb_window.ui
         src/main.cpp
         src/disasm_view.cpp include/disasm_view.h
+        src/disassembler.cpp include/disassembler.h
         )
 
 target_include_directories(deeb
@@ -17,7 +18,24 @@ target_include_directories(deeb
 
 target_link_libraries(deeb
         PRIVATE
+        M6502
         Qt${QT_VERSION_MAJOR}::Core
         Qt${QT_VERSION_MAJOR}::Widgets
+        )
+
+
+# Testing
+add_executable(test_disassembler
+        tests/test_disassembler.h tests/test_disassmbler.cpp tests/main.cpp
+        src/disassembler.cpp include/disassembler.h
+        )
+
+target_include_directories(test_disassembler
+        PRIVATE include)
+
+target_link_libraries(test_disassembler
+        PRIVATE
         M6502
+        gtest
+        gmock
         )
