@@ -12,7 +12,7 @@ Operation Disassembler::disassemble_one(//
   if( offset>= memory.size()) {
     spdlog::warn( "offset ({}) out of range ({}) in disassemble_one()", offset, memory.size());
     err = 1;
-    return {OpCode::unknown_opcode, 0xffff};
+    return {0xffff, OpCode::unknown_opcode, 0xffff};
   }
 
   OpCode oc = OpCode::for_value(memory.at(offset));
@@ -20,17 +20,18 @@ Operation Disassembler::disassemble_one(//
     spdlog::warn( "Arguments for opcode {} at {} have length {} and will be out of out of range {} in disassemble_one()",
                   oc.name, offset, oc.bytes, memory.size());
     err = 1;
-    return {oc, 0xffff};
+    return {offset, oc, 0xffff};
   }
 
   uint16_t data = 0;
   if( oc.bytes > 1) data = memory[offset + 1];
   if( oc.bytes > 2) data = (data ) | (memory[offset + 2] << 8);
 
+  auto addr = offset;
   offset += oc.bytes;
 
   err = 0;
-  return {oc, data};
+  return {addr, oc, data};
 }
 
 std::vector<Operation> Disassembler::disassemble_all( //
