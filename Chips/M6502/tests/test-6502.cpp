@@ -1,6 +1,7 @@
 #include "m6502.h"
 #include "memory.h"
 #include "cycle_handler.h"
+#include "opcodes.h"
 
 #include <chrono>
 #include <fstream>
@@ -39,7 +40,7 @@ void debug_stack(M6502 *cpu, Memory *memory) {
 
 void debug(M6502 *cpu, Memory *memory) {
   auto opcode = memory->at(cpu->PC());
-  auto op = op_codes.at(opcode);
+  auto op = OpCode::for_value(opcode);
   auto data_size = op.bytes - 1;
   uint16_t arg = 0;
   if (data_size == 1) {

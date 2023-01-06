@@ -24,8 +24,14 @@ class Memory {
   /**
    * Peek memory
    */
-   uint8_t at(uint16_t addr) const;
+   [[nodiscard]] uint8_t at(uint16_t addr) const;
 
+  /**
+   * Return const ref to underlying memory
+   */
+  [[nodiscard]] inline const std::vector<uint8_t> data() const {
+    return memory_;
+  }
 
  private:
   std::vector<uint8_t> memory_;

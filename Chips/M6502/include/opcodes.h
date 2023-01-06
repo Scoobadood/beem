@@ -8,6 +8,7 @@
 #include <string>
 
 struct OpCode {
+  uint8_t hex;
   uint8_t bytes;
   uint8_t cycles;
   bool page_affected;
@@ -21,9 +22,10 @@ struct OpCode {
     Relative, ZeroPage, ZeroPageIndexedX, ZeroPageIndexedY
   } addressing_mode;
 
-  OpCode(uint8_t bytes, uint8_t cycles, bool page_affected, std::string name,
+  OpCode(uint8_t hex, uint8_t bytes, uint8_t cycles, bool page_affected, std::string name,
          AddressingMode addressing_mode) //
-      : bytes{bytes} //
+      : hex{hex} //
+      , bytes{bytes} //
       , cycles{cycles} //
       , page_affected{page_affected} //
       , name{std::move(name)} //
