@@ -28,39 +28,12 @@ include_directories(${spdlog_SOURCE_DIR}/include)
 
 add_executable(test-6502
         src/test-6502.cpp
-        include/cpu.h src/cpu.cpp
-        include/addressing.h src/addressing.cpp
-        include/opcodes.h src/opcodes.cpp
+        include/m6502.h src/m6502.cpp
+        include/cycle_handler.h src/cycle_handler.cpp
         include/memory.h src/memory.cpp
-        include/system_via.h src/system_via.cpp
-        include/user_via.h src/user_via.cpp
-        include/sound_76489.h src/sound_76489.cpp
-        include/keyboard.h src/keyboard.cpp
-        include/acia_6850.h src/acia_6850.cpp
         )
 
 target_include_directories(test-6502
         PRIVATE
         include
         )
-
-
-add_executable(beeb
-        src/main.cpp
-        include/cpu.h src/cpu.cpp
-        include/addressing.h src/addressing.cpp
-        include/opcodes.h src/opcodes.cpp
-        include/memory.h src/memory.cpp
-        include/display.h src/display.cpp
-        include/system_via.h src/system_via.cpp
-        include/user_via.h src/user_via.cpp
-        include/beeb.h src/beeb.cpp
-        include/keyboard.h src/keyboard.cpp
-        include/sound_76489.h src/sound_76489.cpp
-        include/acia_6850.h src/acia_6850.cpp
-        )
-
-
-target_include_directories(beeb
-        PRIVATE
-        include)

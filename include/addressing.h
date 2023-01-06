@@ -5,19 +5,19 @@
 #ifndef CPU_ADDRESSING_H_
 #define CPU_ADDRESSING_H_
 
-#include "cpu.h"
+#include "m6502.h"
 #include "memory.h"
 
 #include <vector>
 
 
-using AddressingFunction = std::function<uint32_t(Cpu &cpu,
+using AddressingFunction = std::function<uint32_t(M6502 &cpu,
                                                   Memory &memory,
                                                   uint32_t &read_addr,
                                                   bool &page_wrap)>;
-using AddressComputeFunction = std::function<uint32_t(Cpu &cpu,
-                                                  Memory &memory,
-                                                  bool &page_wrap)>;
+using AddressComputeFunction = std::function<uint32_t(M6502 &cpu,
+                                                      Memory &memory,
+                                                      bool &page_wrap)>;
 
 extern AddressingFunction ImmediateData;
 extern AddressingFunction ZeroPageData;

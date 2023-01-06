@@ -405,7 +405,7 @@ class SystemVia {
   uint8_t read_port_a() const;
 
   /**
-   * When reading from this address the top four bits are read:
+   * When reading from this get_address the top four bits are read:
    * bit 7:    Speech processor 'ready' signal
    * bit 6:    Speech processor 'interrupt' signal
    * bit 4-5:  joystick buttons (bit is zero when button pressed)

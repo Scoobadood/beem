@@ -1,19 +1,18 @@
 //
-// Created by Dave Durbin on 1/12/2022.
+// Created by Dave Durbin on 3/1/2023.
 //
 
-#ifndef CPU_OPCODES_H_
-#define CPU_OPCODES_H_
+#ifndef M6502_INCLUDE_CYCLE_HANDLER_H_
+#define M6502_INCLUDE_CYCLE_HANDLER_H_
 
-#include <map>
-#include <utility>
-#include <vector>
-
-#include "opcodes.h"
 #include "m6502.h"
-#include "memory.h"
 
-using Operation = std::function<void(M6502 &cpu, Memory &memory, uint64_t &clk)>;
+#include <functional>
+#include <map>
+
+using CycleHandler = std::function<void(M6502 *, uint64_t &)>;
+
+CycleHandler cycle_handler(uint16_t ir);
 struct OpCode {
   uint8_t bytes;
   uint8_t cycles;
@@ -26,19 +25,17 @@ struct OpCode {
     Indirect, IndirectIndexedX, IndirectIndexedY,
     Relative, ZeroPage, ZeroPageIndexedX, ZeroPageIndexedY
   } addressing_mode;
-  Operation operation;
   OpCode(uint8_t bytes, uint8_t cycles, bool page_affected, std::string name,
-         AddressingMode addressing_mode, Operation operation) //
+         AddressingMode addressing_mode) //
       : bytes{bytes} //
       , cycles{cycles} //
       , page_affected{page_affected} //
       , name{std::move(name)} //
       , addressing_mode{addressing_mode} //
-      , operation{std::move(operation)} //
   {}
   std::string to_string() const;
 };
+extern const std::map<uint8_t, OpCode> op_codes;
 
-extern const std::map<uint8_t, OpCode> codes;
 
-#endif //CPU_OPCODES_H_
+#endif //M6502_INCLUDE_CYCLE_HANDLER_H_
