@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>662</width>
+    <height>518</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,6 +18,24 @@
     <item>
      <widget class="DisasmView" name="disasm_view" native="true"/>
     </item>
+    <item>
+     <widget class="QFrame" name="frame">
+      <property name="frameShape">
+       <enum>QFrame::StyledPanel</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Raised</enum>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="RegisterView" name="reg_view" native="true"/>
+       </item>
+       <item>
+        <widget class="QWidget" name="widget_3" native="true"/>
+       </item>
+      </layout>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -25,8 +43,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
-     <height>22</height>
+     <width>662</width>
+     <height>37</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -55,6 +73,12 @@
    <class>DisasmView</class>
    <extends>QWidget</extends>
    <header>disasm_view.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>RegisterView</class>
+   <extends>QWidget</extends>
+   <header>register_view.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -8,5 +8,8 @@
 /logs/
 /data/
 
+.qtc_clangd
+Beeb.*
+
 .idea/
 

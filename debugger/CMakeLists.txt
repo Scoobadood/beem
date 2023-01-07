@@ -11,6 +11,7 @@ add_executable(deeb
         src/disasm_view.cpp include/disasm_view.h src/disasm_view.ui
         src/main.cpp
         src/disassembler.cpp include/disassembler.h
+        src/reg_view.cpp include/reg_view.h src/reg_view.ui
         )
 
 target_include_directories(deeb
