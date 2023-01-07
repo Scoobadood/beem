@@ -84,6 +84,9 @@
      <property name="styleSheet">
       <string notr="true"/>
      </property>
+     <property name="lineWrapMode">
+      <enum>QTextEdit::NoWrap</enum>
+     </property>
     </widget>
    </item>
   </layout>
