@@ -54,7 +54,14 @@
     <addaction name="act_load_image"/>
     <addaction name="act_load_rom"/>
    </widget>
+   <widget class="QMenu" name="menuDebug">
+    <property name="title">
+     <string>Debug</string>
+    </property>
+    <addaction name="act_step"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuDebug"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="act_load_image">
@@ -65,6 +72,11 @@
   <action name="act_load_rom">
    <property name="text">
     <string>Load ROM</string>
+   </property>
+  </action>
+  <action name="act_step">
+   <property name="text">
+    <string>Step</string>
    </property>
   </action>
  </widget>

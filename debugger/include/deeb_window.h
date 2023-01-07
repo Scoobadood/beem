@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "memory.h"
+#include "m6502.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class DeebWindow; }
@@ -19,7 +20,10 @@ class DeebWindow : public QMainWindow {
   Ui::DeebWindow *ui;
   void load_file();
   void load_rom();
+  void step();
 
   Memory *memory_;
+  M6502 * cpu_;
+  uint64_t pins_;
 };
 #endif // DEEBWINDOW_H
