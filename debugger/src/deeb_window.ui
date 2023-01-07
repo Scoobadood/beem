@@ -78,7 +78,7 @@
   <customwidget>
    <class>RegisterView</class>
    <extends>QWidget</extends>
-   <header>register_view.h</header>
+   <header>reg_view.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
