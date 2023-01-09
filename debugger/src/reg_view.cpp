@@ -25,13 +25,16 @@ void RegisterView::set_flags(uint8_t new_flags) {
     uint8_t f = (0x01 << flag_idx);
 
     if ((old_flags_ & f) == (new_flags & f)) {
-      flag_labels_[flag_idx]->setStyleSheet("color:black");
+      flag_labels_[flag_idx]->setStyleSheet("QLabel {color:black; }");
     } else {
-      flag_labels_[flag_idx]->setStyleSheet("color:red; font-weight: bold");
+      flag_labels_[flag_idx]->setStyleSheet("QLabel {color:red; font-weight: bold; }");
+      flag_labels_[flag_idx]->setText((new_flags & f)
+                                      ? flag_labels_[flag_idx]->text().toUpper()
+                                      : flag_labels_[flag_idx]->text().toLower());
     }
-    old_flags_ = new_flags;
-    update();
   }
+  old_flags_ = new_flags;
+  update();
 }
 
 void update_register_8(QLineEdit *text_field, uint8_t &old_value, uint8_t new_value) {
