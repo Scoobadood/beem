@@ -12,14 +12,18 @@
 #include <utility>
 
 DisassemblyView::DisassemblyView(QWidget *parent) //
-    : QTextEdit(parent) //
+    : QPlainTextEdit(parent) //
     , disassembler_{} //
     , disassemble_from_{0} //
     , error_{0} //
 {
-  setFont(QFont("Courier", 12));
   top_row_ = 0;
   last_row_ = 0;
+
+  setContextMenuPolicy(Qt::NoContextMenu);
+  setReadOnly(true);
+  setUndoRedoEnabled(false);
+  setFont(QFont("Courier", 12));
 }
 
 DisassemblyView::~DisassemblyView() = default;
@@ -87,7 +91,7 @@ void DisassemblyView::resizeEvent(QResizeEvent *event) {
 }
 
 void DisassemblyView::scrollContentsBy(int dx, int dy){
-  QTextEdit::scrollContentsBy(dx, dy);
+  QPlainTextEdit::scrollContentsBy(dx, dy);
 
   auto hvalue = horizontalScrollBar()->value();
   auto vvalue = verticalScrollBar()->value();
@@ -102,6 +106,7 @@ void DisassemblyView::scrollContentsBy(int dx, int dy){
  * Disassemble sufficient data to populate one screen.
  */
 void DisassemblyView::update_disassembly() {
+  setUpdatesEnabled(false);
   QFontMetrics m(font());
   auto row_height = m.lineSpacing();
   auto num_visible_rows = (height() / row_height) + 1;
@@ -156,17 +161,28 @@ void DisassemblyView::update_disassembly() {
       tc.movePosition(QTextCursor::Down, QTextCursor::MoveAnchor, row_num); //go down y-times
       setTextCursor(tc);
 
-      setTextColor(QColorConstants::Black);
+      QTextCharFormat fmt;
+      fmt.setFont(QFont("courier", 12));
+      fmt.setForeground(QBrush(Qt::black));
+      mergeCurrentCharFormat(fmt);
       insertPlainText(formatted_op[0]);
-      setTextColor(QColorConstants::Blue);
+
+      fmt.setForeground(QBrush(Qt::blue));
+      mergeCurrentCharFormat(fmt);
       insertPlainText(formatted_op[1]);
-      setTextColor(QColorConstants::DarkMagenta);
-      setFontWeight(QFont::Bold);
+
+      fmt.setForeground(QBrush(Qt::darkMagenta));
+      fmt.setFontWeight(QFont::Bold);
+      mergeCurrentCharFormat(fmt);
       insertPlainText(formatted_op[2]);
-      setTextColor(QColorConstants::DarkGreen);
-      setFontWeight(QFont::Normal);
+
+      fmt.setForeground(QBrush(Qt::darkGreen));
+      fmt.setFontWeight(QFont::Normal);
+      mergeCurrentCharFormat(fmt);
       insertPlainText(formatted_op[3]);
-      setTextColor(QColorConstants::Black);
+
+      fmt.setForeground(QBrush(Qt::black));
+      mergeCurrentCharFormat(fmt);
       insertPlainText(formatted_op[4]);
 
     } else {
@@ -174,6 +190,7 @@ void DisassemblyView::update_disassembly() {
     }
 
   }
+  setUpdatesEnabled(true);
   update();
 }
 
@@ -189,7 +206,7 @@ void DisassemblyView::set_data(std::shared_ptr<std::vector<uint8_t>> memory) {
   disassembly_.resize(data_->size(), nullptr);
 
   clear();
-  setText(QString("\n").repeated(data_->size()));
+  setPlainText(QString("\n").repeated(data_->size()));
 
   disassemble_from_ = 0;
   top_row_ = 0;

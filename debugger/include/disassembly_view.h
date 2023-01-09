@@ -5,10 +5,10 @@
 #ifndef CHIPS_M6502_DEBUGGER_INCLUDE_DISASSEMBLYVIEW_H_
 #define CHIPS_M6502_DEBUGGER_INCLUDE_DISASSEMBLYVIEW_H_
 
-#include <QTextEdit>
+#include <QPlainTextEdit>
 #include "disassembler.h"
 
-class DisassemblyView : public QTextEdit {
+class DisassemblyView : public QPlainTextEdit {
  public:
   explicit DisassemblyView(QWidget *parent = nullptr);
   ~DisassemblyView() override;
