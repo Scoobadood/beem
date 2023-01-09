@@ -13,25 +13,25 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QHBoxLayout" name="horizontalLayout">
    <item>
-    <widget class="QPushButton" name="pushButton">
+    <widget class="QToolButton" name="btnRun">
      <property name="text">
-      <string>Step</string>
+      <string>...</string>
      </property>
     </widget>
    </item>
    <item>
-    <widget class="QPushButton" name="pushButton_2">
+    <widget class="QToolButton" name="btnBrk">
      <property name="text">
-      <string>Run</string>
+      <string>...</string>
      </property>
     </widget>
    </item>
    <item>
-    <widget class="QPushButton" name="pushButton_3">
+    <widget class="QToolButton" name="btnStep">
      <property name="text">
-      <string>Break</string>
+      <string>...</string>
      </property>
     </widget>
    </item>
