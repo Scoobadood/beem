@@ -48,7 +48,10 @@ uint8_t Memory::at(uint16_t addr) const {
 }
 
 void Memory::insert(uint16_t offset, std::vector<uint8_t> &data) {
-  memory_.insert(memory_.begin() + offset, data.begin(), data.end());
+  auto wr_iter =memory_.begin() + offset;
+  for(unsigned char & i : data) {
+    *wr_iter++ = i;
+  }
 }
 
 
