@@ -117,8 +117,16 @@ void set_data(uint64_t &pins, uint8_t data) {
   pins = (pins & ~PIN_DATA_MASK) | (data & 0xff);
 }
 
+bool tst_RST(uint64_t &pins) {
+  return ( pins & PIN_RST);
+}
+
 void set_RST(uint64_t &pins) {
   pins |= PIN_RST;
+}
+
+void clr_RST(uint64_t &pins) {
+  pins &= ~PIN_RST;
 }
 
 bool tst_RW(uint64_t pins) {
