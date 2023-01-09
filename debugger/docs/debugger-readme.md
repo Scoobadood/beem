@@ -44,7 +44,7 @@ So we need to map PC to line of text
 
 X We need to be able to scroll. For now we'll load the entire text into the window
 X 
-X We need to disassemble a block on code (bytes) into 
+X We need to update_disassembly a block on code (bytes) into 
 X * Addr
 X * Opcode (with meta)
 X * Args
