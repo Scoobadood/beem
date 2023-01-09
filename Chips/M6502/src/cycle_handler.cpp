@@ -164,13 +164,6 @@ void do_add(M6502 *cpu, uint8_t val) {
   }
 }
 
-uint8_t do_and(M6502 *cpu, uint8_t val) {
-  auto tmp = cpu->A() & val;
-  if (tmp == 0) cpu->setZ(); else cpu->clrZ();
-  if (tmp & 0x80) cpu->setZ(); else cpu->clrZ();
-  return tmp;
-}
-
 uint8_t do_asl(M6502 *cpu, uint8_t val) {
   if (val & 0x80) cpu->setC(); else cpu->clrC();
   val = (val << 1) & 0xff;
@@ -278,7 +271,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
     }},
     {0x001, [](M6502 *cpu, uint64_t &pins) {
       // If breaks are disabled
-      if (!(cpu->brk_flags & (BRK_IRQ | BRK_NMI))) {
+      if (!(cpu->brk_flags_ & (BRK_IRQ | BRK_NMI))) {
         cpu->incPC();
       }
 
@@ -286,7 +279,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_data(pins, cpu->PC() >> 8);
 
       // Only push data if we're not doing a RES
-      if (!(cpu->brk_flags & BRK_RST)) {
+      if (!(cpu->brk_flags_ & BRK_RST)) {
         clr_RW(pins);
       }
     }},
@@ -294,7 +287,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_address(pins, 0x100 | cpu->decSP());
       set_data(pins, cpu->PC());
       // Only push data if we're not doing a RES
-      if (!(cpu->brk_flags & BRK_RST)) {
+      if (!(cpu->brk_flags_ & BRK_RST)) {
         clr_RW(pins);
       }
     }},
@@ -303,11 +296,11 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
       set_data(pins, cpu->flags() | FLAG_X);
 
       // If this is a reset, read the RST vector to populate PC
-      if (cpu->brk_flags & BRK_RST) {
+      if (cpu->brk_flags_ & BRK_RST) {
         cpu->set_temp_addr(0xfffc);
       } else {
         clr_RW(pins);
-        if (cpu->brk_flags & BRK_NMI) {
+        if (cpu->brk_flags_ & BRK_NMI) {
           // Set up NMI vector
           cpu->set_temp_addr(0xfffa);
         } else {
@@ -323,7 +316,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
 
       cpu->setI();
       cpu->setB();
-      cpu->brk_flags = 0;
+      cpu->brk_flags_ = 0;
       /* RES/NMI hijacking */
     }},
     {0x005, [](M6502 *cpu, uint64_t &pins) {
