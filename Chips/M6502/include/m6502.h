@@ -105,7 +105,7 @@ class M6502 {
   // Used by indirect addressing modes when page doesn't wrap
   inline void skip_cycle() { ir_++; };
 
-  uint8_t brk_flags;
+  uint8_t brk_flags_;
 
  private:
   uint16_t pc_;

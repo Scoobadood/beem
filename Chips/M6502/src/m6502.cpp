@@ -19,6 +19,7 @@ M6502::M6502() {
   reset_in_process_ = false;
   temp_addr_ = 0;
   flags_ = 0;
+  brk_flags_ = 0;
 }
 
 bool M6502::maybe_handle_reset(uint64_t &pins) {
