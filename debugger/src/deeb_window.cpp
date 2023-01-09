@@ -17,7 +17,8 @@ DeebWindow::DeebWindow(QWidget *parent) //
   connect(ui->act_load_image, &QAction::triggered, this, &DeebWindow::load_file);
   connect(ui->act_load_rom, &QAction::triggered, this, &DeebWindow::load_rom);
   connect(ui->act_step, &QAction::triggered, this, &DeebWindow::step);
-
+  connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
+  connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
 
   std::shared_ptr<std::vector<uint8_t>> data =
       std::make_shared<std::vector<uint8_t>>(
@@ -32,7 +33,6 @@ DeebWindow::DeebWindow(QWidget *parent) //
 
   cpu_ = new M6502();
   ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(memory_->data()));
-  ui->reg_view->set_cpu(cpu_);
   pins_ = cpu_->tick(pins_);
   set_RST(pins_);
 }
@@ -46,15 +46,15 @@ DeebWindow::~DeebWindow() {
  * - run til sync
  * - update flags and regs
  */
- void
- DeebWindow::step() {
+void
+DeebWindow::step() {
   while (!tst_SYNC(pins_)) {
     pins_ = cpu_->tick(pins_);
     pins_ = memory_->tick(pins_);
+    emit flags_changed(cpu_->flags());
+    emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
   }
-  ui->reg_view->update_flags();
- }
-
+}
 
 void
 DeebWindow::load_file() {
