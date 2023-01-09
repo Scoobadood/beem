@@ -24,12 +24,13 @@ M6502::M6502() {
 
 bool M6502::maybe_handle_reset(uint64_t &pins) {
   // If reset low, all else is random, and we're done.
-  if (!(pins & PIN_RST)) {
+  if (!tst_RST(pins)) {
     reset_in_process_ = true;
     reset_cycle_ = 0;
     return true;
   }
 
+  // RST is high again. Either continue with reset sequence of return false if we're not mid reset.
   if (!reset_in_process_) {
     return false;
   }
