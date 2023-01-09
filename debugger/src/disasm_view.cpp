@@ -148,10 +148,7 @@ void DisasmView::disassembly_complete() {
     row_to_pc_.emplace(row, op.address);
     ++row;
   }
-  auto show_row = pc_to_row_.at(disassemble_from_);
-  QTextCursor cursor(ui->txt_disassembly->document()->  findBlockByLineNumber(show_row));
-  ui->txt_disassembly->setTextCursor(cursor);
-  enable_view();
+  set_pc(disassemble_from_);
 }
 
 /**
@@ -191,4 +188,11 @@ void DisasmView::set_data(std::shared_ptr<std::vector<uint8_t>> memory) {
   memory_ = std::move(memory);
   disassemble_from_ = 0;
   start_disassembly();
+}
+
+void DisasmView::set_pc(uint16_t pc) {
+  auto show_row = pc_to_row_.at(disassemble_from_);
+  QTextCursor cursor(ui->txt_disassembly->document()->  findBlockByLineNumber(show_row));
+  ui->txt_disassembly->setTextCursor(cursor);
+  enable_view();
 }

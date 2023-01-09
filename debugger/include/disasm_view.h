@@ -17,6 +17,8 @@ class DisasmView : public QWidget {
   ~DisasmView() override;
 
   void set_data(std::shared_ptr<std::vector<uint8_t>> memory);
+ public slots:
+  void set_pc(uint16_t pc);
 
  private:
   void start_disassembly();
