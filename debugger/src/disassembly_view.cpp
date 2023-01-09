@@ -17,9 +17,6 @@ DisassemblyView::DisassemblyView(QWidget *parent) //
     , disassemble_from_{0} //
     , error_{0} //
 {
-  top_row_ = 0;
-  last_row_ = 0;
-
   setContextMenuPolicy(Qt::NoContextMenu);
   setReadOnly(true);
   setUndoRedoEnabled(false);
@@ -123,26 +120,45 @@ void DisassemblyView::update_disassembly() {
 }
 
 void DisassemblyView::set_current_address(uint16_t pc) {
+  // Deselect
+  auto cursor = textCursor();
+//  cursor.select(QTextCursor::LineUnderCursor);
+  auto f = textCursor().blockFormat();
+  f.setBackground(QColorConstants::White);
+  cursor.setBlockFormat(f);
+//  cursor.clearSelection();
+
+
   // Make sure disassembly is correct
   auto iter = addr_to_row_.find(pc);
-  if( iter == addr_to_row_.end()) {
+  if (iter == addr_to_row_.end()) {
     disassemble_from_ = pc;
     update_disassembly();
     iter = addr_to_row_.find(pc);
   }
 
   auto display_row = iter->second;
-  moveCursor(QTextCursor::End);
-  QTextCursor cursor(document()->findBlockByLineNumber(display_row));
+  auto first_line = firstVisibleBlock().blockNumber();
+  QPoint bottom_right(viewport()->width() - 1, viewport()->height() - 1);
+  auto last_line = cursorForPosition(bottom_right).blockNumber();
+  auto lines_displayed = (last_line - first_line) + 1;
+  auto quarter_screen = lines_displayed / 4;
+
+  cursor = QTextCursor(document()->findBlockByLineNumber(display_row));
+
+  // If the display row is not visible, scroll it to 1/4 way down screen.
+  if (display_row < first_line) {
+    auto scroll_delta = display_row - quarter_screen - first_line;
+    verticalScrollBar()->setValue(verticalScrollBar()->value() + scroll_delta);
+  } else if (display_row + quarter_screen > last_line) {
+    verticalScrollBar()->setValue(verticalScrollBar()->value() + 1);
+  }
   setTextCursor(cursor);
 
-  QTextBlockFormat f;
+  f = cursor.blockFormat();
   f.setBackground(QColor(151,212,240));
-  cursor.select(QTextCursor::LineUnderCursor);
   cursor.setBlockFormat(f);
 }
-
-
 
 /**
  * Update the data.
@@ -155,7 +171,6 @@ void DisassemblyView::set_data(std::shared_ptr<std::vector<uint8_t>> memory) {
   clear();
 
   disassemble_from_ = 0;
-  top_row_ = 0;
 
   row_to_addr_.clear();
   addr_to_row_.clear();

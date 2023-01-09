@@ -3,9 +3,17 @@
 #include "ui_reg_view.h"
 
 RegisterView::RegisterView(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::RegisterView) {
+    QWidget(parent) //
+    , ui(new Ui::RegisterView) //
+    , old_pc_{0} //
+    , old_sp_{0} //
+    , old_a_{0} //
+    , old_x_{0} //
+    , old_y_{0} //
+    , old_flags_{0} //
+{
   ui->setupUi(this);
+
   flag_labels_[7] = ui->lblN;
   flag_labels_[6] = ui->lblV;
   flag_labels_[5] = ui->lblX;

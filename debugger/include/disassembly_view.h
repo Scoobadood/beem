@@ -32,8 +32,6 @@ class DisassemblyView : public QPlainTextEdit {
   std::map<uint16_t, uint16_t> row_to_addr_;
   std::vector<Operation> disassembly_;
 
-  uint32_t top_row_;
-  uint32_t last_row_;
   uint16_t disassemble_from_;
 
   uint8_t error_;
