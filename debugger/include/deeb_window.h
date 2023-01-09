@@ -16,18 +16,24 @@ class DeebWindow : public QMainWindow {
   explicit DeebWindow(QWidget *parent = nullptr);
   ~DeebWindow() override;
 
-  signals:
+ signals:
   void flags_changed(uint8_t flags);
   void registers_changed(uint8_t a, uint8_t x, uint8_t y, uint16_t pc, uint16_t sp);
+  void pc_changed(uint16_t pc);
 
  private:
+ /**
+  * Toggle RST line and wait for CPU to reset.
+  */
+  void reset_cpu();
+  
   Ui::DeebWindow *ui;
   void load_file();
   void load_rom();
   void step();
 
   Memory *memory_;
-  M6502 * cpu_;
+  M6502 *cpu_;
   uint64_t pins_;
 };
 #endif // DEEBWINDOW_H

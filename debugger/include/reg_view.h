@@ -27,7 +27,7 @@ class RegisterView : public QWidget {
   void set_registers(uint8_t new_a, uint8_t new_x, uint8_t new_y, uint16_t new_pc, uint16_t new_sp);
 
  private:
-  void update_pc(uint8_t new_pc);
+  void update_pc(uint16_t new_pc);
   void update_sp(uint8_t new_sp);
   Ui::RegisterView *ui;
 

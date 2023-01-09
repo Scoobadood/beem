@@ -15,9 +15,6 @@ class DisassemblyView : public QPlainTextEdit {
 
   void set_data(std::shared_ptr<std::vector<uint8_t>> memory);
 
-  void resizeEvent(QResizeEvent *event) override;
-  void scrollContentsBy(int dx, int dy) override;
-
  public slots:
   void set_current_address(uint16_t pc);
 
@@ -33,7 +30,7 @@ class DisassemblyView : public QPlainTextEdit {
 
   std::map<uint16_t, uint16_t> addr_to_row_;
   std::map<uint16_t, uint16_t> row_to_addr_;
-  std::vector<std::shared_ptr<Operation>> disassembly_;
+  std::vector<Operation> disassembly_;
 
   uint32_t top_row_;
   uint32_t last_row_;

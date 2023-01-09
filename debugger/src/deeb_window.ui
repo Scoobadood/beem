@@ -32,9 +32,6 @@
       <property name="horizontalScrollBarPolicy">
        <enum>Qt::ScrollBarAlwaysOff</enum>
       </property>
-      <property name="lineWrapMode">
-       <enum>QPlainTextEdit::NoWrap</enum>
-      </property>
      </widget>
     </item>
     <item>
@@ -111,6 +108,11 @@
    <extends>QWidget</extends>
    <header>reg_view.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>DisassemblyView</class>
+   <extends>QPlainTextEdit</extends>
+   <header>disassembly_view.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

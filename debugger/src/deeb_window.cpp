@@ -19,26 +19,30 @@ DeebWindow::DeebWindow(QWidget *parent) //
   connect(ui->act_step, &QAction::triggered, this, &DeebWindow::step);
   connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
   connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
-
-  std::shared_ptr<std::vector<uint8_t>> data =
-      std::make_shared<std::vector<uint8_t>>(
-          std::vector<uint8_t>{
-              0xd8, 0xa2, 0xff, 0x9a, 0xa9, 0x00,
-              0x8d, 0x00, 0x02, 0xa2, 0x05, 0x4c,
-              0x33, 0x04, 0xa0, 0x05, 0xd0, 0x08,
-              0x4c, 0x12, 0x04}
-      );
-  memory_ = new Memory(data->size());
-  memory_->insert(0, *data);
+  connect(this, &DeebWindow::pc_changed, ui->disasm_view, &DisassemblyView::set_current_address);
 
   cpu_ = new M6502();
-  ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(memory_->data()));
-  pins_ = cpu_->tick(pins_);
-  set_RST(pins_);
 }
 
 DeebWindow::~DeebWindow() {
   delete ui;
+}
+
+/**
+ * Toggle RST line and wait for CPU to reset.
+ */
+
+void DeebWindow::reset_cpu() {
+  clr_RST(pins_);
+  pins_ = cpu_->tick(pins_);
+  set_RST(pins_);
+  do {
+    pins_ = cpu_->tick(pins_);
+    pins_ = memory_->tick(pins_);
+  } while (!tst_SYNC(pins_));
+  emit flags_changed(cpu_->flags());
+  emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
+  emit pc_changed(cpu_->PC());
 }
 
 /**
@@ -48,12 +52,13 @@ DeebWindow::~DeebWindow() {
  */
 void
 DeebWindow::step() {
-  while (!tst_SYNC(pins_)) {
+  do {
     pins_ = cpu_->tick(pins_);
     pins_ = memory_->tick(pins_);
-    emit flags_changed(cpu_->flags());
-    emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
-  }
+  } while (!tst_SYNC(pins_));
+  emit flags_changed(cpu_->flags());
+  emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
+  emit pc_changed(cpu_->PC());
 }
 
 void
@@ -75,6 +80,7 @@ DeebWindow::load_file() {
   memory_ = new Memory(file);
   file.close();
   ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(memory_->data()));
+  reset_cpu();
 }
 
 void
@@ -98,4 +104,5 @@ DeebWindow::load_rom() {
   memory_ = new Memory(65536);
   memory_->insert(0xc000, rom);
   ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(memory_->data()));
+  reset_cpu();
 }

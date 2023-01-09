@@ -44,7 +44,7 @@ void update_register_8(QLineEdit *text_field, uint8_t &old_value, uint8_t new_va
   }
 }
 
-void RegisterView::update_pc(uint8_t new_pc) {
+void RegisterView::update_pc(uint16_t new_pc) {
   if (old_pc_ == new_pc) {
     ui->txtPC->setStyleSheet("color:black");
   } else {
