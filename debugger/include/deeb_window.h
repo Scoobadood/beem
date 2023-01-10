@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include "memory.h"
 #include "m6502.h"
+#include "bus.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class DeebWindow; }
@@ -20,6 +21,7 @@ class DeebWindow : public QMainWindow {
   void flags_changed(uint8_t flags);
   void registers_changed(uint8_t a, uint8_t x, uint8_t y, uint16_t pc, uint16_t sp);
   void pc_changed(uint16_t pc);
+  void bus_changed(Bus & bus);
 
  private:
  /**
@@ -34,6 +36,6 @@ class DeebWindow : public QMainWindow {
 
   Memory *memory_;
   M6502 *cpu_;
-  uint64_t pins_;
+  Bus bus_;
 };
 #endif // DEEBWINDOW_H

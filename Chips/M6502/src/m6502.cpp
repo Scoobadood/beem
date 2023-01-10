@@ -2,12 +2,6 @@
 #include "cycle_handler.h"
 #include "spdlog/spdlog.h"
 
-const uint64_t PIN_DATA_MASK = 0x000000ff;
-const uint64_t PIN_ADDR_MASK = 0x00ffff00;
-const uint64_t PIN_SYNC = 0x01000000;
-const uint64_t PIN_RST = 0x02000000;
-const uint64_t PIN_RD_NOT_WR = 0x04000000;
-
 M6502::M6502() {
   stack_pointer_ = 0;
   accumulator_ = 0;
@@ -22,9 +16,9 @@ M6502::M6502() {
   brk_flags_ = 0;
 }
 
-bool M6502::maybe_handle_reset(uint64_t &pins) {
+bool M6502::maybe_handle_reset(Bus &bus) {
   // If reset low, all else is random, and we're done.
-  if (!tst_RST(pins)) {
+  if (!bus.tst_RST()) {
     reset_in_process_ = true;
     reset_cycle_ = 0;
     return true;
@@ -39,47 +33,47 @@ bool M6502::maybe_handle_reset(uint64_t &pins) {
     case 1:stack_pointer_ = 0;
       break;
 
-    case 2:set_address(pins, 0x100 + stack_pointer_);
+    case 2:bus.set_address(0x100 + stack_pointer_);
       break;
 
-    case 3:set_address(pins, 0x100 + stack_pointer_ - 1);
+    case 3:bus.set_address(0x100 + stack_pointer_ - 1);
       break;
 
-    case 4:set_address(pins, 0x100 + stack_pointer_ - 2);
+    case 4:bus.set_address(0x100 + stack_pointer_ - 2);
       break;
 
     case 5:stack_pointer_ = 0xfd;
-      set_address(pins, 0xfffc);
+      bus.set_address(0xfffc);
       break;
 
-    case 6:temp_addr_ = get_data(pins);
-      set_address(pins, 0xfffd);
+    case 6:temp_addr_ = bus.get_data();
+      bus.set_address(0xfffd);
       break;
 
     case 7:reset_in_process_ = false;
       reset_cycle_ = 0;
-      pc_ = (get_data(pins) << 8) | temp_addr_;
-      set_address(pins, pc_);
-      set_SYNC(pins);
+      pc_ = (bus.get_data() << 8) | temp_addr_;
+      bus.set_address(pc_);
+      bus.set_SYNC();
       break;
   }
-  set_RW(pins);
+  bus.set_RW();
   return true;
 }
 
-void M6502::maybe_handle_sync(uint64_t &pins) {
-  if (pins & PIN_SYNC) {
+void M6502::maybe_handle_sync(Bus & bus) {
+  if (bus.tst_SYNC()) {
     // load IR register with opcode from data bus, and make room
     // for the 4 bit cycle counter (we only need three but this makes opcodes easier to see)
     // for humans.
-    ir_ = get_data(pins) << 4;
+    ir_ = bus.get_data() << 4;
     // switch off the SYNC pin
-    pins &= ~PIN_SYNC;
+    bus.clr_SYNC();
     pc_++;
   }
 }
 
-void M6502::do_cycle(uint64_t &pins) {
+void M6502::do_cycle(Bus &bus) {
   auto h = cycle_handler(ir_);
   if (h == nullptr) {
     auto msg = fmt::format("No cycle handler for opcode 0x{:02x} cycle {} at PC: 0x{:04x}", ir_ >> 4, ir_ & 0xf, pc_);
@@ -87,66 +81,17 @@ void M6502::do_cycle(uint64_t &pins) {
     throw std::runtime_error(msg);
   }
   ir_++;
-  h(this, pins);
+  h(this, bus);
 }
 
-uint64_t M6502::tick(uint64_t pins) {
-  if (maybe_handle_reset(pins)) {
-    return pins;
+void M6502::tick(Bus & bus) {
+  if (maybe_handle_reset(bus)) {
+    return;
   }
 
-  maybe_handle_sync(pins);
+  maybe_handle_sync(bus);
 
-  set_RW(pins);
+  bus.set_RW();
 
-  do_cycle(pins);
-  return pins;
-}
-
-uint16_t get_address(uint64_t pins) {
-  return (pins & PIN_ADDR_MASK) >> 8;
-}
-
-void set_address(uint64_t &pins, uint16_t address) {
-  pins = (pins & ~PIN_ADDR_MASK) | ((address & 0xffff) << 8);
-}
-
-uint8_t get_data(uint64_t pins) {
-  return (pins & PIN_DATA_MASK);
-}
-
-void set_data(uint64_t &pins, uint8_t data) {
-  pins = (pins & ~PIN_DATA_MASK) | (data & 0xff);
-}
-
-bool tst_RST(uint64_t &pins) {
-  return ( pins & PIN_RST);
-}
-
-void set_RST(uint64_t &pins) {
-  pins |= PIN_RST;
-}
-
-void clr_RST(uint64_t &pins) {
-  pins &= ~PIN_RST;
-}
-
-bool tst_RW(uint64_t pins) {
-  return (pins & PIN_RD_NOT_WR);
-}
-
-void set_RW(uint64_t &pins) {
-  pins |= PIN_RD_NOT_WR;
-}
-
-void clr_RW(uint64_t &pins) {
-  pins &= ~PIN_RD_NOT_WR;
-}
-
-bool tst_SYNC(uint64_t pins) {
-  return (pins & PIN_SYNC);
-}
-
-void set_SYNC(uint64_t &pins) {
-  pins |= PIN_SYNC;
+  do_cycle(bus);
 }

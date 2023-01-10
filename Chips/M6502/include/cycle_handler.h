@@ -6,11 +6,12 @@
 #define M6502_INCLUDE_CYCLE_HANDLER_H_
 
 #include "m6502.h"
+#include "bus.h"
 
 #include <functional>
 #include <map>
 
-using CycleHandler = std::function<void(M6502 *, uint64_t &)>;
+using CycleHandler = std::function<void(M6502 *, Bus &)>;
 
 CycleHandler cycle_handler(uint16_t ir);
 

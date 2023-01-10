@@ -12,6 +12,7 @@ DeebWindow::DeebWindow(QWidget *parent) //
     : QMainWindow(parent) //
     , ui(new Ui::DeebWindow) //
     , memory_{nullptr} //
+    , bus_{} //
 {
   ui->setupUi(this);
 
@@ -36,13 +37,13 @@ DeebWindow::~DeebWindow() {
  */
 
 void DeebWindow::reset_cpu() {
-  clr_RST(pins_);
-  pins_ = cpu_->tick(pins_);
-  set_RST(pins_);
+  bus_.clr_RST();
+  cpu_->tick(bus_);
+  bus_.set_RST();
   do {
-    pins_ = cpu_->tick(pins_);
-    pins_ = memory_->tick(pins_);
-  } while (!tst_SYNC(pins_));
+    cpu_->tick(bus_);
+    memory_->tick(bus_);
+  } while (! bus_.tst_SYNC());
   emit flags_changed(cpu_->flags());
   emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
   emit pc_changed(cpu_->PC());
@@ -56,12 +57,13 @@ void DeebWindow::reset_cpu() {
 void
 DeebWindow::step() {
   do {
-    pins_ = cpu_->tick(pins_);
-    pins_ = memory_->tick(pins_);
-  } while (!tst_SYNC(pins_));
+    cpu_->tick(bus_);
+    memory_->tick(bus_);
+  } while (!bus_.tst_SYNC());
   emit flags_changed(cpu_->flags());
   emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
   emit pc_changed(cpu_->PC());
+  emit bus_changed(bus_);
 }
 
 void
