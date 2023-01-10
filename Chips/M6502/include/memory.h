@@ -6,6 +6,7 @@
 #define M6502_INCLUDE_MEMORY_H_
 
 #include <vector>
+#include "bus.h"
 
 class Memory {
  public:
@@ -13,7 +14,7 @@ class Memory {
 
   explicit Memory(std::ifstream &f);
 
-  uint64_t tick(uint64_t pins);
+  void tick(Bus & bus);
 
   // Convenience methods; used for tooling, not emulation.
   /**
@@ -29,7 +30,7 @@ class Memory {
   /**
    * Return const ref to underlying memory
    */
-  [[nodiscard]] inline const std::vector<uint8_t> data() const {
+  [[nodiscard]] inline std::vector<uint8_t> data() const {
     return memory_;
   }
 

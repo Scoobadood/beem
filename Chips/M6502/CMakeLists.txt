@@ -9,4 +9,7 @@ target_include_directories(M6502 PUBLIC
         include
         )
 
+target_link_libraries(M6502
+        PUBLIC Bus)
+
 add_subdirectory(tests)
