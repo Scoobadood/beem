@@ -8,6 +8,8 @@
 /logs/
 /data/
 
+**CMakeLists.txt.user
+
 .qtc_clangd
 Beeb.*
 
