@@ -11,29 +11,26 @@
 DeebWindow::DeebWindow(QWidget *parent) //
     : QMainWindow(parent) //
     , ui(new Ui::DeebWindow) //
-    , memory_{nullptr} //
-    , bus_{} //
 {
   ui->setupUi(this);
 
-  connect(ui->act_load_image, &QAction::triggered, this, &DeebWindow::load_file);
-  connect(ui->act_load_rom, &QAction::triggered, this, &DeebWindow::load_rom);
   connect(ui->act_step, &QAction::triggered, this, &DeebWindow::step);
+
+  // TODO: Disable all the things
+
   connect(ui->act_run, &QAction::triggered, this, &DeebWindow::run);
 
   connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
   connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
   connect(this, &DeebWindow::pc_changed, ui->disasm_view, &DisassemblyView::set_current_address);
   connect(this, &DeebWindow::bus_changed, ui->bus_view, &BusView::set_bus);
-  connect(this, &DeebWindow::bus_changed, ui->bus_view, &BusView::set_bus);
-
-  connect(ui->disasm_view, &DisassemblyView::breakpoint_set, this, &DeebWindow::breakpoint_set);
-  connect(ui->disasm_view, &DisassemblyView::breakpoint_cleared, this, &DeebWindow::breakpoint_cleared);
 
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
-  cpu_ = new M6502();
+  beeb_ = new Beeb();
+  ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(beeb_->memory()->data()));
+  reset_cpu();
 }
 
 DeebWindow::~DeebWindow() {
@@ -45,16 +42,11 @@ DeebWindow::~DeebWindow() {
  */
 
 void DeebWindow::reset_cpu() {
-  bus_.clr_RST();
-  cpu_->tick(bus_);
-  bus_.set_RST();
-  do {
-    cpu_->tick(bus_);
-    memory_->tick(bus_);
-  } while (! bus_.tst_SYNC());
-  emit flags_changed(cpu_->flags());
-  emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
-  emit pc_changed(cpu_->PC());
+  beeb_->reset();
+  auto cpu = beeb_->cpu();
+  emit flags_changed(cpu->flags());
+  emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
+  emit pc_changed(cpu->PC());
 }
 
 /**
@@ -67,13 +59,13 @@ DeebWindow::step() {
   ui->act_step->setDisabled(true);
 
   do {
-    cpu_->tick(bus_);
-    memory_->tick(bus_);
-  } while (!bus_.tst_SYNC());
-  emit flags_changed(cpu_->flags());
-  emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
-  emit pc_changed(cpu_->PC());
-  emit bus_changed(bus_);
+    beeb_->tick();
+  } while (!beeb_->bus().tst_SYNC());
+  const auto & cpu = beeb_->cpu();
+  emit flags_changed(cpu->flags());
+  emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
+  emit pc_changed(cpu->PC());
+  emit bus_changed(beeb_->bus());
 
   ui->act_step->setDisabled(false);
 }
@@ -89,64 +81,18 @@ DeebWindow::run() {
   ui->act_step->setDisabled(true);
 
   do {
-    cpu_->tick(bus_);
-    memory_->tick(bus_);
-    if (bus_.tst_SYNC() && (breakpoints_.count(bus_.get_address()) != 0)) break;
+    beeb_->tick();
+    if (beeb_->bus().tst_SYNC() && (breakpoints_.count(beeb_->bus().get_address()) != 0)) break;
   } while (true);
-  emit flags_changed(cpu_->flags());
-  emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
-  emit pc_changed(cpu_->PC());
-  emit bus_changed(bus_);
+  const auto & cpu = beeb_->cpu();
+  emit flags_changed(cpu->flags());
+  emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
+  emit pc_changed(cpu->PC());
+  emit bus_changed(beeb_->bus());
 
   ui->act_run->setDisabled(false);
   ui->act_step->setDisabled(false);
 
-}
-
-void
-DeebWindow::load_file() {
-  auto file_name = QFileDialog::getOpenFileName(this,
-                                                tr("Load image"), "",
-                                                tr("Image Files (*.bin);;All Files (*)"));
-  if (file_name.isNull() || file_name.isEmpty()) {
-    return;
-  }
-
-  auto fn = file_name.toStdString();
-  std::ifstream file{fn, std::ios::in | std::ios::binary};
-  if (file.fail()) {
-    spdlog::error("Error reading file {}", fn);
-    return;
-  }
-
-  memory_ = new Memory(file);
-  file.close();
-  ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(memory_->data()));
-  reset_cpu();
-}
-
-void
-DeebWindow::load_rom() {
-  auto file_name = QFileDialog::getOpenFileName(this,
-                                                tr("Load ROM"), "",
-                                                tr("Image Files (*.bin);;All Files (*)"));
-  if (file_name.isNull() || file_name.isEmpty()) {
-    return;
-  }
-
-  auto fn = file_name.toStdString();
-  std::ifstream file{fn, std::ios::in | std::ios::binary};
-  if (file.fail()) {
-    spdlog::error("Error reading file {}", fn);
-    return;
-  }
-
-  auto rom = std::vector<uint8_t>((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-  file.close();
-  memory_ = new Memory(65536);
-  memory_->insert(0xc000, rom);
-  ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(memory_->data()));
-  reset_cpu();
 }
 
 void DeebWindow::breakpoint_set(uint16_t brk_addr) {

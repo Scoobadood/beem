@@ -20,6 +20,7 @@ class Via {
 
   uint8_t ddra_;
   uint8_t ddrb_;
+  uint8_t ier_;
 
 };
 

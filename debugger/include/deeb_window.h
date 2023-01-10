@@ -1,10 +1,9 @@
 #ifndef DEEBWINDOW_H
 #define DEEBWINDOW_H
 
+#include "beeb.h"
+
 #include <QMainWindow>
-#include "memory.h"
-#include "m6502.h"
-#include "bus.h"
 
 #include <set>
 
@@ -36,15 +35,11 @@ class DeebWindow : public QMainWindow {
   void reset_cpu();
   
   Ui::DeebWindow *ui;
-  void load_file();
-  void load_rom();
   void step();
   void run();
 
   std::set<uint16_t> breakpoints_;
 
-  Memory *memory_;
-  M6502 *cpu_;
-  Bus bus_;
+  Beeb * beeb_;
 };
 #endif // DEEBWINDOW_H

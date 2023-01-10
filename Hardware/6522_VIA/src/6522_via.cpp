@@ -24,8 +24,8 @@ Via::Via(uint16_t base_address) //
     : base_address_{base_address} //
     , ddra_{0} //
     , ddrb_{0} //
-{
-}
+    , ier_{0} //
+{}
 
 void Via::check_mmio(Bus &bus) {
   auto addr = bus.get_address();
@@ -77,7 +77,8 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       break;
     case IFR:spdlog::info("Read IFR");
       break;
-    case IER:spdlog::info("Read IER");
+    case IER:spdlog::info("Read IER ({:02x})", ier_);
+      bus.set_data(ier_);
       break;
     case IORA_NOH:spdlog::info("Read IRA_NOH");
       break;
