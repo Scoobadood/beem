@@ -12,6 +12,7 @@ target_link_libraries(Beeb
         M6502
         Memory
         Via
+        Latch
         )
 
 add_executable(RunBeeb

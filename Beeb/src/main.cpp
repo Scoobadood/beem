@@ -5,6 +5,7 @@ int main() {
 
   Beeb beeb;
 
+  beeb.reset();
   while (true) {
     beeb.tick();
   }

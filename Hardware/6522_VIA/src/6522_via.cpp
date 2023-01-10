@@ -46,16 +46,23 @@ void Via::check_mmio(Bus &bus) {
 }
 
 void Via::mmio_read(Bus &bus, uint8_t reg) {
+  uint8_t data = bus.get_data();
   switch (reg) {
-    case IORB:spdlog::info("Read IRB");
+    case IORB:
+      data = irb_ & ~ddrb_;
+      spdlog::info("Read IRB ({:02x})", data);
       break;
-    case IORA:spdlog::info("Read IRA");
+    case IORA:
+      data = ira_ & ~ddra_;
+      spdlog::info("Read IRA ({:02x})", data);
       break;
-    case DDRB:spdlog::info("Read DDRB ({:02x})", ddrb_);
-      bus.set_data(ddrb_);
+    case DDRB:
+      data = ddrb_;
+      spdlog::info("Read DDRB ({:02x})", data);
       break;
-    case DDRA:spdlog::info("Read DDRA ({:02x})", ddra_);
-      bus.set_data(ddra_);
+    case DDRA:
+      data = ddra_;
+      spdlog::info("Read DDRA ({:02x})", data);
       break;
     case T1C_L:spdlog::info("Read T1C_L");
       break;
@@ -77,23 +84,28 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       break;
     case IFR:spdlog::info("Read IFR");
       break;
-    case IER:spdlog::info("Read IER ({:02x})", ier_);
-      bus.set_data(ier_);
+    case IER:
+      data = ier_;
+      spdlog::info("Read IER ({:02x})", data);
       break;
     case IORA_NOH:spdlog::info("Read IRA_NOH");
       break;
     default:spdlog::error("Read Unknown register ({:02x})", reg);
       break;
-
   }
+  bus.set_data(data);
 }
 
 void Via::mmio_write(Bus &bus, uint8_t reg) {
   auto data = bus.get_data();
   switch (reg) {
-    case IORB:spdlog::info("Wrote ({:02x}) to ORB", data);
+    case IORB:
+      orb_ = (data & ddrb_);
+      spdlog::info("Wrote ({:02x}) to ORB", data);
       break;
-    case IORA:spdlog::info("Wrote ({:02x}) to ORA", data);
+    case IORA:
+      ora_ = (data & ddra_);
+      spdlog::info("Wrote ({:02x}) to ORA", data);
       break;
     case DDRB:spdlog::info("Wrote ({:02x}) to DDRB", data);
       ddrb_ = data;
@@ -125,9 +137,17 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
       break;
     case IORA_NOH:spdlog::info("Wrote ({:02x}) to IRA_NOH", data);
       break;
-    default:spdlog::error("Wrote ({:02x}) tou nknown register ({:02x})", data,reg);
+    default:spdlog::error("Wrote ({:02x}) to unknown register ({:02x})", data,reg);
       break;
   }
+}
+
+uint8_t Via::poll_port_b(uint8_t mask ) const {
+  return orb_ & mask;
+}
+
+uint8_t Via::poll_port_a(uint8_t mask ) const {
+  return ora_ & mask;
 }
 
 void Via::tick(Bus &bus) {
