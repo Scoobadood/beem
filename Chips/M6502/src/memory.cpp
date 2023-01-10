@@ -3,6 +3,7 @@
 //
 
 #include "memory.h"
+#include "bus.h"
 
 #include <iterator>
 #include <fstream>
@@ -23,19 +24,18 @@ bool is_memory_mapped(uint16_t addr) {
   return (addr >= 0xfc00 && addr <= 0xfeff);
 }
 
-uint64_t Memory::tick(uint64_t pins) {
-  auto addr = get_address(pins);
-  if (is_memory_mapped(addr)) return pins;
+void Memory::tick(Bus & bus) {
+  auto addr = bus.get_address();
+  if (is_memory_mapped(addr)) return;
 
   // Read and write memory
-  if (tst_RW(pins)) {
+  if (bus.tst_RW()) {
     auto data = memory_.at(addr);
-    set_data(pins, data);
+    bus.set_data(data);
   } else {
-    auto data = get_data(pins);
+    auto data = bus.get_data();
     memory_.at(addr) = data;
   }
-  return pins;
 }
 
 /**

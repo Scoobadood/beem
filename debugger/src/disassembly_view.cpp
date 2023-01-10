@@ -150,7 +150,10 @@ void DisassemblyView::set_current_address(uint16_t pc) {
   if (display_row < first_line) {
     auto scroll_delta = display_row - quarter_screen - first_line;
     verticalScrollBar()->setValue(verticalScrollBar()->value() + scroll_delta);
-  } else if (display_row + quarter_screen > last_line) {
+  } else if (display_row >= last_line) {
+    auto scroll_delta = display_row - last_line + quarter_screen;
+    verticalScrollBar()->setValue(verticalScrollBar()->value() + scroll_delta);
+  }else if (display_row + quarter_screen > last_line) {
     verticalScrollBar()->setValue(verticalScrollBar()->value() + 1);
   }
   setTextCursor(cursor);

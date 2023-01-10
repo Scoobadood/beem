@@ -1,5 +1,6 @@
 #include "m6502.h"
 #include "memory.h"
+#include "bus.h"
 #include "cycle_handler.h"
 #include "opcodes.h"
 
@@ -117,30 +118,30 @@ int main(int argc, const char *argv[]) {
   std::vector<uint16_t> pc_history(buffer_size, 0);
 
   // Pull reset low
-  uint64_t pins = 0;
+  Bus bus{};
 
   auto start = std::chrono::high_resolution_clock::now();
 
   while (true) {
-    pins = cpu.tick(pins);
-    set_RST(pins);
+    cpu.tick(bus);
+    bus.set_RST();
 
     // Make sure code execution starts at 0x400, not reset vector
-    auto addr = get_address(pins);
+    auto addr = bus.get_address();
 
     // Special case reset
     if (addr == 0xfffc) {
-      set_data(pins, 0);
+      bus.set_data(0);
       continue;
     } else if (addr == 0xfffd) {
-      set_data(pins, 4);
+      bus.set_data(4);
       continue;
     }
 
-    pins = memory.tick(pins);
+    memory.tick(bus);
 
     // Log PC to history buffer
-    if (tst_SYNC(pins)) {
+    if (bus.tst_SYNC()) {
       if (should_debug) {
         debug_flags_regs(&cpu);
         debug_stack(&cpu, &memory);
