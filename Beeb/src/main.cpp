@@ -1,8 +1,3 @@
-#include <iostream>
-
-#include <vector>
-#include <fstream>
-
 #include "beeb.h"
 
 int main() {

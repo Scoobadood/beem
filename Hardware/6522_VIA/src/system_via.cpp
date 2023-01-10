@@ -2,7 +2,7 @@
 // Created by Dave Durbin on 30/12/2022.
 //
 
-#include "system_via.h"
+#include "../include/system_via.h"
 #include "keyboard.h"
 #include "sound_76489.h"
 #include "spdlog/spdlog-inl.h"

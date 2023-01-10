@@ -1,12 +1,9 @@
-//
-// Created by Dave Durbin on 30/12/2022.
-//
-
 #ifndef M6502_INCLUDE_MEMORY_H_
 #define M6502_INCLUDE_MEMORY_H_
 
-#include <vector>
 #include "bus.h"
+
+#include <vector>
 
 class Memory {
  public:

@@ -50,5 +50,6 @@ FetchContent_MakeAvailable(googletest)
 # Enable Test
 enable_testing()
 
-add_subdirectory(Chips)
+add_subdirectory(Hardware)
+add_subdirectory(Beeb)
 add_subdirectory(debugger)

@@ -8,8 +8,6 @@
 #include <iterator>
 #include <fstream>
 
-#include "m6502.h"
-
 Memory::Memory(uint32_t sz) {
   memory_.resize(sz, 0);
 }
