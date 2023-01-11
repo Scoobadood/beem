@@ -135,7 +135,9 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
       break;
     case IER:spdlog::info("Wrote ({:02x}) to IER", data);
       break;
-    case IORA_NOH:spdlog::info("Wrote ({:02x}) to IRA_NOH", data);
+    case IORA_NOH:
+      ora_ = (data & ddra_);
+      spdlog::info("Wrote ({:02x}) to ORA_NOH", data);
       break;
     default:spdlog::error("Wrote ({:02x}) to unknown register ({:02x})", data,reg);
       break;
@@ -143,11 +145,17 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
 }
 
 uint8_t Via::poll_port_b(uint8_t mask ) const {
-  return orb_ & mask;
+  if( ddrb_ ) {
+    return orb_ & mask;
+  }
+  return 0xff;
 }
 
 uint8_t Via::poll_port_a(uint8_t mask ) const {
-  return ora_ & mask;
+  if( ddra_ ) {
+    return ora_ & mask;
+  }
+  return 0xff;
 }
 
 void Via::tick(Bus &bus) {
