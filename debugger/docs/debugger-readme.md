@@ -2,7 +2,7 @@
 
 Display source
  * Now
-X 	* Disassemble code to opcodes and instructions
+ 	* ~~Disassemble code to opcodes and instructions~~
  	* Extract labels
  * Later
  	* Actually pair with source code via listing file
@@ -10,7 +10,7 @@ X 	* Disassemble code to opcodes and instructions
 
 Display registers
  * Now
- 	* A,X,Y, SP, PC, Flags
+ 	* ~~A,X,Y, SP, PC, Flags~~
  * Later
  	* IR, temp_addr, bus lines
 
@@ -20,14 +20,17 @@ Display raw memory
  	* With address offsets
  	* From arbitrary address
  * Later
- 	* As disassembled code
+ 	* ~~As disassembled code~~
  	* As ints, longs etc. 
 
-Single step forward through code
+~~Single step forward through code~~
 Run continuously
  * With pause/break button
  
 Set breakpoint
+ * click on a line to add a brkpoint
+ * show the brkp in the debugger/disassembler window
+ * run until brkp reached
 
 
 # Display source

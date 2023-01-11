@@ -19,12 +19,19 @@ DeebWindow::DeebWindow(QWidget *parent) //
   connect(ui->act_load_image, &QAction::triggered, this, &DeebWindow::load_file);
   connect(ui->act_load_rom, &QAction::triggered, this, &DeebWindow::load_rom);
   connect(ui->act_step, &QAction::triggered, this, &DeebWindow::step);
+  connect(ui->act_run, &QAction::triggered, this, &DeebWindow::run);
+
   connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
   connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
   connect(this, &DeebWindow::pc_changed, ui->disasm_view, &DisassemblyView::set_current_address);
   connect(this, &DeebWindow::bus_changed, ui->bus_view, &BusView::set_bus);
+  connect(this, &DeebWindow::bus_changed, ui->bus_view, &BusView::set_bus);
+
+  connect(ui->disasm_view, &DisassemblyView::breakpoint_set, this, &DeebWindow::breakpoint_set);
+  connect(ui->disasm_view, &DisassemblyView::breakpoint_cleared, this, &DeebWindow::breakpoint_cleared);
 
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+  ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
   cpu_ = new M6502();
 }
@@ -57,6 +64,8 @@ void DeebWindow::reset_cpu() {
  */
 void
 DeebWindow::step() {
+  ui->act_step->setDisabled(true);
+
   do {
     cpu_->tick(bus_);
     memory_->tick(bus_);
@@ -65,6 +74,33 @@ DeebWindow::step() {
   emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
   emit pc_changed(cpu_->PC());
   emit bus_changed(bus_);
+
+  ui->act_step->setDisabled(false);
+}
+
+/**
+ * Step forward one instruction
+ * - run til sync
+ * - update flags and regs
+ */
+void
+DeebWindow::run() {
+  ui->act_run->setDisabled(true);
+  ui->act_step->setDisabled(true);
+
+  do {
+    cpu_->tick(bus_);
+    memory_->tick(bus_);
+    if (bus_.tst_SYNC() && (breakpoints_.count(bus_.get_address()) != 0)) break;
+  } while (true);
+  emit flags_changed(cpu_->flags());
+  emit registers_changed(cpu_->A(), cpu_->X(), cpu_->Y(), cpu_->PC(), cpu_->SP());
+  emit pc_changed(cpu_->PC());
+  emit bus_changed(bus_);
+
+  ui->act_run->setDisabled(false);
+  ui->act_step->setDisabled(false);
+
 }
 
 void
@@ -111,4 +147,12 @@ DeebWindow::load_rom() {
   memory_->insert(0xc000, rom);
   ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(memory_->data()));
   reset_cpu();
+}
+
+void DeebWindow::breakpoint_set(uint16_t brk_addr) {
+  breakpoints_.emplace(brk_addr);
+}
+
+void DeebWindow::breakpoint_cleared(uint16_t brk_addr) {
+  breakpoints_.erase(brk_addr);
 }

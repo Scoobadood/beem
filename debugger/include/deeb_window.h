@@ -6,6 +6,8 @@
 #include "m6502.h"
 #include "bus.h"
 
+#include <set>
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class DeebWindow; }
 QT_END_NAMESPACE
@@ -16,6 +18,10 @@ class DeebWindow : public QMainWindow {
  public:
   explicit DeebWindow(QWidget *parent = nullptr);
   ~DeebWindow() override;
+
+ public slots:
+  void breakpoint_set(uint16_t brk_addr);
+  void breakpoint_cleared(uint16_t brk_addr);
 
  signals:
   void flags_changed(uint8_t flags);
@@ -33,6 +39,9 @@ class DeebWindow : public QMainWindow {
   void load_file();
   void load_rom();
   void step();
+  void run();
+
+  std::set<uint16_t> breakpoints_;
 
   Memory *memory_;
   M6502 *cpu_;
