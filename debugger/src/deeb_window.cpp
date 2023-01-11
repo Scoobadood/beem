@@ -15,15 +15,15 @@ DeebWindow::DeebWindow(QWidget *parent) //
   ui->setupUi(this);
 
   connect(ui->act_step, &QAction::triggered, this, &DeebWindow::step);
-
-  // TODO: Disable all the things
-
   connect(ui->act_run, &QAction::triggered, this, &DeebWindow::run);
 
   connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
   connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
   connect(this, &DeebWindow::pc_changed, ui->disasm_view, &DisassemblyView::set_current_address);
   connect(this, &DeebWindow::bus_changed, ui->bus_view, &BusView::set_bus);
+
+  connect(ui->disasm_view, &DisassemblyView::breakpoint_set, this, &DeebWindow::breakpoint_set);
+  connect(ui->disasm_view, &DisassemblyView::breakpoint_cleared, this, &DeebWindow::breakpoint_cleared);
 
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
