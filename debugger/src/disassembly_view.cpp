@@ -4,6 +4,8 @@
 
 #include "disassembly_view.h"
 #include "disassembler.h"
+#include "moc_disassembly_view.cpp"
+
 
 #include <QWidget>
 #include <QTextBlock>
@@ -153,13 +155,13 @@ void DisassemblyView::set_current_address(uint16_t pc) {
   } else if (display_row >= last_line) {
     auto scroll_delta = display_row - last_line + quarter_screen;
     verticalScrollBar()->setValue(verticalScrollBar()->value() + scroll_delta);
-  }else if (display_row + quarter_screen > last_line) {
+  } else if (display_row + quarter_screen > last_line) {
     verticalScrollBar()->setValue(verticalScrollBar()->value() + 1);
   }
   setTextCursor(cursor);
 
   f = cursor.blockFormat();
-  f.setBackground(QColor(151,212,240));
+  f.setBackground(QColor(151, 212, 240));
   cursor.setBlockFormat(f);
 }
 
@@ -181,4 +183,62 @@ void DisassemblyView::set_data(std::shared_ptr<std::vector<uint8_t>> memory) {
   disassembly_ = disassembler_.disassemble_all(*data_, disassemble_from_, error_);
 
   update_disassembly();
+}
+
+void DisassemblyView::set_bp_formatting(Operation &op, QTextCursor &cursor) {
+  cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+  cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+  auto formatted_op = format_for_display(op);
+  QString str = "<pre>";
+  str.append(R"(<font color="red" font-weight="bold">)")
+      .append(formatted_op[0])
+      .append(R"(</font><font color="blue">)")
+      .append(formatted_op[1])
+      .append(R"(</font><font color="darkMagenta">)")
+      .append(formatted_op[2])
+      .append(R"(</font><font color="darkGreen">)")
+      .append(formatted_op[3])
+      .append(R"(</font><font color="black">)")
+      .append(formatted_op[4])
+      .append("</font></pre>");
+  cursor.insertHtml(str);
+  cursor.block().setUserState(1);
+}
+
+void DisassemblyView::clear_bp_formatting(Operation &op, QTextCursor &cursor) {
+  cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+  cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+  auto formatted_op = format_for_display(op);
+  QString str = "<pre>";
+  str.append(R"(<font color="black" font-weight="normal">)")
+      .append(formatted_op[0])
+      .append(R"(</font><font color="blue">)")
+      .append(formatted_op[1])
+      .append(R"(</font><font color="darkMagenta">)")
+      .append(formatted_op[2])
+      .append(R"(</font><font color="darkGreen">)")
+      .append(formatted_op[3])
+      .append(R"(</font><font color="black">)")
+      .append(formatted_op[4])
+      .append("</font></pre>");
+  cursor.insertHtml(str);
+  cursor.block().setUserState(0);
+}
+
+void DisassemblyView::mousePressEvent(QMouseEvent *e) {
+  auto cursor = cursorForPosition(e->pos());
+  auto line = cursor.blockNumber();
+  auto it = row_to_addr_.find(line);
+  if (it == row_to_addr_.end()) return;
+
+  auto op = disassembly_[line];
+  if (cursor.block().userState() == 1) {
+    clear_bp_formatting(op, cursor);
+    emit breakpoint_cleared(it->second);
+    breakpoint_lines_.erase(line);
+  } else {
+    emit breakpoint_set(it->second);
+    breakpoint_lines_.emplace(line);
+    set_bp_formatting(op, cursor);
+  }
 }

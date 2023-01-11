@@ -89,6 +89,7 @@
      <string>Debug</string>
     </property>
     <addaction name="act_step"/>
+    <addaction name="act_run"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuDebug"/>
@@ -104,6 +105,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="act_run"/>
    <addaction name="act_step"/>
   </widget>
   <action name="act_load_image">
@@ -119,6 +121,11 @@
   <action name="act_step">
    <property name="text">
     <string>Step</string>
+   </property>
+  </action>
+  <action name="act_run">
+   <property name="text">
+    <string>Run</string>
    </property>
   </action>
  </widget>
