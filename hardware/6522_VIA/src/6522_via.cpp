@@ -20,11 +20,24 @@ const uint8_t IFR = 0x0D;
 const uint8_t IER = 0x0E;
 const uint8_t IORA_NOH = 0x0F;
 
+const uint8_t IRQ_CB1 = 0x10;
+
 Via::Via(uint16_t base_address) //
     : base_address_{base_address} //
     , ddra_{0} //
+    , ira_{0} //
+    , ora_{0} //
+    , ca1_{0} //
+    , ca2_{0} //
     , ddrb_{0} //
+    , irb_{0} //
+    , orb_{0} //
+    , cb1_{0} //
+    , cb2_{0} //
     , ier_{0} //
+    , ifr_{0} //
+    , acr_{0} //
+    , pcr_{0} //
 {}
 
 void Via::check_mmio(Bus &bus) {
@@ -50,19 +63,19 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
   switch (reg) {
     case IORB:
       data = irb_ & ~ddrb_;
-      spdlog::info("Read IRB ({:02x})", data);
+      spdlog::info("Read ({:02x}) from IRB", data);
       break;
     case IORA:
       data = ira_ & ~ddra_;
-      spdlog::info("Read IRA ({:02x})", data);
+      spdlog::info("Read ({:02x}) from IRA", data);
       break;
     case DDRB:
       data = ddrb_;
-      spdlog::info("Read DDRB ({:02x})", data);
+      spdlog::info("Read ({:02x}) from DDRB", data);
       break;
     case DDRA:
       data = ddra_;
-      spdlog::info("Read DDRA ({:02x})", data);
+      spdlog::info("Read ({:02x}) from DDRA", data);
       break;
     case T1C_L:spdlog::info("Read T1C_L");
       break;
@@ -82,10 +95,17 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       break;
     case PCR:spdlog::info("Read PCR");
       break;
-    case IFR:spdlog::info("Read IFR");
+    case IFR:
+      data = ifr_;
+      spdlog::info("Read ({:02x}) from IFR");
       break;
     case IER:
-      data = ier_;
+      /**
+       * Reading:
+       * Bits 0-6 are read as expected.
+       * Bit 7 is always set when read.
+       */
+      data = (ier_ | 0x80);
       spdlog::info("Read IER ({:02x})", data);
       break;
     case IORA_NOH:spdlog::info("Read IRA_NOH");
@@ -96,12 +116,33 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
   bus.set_data(data);
 }
 
+void Via::write_port_b(uint8_t data) {
+  orb_ = data;
+  if (ddrb_ ){
+    uint8_t pb = (orb_ & ddrb_) | ~ddrb_;
+
+    if (acr_ & 0x80) {
+      // TODO: Handle pulsed output from timer
+      /**
+       * Timer 1 free-run mode
+       * In the free-running mode, PB7 is inverted and the interrupt flag is set
+       * each time the counter has decremented to zero. The contents of the 16 bit latch are then transferred to
+       * the counter, which decrements to zero again and so on.
+       * This produces a true square wave of variable frequency on the PB7 output.
+       */
+    }
+    for( const auto & subscriber : port_b_subscribers_ ) {
+      (*subscriber)(pb);
+    }
+  }
+}
+
 void Via::mmio_write(Bus &bus, uint8_t reg) {
   auto data = bus.get_data();
   switch (reg) {
     case IORB:
-      orb_ = (data & ddrb_);
-      spdlog::info("Wrote ({:02x}) to ORB", data);
+      spdlog::info("Writing ({:02x}) to ORB", data);
+      write_port_b(data);
       break;
     case IORA:
       ora_ = (data & ddra_);
@@ -131,7 +172,8 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
       break;
     case PCR:spdlog::info("Wrote ({:02x}) to PCR", data);
       break;
-    case IFR:spdlog::info("Wrote ({:02x}) to IFR", data);
+    case IFR:
+      spdlog::info("Wrote ({:02x}) to IFR", data);
       break;
     case IER:spdlog::info("Wrote ({:02x}) to IER", data);
       break;
@@ -144,20 +186,22 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
   }
 }
 
-uint8_t Via::poll_port_b(uint8_t mask ) const {
-  if( ddrb_ ) {
-    return orb_ & mask;
-  }
-  return 0xff;
-}
-
-uint8_t Via::poll_port_a(uint8_t mask ) const {
-  if( ddra_ ) {
-    return ora_ & mask;
-  }
-  return 0xff;
-}
-
 void Via::tick(Bus &bus) {
   check_mmio(bus);
+}
+
+void Via::subscribe_port_b(const data_subscriber_8_bit & subscriber) {
+  port_b_subscribers_.emplace(subscriber);
+}
+
+void Via::subscribe_port_a(const data_subscriber_8_bit & subscriber) {
+  port_a_subscribers_.emplace(subscriber);
+}
+
+void Via::unsubscribe_port_b(const data_subscriber_8_bit & subscriber) {
+  port_b_subscribers_.erase(subscriber);
+}
+
+void Via::unsubscribe_port_a(const data_subscriber_8_bit & subscriber) {
+  port_a_subscribers_.erase(subscriber);
 }

@@ -2,6 +2,8 @@ add_library(Beeb SHARED
         src/beeb.cpp
         )
 
+include_directories(Hardware/Common)
+
 target_include_directories(Beeb
         PUBLIC
         include
@@ -13,6 +15,7 @@ target_link_libraries(Beeb
         Memory
         Via
         Latch
+        SN76489
         )
 
 add_executable(RunBeeb
