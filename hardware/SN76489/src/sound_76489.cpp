@@ -10,27 +10,22 @@
 #include <spdlog/spdlog-inl.h>
 
 SN76489::SN76489() //
-    : latched_reg_{0} //
+    : we_src_{nullptr} //
+    , data_src_{nullptr} //
+    , latched_reg_{0} //
     , frequency_{0, 0, 0} //
     , volumes_{0, 0, 0} //
     , noise_volume_{0} //
     , noise_control_{0} //
-    , last_we_state_{1} //
+    , we_cycle_count_{0} //
+    , data_expected_{false} //
+    , we_is_low_{false} //
 {
-  noise_volume_ = 0;
-  noise_control_ = 0;
+  we_src_ = std::make_shared<data_subscriber_8_bit>(0x01);
+  data_src_ = std::make_shared<data_subscriber_8_bit>(0xff);
 }
 
-void SN76489::operator()(uint8_t data) {
-  if (data_expected_) {
-    spdlog::warn("SN76489: Data sent but not expected.");
-    return;
-  }
-  command_ = data;
-  command_waiting_ = true;
-}
-
-void SN76489::make_sound() const {
+void SN76489::play_sound() const {
   const std::vector<std::string> noise_freq{"LOW", "MED", "HIGH", "SINGLE TONE"};
 
   if (noise_volume_ != 0) {
@@ -46,11 +41,10 @@ void SN76489::make_sound() const {
   }
 }
 
-void SN76489::handle_waiting_command() {
-  if (!command_waiting_) return;
-  if (command_ & 0x80) {
-    auto reg = (command_ & 0x70) >> 4;
-    auto data = (command_ & 0x0f);
+void SN76489::handle_command(uint8_t command) {
+  if (command & 0x80) {
+    auto reg = (command & 0x70) >> 4;
+    auto data = (command & 0x0f);
     switch (reg) {
       case 0:frequency_[2] = ((frequency_[2] & 0xfff0) | data);
         break;
@@ -75,7 +69,7 @@ void SN76489::handle_waiting_command() {
     }
     latched_reg_ = reg;
   } else {
-    auto data = (command_ & 0x3f);
+    auto data = (command & 0x3f);
 
     // Direct to the high bits of the latched register
     switch (latched_reg_) {
@@ -88,39 +82,51 @@ void SN76489::handle_waiting_command() {
       default:
         spdlog::critical("SN76489: Unexpected latched reg ({:02x}) for low freq cmd ({:02x})",
                          latched_reg_,
-                         command_);
+                         command);
     }
   }
-  make_sound();
-  command_waiting_ = false;
+  play_sound();
 }
 
-void SN76489::tick() {
-  handle_waiting_command();
+void SN76489::maybe_process_new_data() {
+  if (!data_expected_) return;
+  if (!data_src_->data_changed()) return;
 
-  if( !last_we_state_) {
-    // Count low cycles
-    ++we_cycle_count_;
-  }
+  handle_command(data_src_->data());
+  data_expected_ = false;
 }
 
-void SN76489::set_write_enable(uint8_t we) {
+void SN76489::handle_we(uint8_t we) {
   // State unchanged high
-  if (we & last_we_state_) return;
+  if (we & !we_is_low_) return;
+
   // State unchanged lo
-  if (~we & ~last_we_state_) return;
+  if (~we & we_is_low_) return;
 
   // State changed from high to low
-  if (~we & last_we_state_) {
-    spdlog::info("SN76489: WE set high.");
+  if (~we & !we_is_low_) {
+    spdlog::info("SN76489: WE set high");
     we_cycle_count_ = 0;
     data_expected_ = false;
-    last_we_state_ = we;
+    we_is_low_ = true;
     return;
   }
 
   // Implicitly state changed from low to high
-  spdlog::info("SN76489: WE pulled low.");
+  spdlog::info("SN76489: WE pulled low");
   if (we_cycle_count_ > 8) data_expected_ = true;
-  last_we_state_ = we;
+  we_is_low_ = false;
+}
+
+void SN76489::tick() {
+  if (data_expected_) {
+    maybe_process_new_data();
+  }
+  if (we_src_->data_changed()) {
+    handle_we(we_src_->data());
+  }
+  if (!we_is_low_) {
+    // Count low cycles
+    ++we_cycle_count_;
+  }
 }

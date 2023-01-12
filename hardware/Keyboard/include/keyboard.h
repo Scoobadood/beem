@@ -2,8 +2,10 @@
 // Created by Dave Durbin on 2/1/2023.
 //
 
-#ifndef M6502_SRC_KEYBOARD_H_
-#define M6502_SRC_KEYBOARD_H_
+#ifndef BEEB_HW_KEYBOARD_H_
+#define BEEB_HW_KEYBOARD_H_
+
+#include "data_connectors.h"
 
 #include <vector>
 
@@ -147,10 +149,24 @@ const uint8_t KEY_CAPS_LOCK = 0x40;
 class Keyboard {
  public:
   Keyboard();
-  bool key_pressed(uint8_t key_code, bool shift = false, bool ctl = false) const;
+
+  void tick();
+
+  [[nodiscard]] inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
+  [[nodiscard]] inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
+  [[nodiscard]] inline data_provider_8_bit_ptr provider() const  { return provider_; }
+
  private:
-  // DIP switches. Default open (set to 1)
+  void check_we();
+  void handle_command(uint8_t key_code);
+
+  data_subscriber_8_bit_ptr we_src_;
+  data_subscriber_8_bit_ptr data_src_;
+  data_provider_8_bit_ptr provider_;
+
+  // DIP switches. Default open (0)
   uint8_t dips_;
+  bool auto_scan_enabled_;
 };
 
-#endif //M6502_SRC_KEYBOARD_H_
+#endif // BEEB_HW_KEYBOARD_H_

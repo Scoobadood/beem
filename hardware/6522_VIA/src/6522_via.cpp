@@ -61,20 +61,18 @@ void Via::check_mmio(Bus &bus) {
 void Via::mmio_read(Bus &bus, uint8_t reg) {
   uint8_t data = bus.get_data();
   switch (reg) {
-    case IORB:
-      data = irb_ & ~ddrb_;
+    case IORB:data = irb_ & ~ddrb_;
       spdlog::info("Read ({:02x}) from IRB", data);
       break;
     case IORA:
-      data = ira_ & ~ddra_;
-      spdlog::info("Read ({:02x}) from IRA", data);
+    case IORA_NOH:data = read_port_a();
+      spdlog::info("Read ({:02x}) from IRA{}", data, (reg == IORA ? "" : "_NOH"));
       break;
-    case DDRB:
-      data = ddrb_;
+
+    case DDRB:data = ddrb_;
       spdlog::info("Read ({:02x}) from DDRB", data);
       break;
-    case DDRA:
-      data = ddra_;
+    case DDRA:data = ddra_;
       spdlog::info("Read ({:02x}) from DDRA", data);
       break;
     case T1C_L:spdlog::info("Read T1C_L");
@@ -95,8 +93,7 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       break;
     case PCR:spdlog::info("Read PCR");
       break;
-    case IFR:
-      data = ifr_;
+    case IFR:data = ifr_;
       spdlog::info("Read ({:02x}) from IFR");
       break;
     case IER:
@@ -108,17 +105,44 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       data = (ier_ | 0x80);
       spdlog::info("Read IER ({:02x})", data);
       break;
-    case IORA_NOH:spdlog::info("Read IRA_NOH");
-      break;
     default:spdlog::error("Read Unknown register ({:02x})", reg);
       break;
   }
   bus.set_data(data);
 }
 
+uint8_t Via::read_port_a() {
+  auto data_fetched = 0;
+  uint8_t out;
+  for (auto &provider: port_a_providers_) {
+    if (provider->has_data()) {
+      out = (ira_ & ~ddra_ & provider->data()) | (ora_ & ddra_);
+      ++data_fetched;
+    }
+  }
+  if (data_fetched == 0) {
+    out = (ora_ | ~ddra_) & ira_;
+  }
+  if (data_fetched > 1) {
+    spdlog::error("Via6522: Multiple data providers read from PortA");
+  }
+  return out;
+}
+
+void Via::write_port_a(uint8_t data) {
+  ora_ = data;
+  if (ddra_) {
+    uint8_t pa = (ora_ & ddra_) | ~ddra_;
+
+    // TODO: Handle pulsed output from timer
+
+    notify_subscribers(port_a_subscribers_, pa, ddra_);
+  }
+}
+
 void Via::write_port_b(uint8_t data) {
   orb_ = data;
-  if (ddrb_ ){
+  if (ddrb_) {
     uint8_t pb = (orb_ & ddrb_) | ~ddrb_;
 
     if (acr_ & 0x80) {
@@ -131,23 +155,22 @@ void Via::write_port_b(uint8_t data) {
        * This produces a true square wave of variable frequency on the PB7 output.
        */
     }
-    for( const auto & subscriber : port_b_subscribers_ ) {
-      (*subscriber)(pb);
-    }
+    notify_subscribers(port_b_subscribers_, pb, ddrb_);
   }
 }
 
 void Via::mmio_write(Bus &bus, uint8_t reg) {
   auto data = bus.get_data();
   switch (reg) {
-    case IORB:
-      spdlog::info("Writing ({:02x}) to ORB", data);
+    case IORB:spdlog::info("Writing ({:02x}) to ORB", data);
       write_port_b(data);
       break;
+
     case IORA:
-      ora_ = (data & ddra_);
-      spdlog::info("Wrote ({:02x}) to ORA", data);
+    case IORA_NOH:spdlog::info("Writing ({:02x}) to ORA{}", data, (reg == IORA ? "" : "_NOH"));
+      write_port_a(data);
       break;
+
     case DDRB:spdlog::info("Wrote ({:02x}) to DDRB", data);
       ddrb_ = data;
       break;
@@ -172,16 +195,11 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
       break;
     case PCR:spdlog::info("Wrote ({:02x}) to PCR", data);
       break;
-    case IFR:
-      spdlog::info("Wrote ({:02x}) to IFR", data);
+    case IFR:spdlog::info("Wrote ({:02x}) to IFR", data);
       break;
     case IER:spdlog::info("Wrote ({:02x}) to IER", data);
       break;
-    case IORA_NOH:
-      ora_ = (data & ddra_);
-      spdlog::info("Wrote ({:02x}) to ORA_NOH", data);
-      break;
-    default:spdlog::error("Wrote ({:02x}) to unknown register ({:02x})", data,reg);
+    default:spdlog::error("Wrote ({:02x}) to unknown register ({:02x})", data, reg);
       break;
   }
 }
@@ -190,18 +208,22 @@ void Via::tick(Bus &bus) {
   check_mmio(bus);
 }
 
-void Via::subscribe_port_b(const data_subscriber_8_bit & subscriber) {
+void Via::provide_port_a(data_provider_8_bit_ptr provider) {
+  port_a_providers_.emplace(provider);
+}
+
+void Via::subscribe_port_b(const data_subscriber_8_bit_ptr &subscriber) {
   port_b_subscribers_.emplace(subscriber);
 }
 
-void Via::subscribe_port_a(const data_subscriber_8_bit & subscriber) {
+void Via::subscribe_port_a(const data_subscriber_8_bit_ptr &subscriber) {
   port_a_subscribers_.emplace(subscriber);
 }
 
-void Via::unsubscribe_port_b(const data_subscriber_8_bit & subscriber) {
+void Via::unsubscribe_port_b(const data_subscriber_8_bit_ptr &subscriber) {
   port_b_subscribers_.erase(subscriber);
 }
 
-void Via::unsubscribe_port_a(const data_subscriber_8_bit & subscriber) {
+void Via::unsubscribe_port_a(const data_subscriber_8_bit_ptr &subscriber) {
   port_a_subscribers_.erase(subscriber);
 }

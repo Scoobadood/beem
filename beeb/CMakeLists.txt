@@ -16,6 +16,7 @@ target_link_libraries(Beeb
         Via
         Latch
         SN76489
+        Keyboard
         )
 
 add_executable(RunBeeb
