@@ -23,6 +23,7 @@ class Via {
   void mmio_read(Bus &bus, uint8_t reg);
   void mmio_write(Bus &bus, uint8_t reg);
   void check_mmio(Bus &bus);
+  void write_irq_enable(uint8_t data);
 
   void write_port_a(uint8_t data);
   void write_port_b(uint8_t data);

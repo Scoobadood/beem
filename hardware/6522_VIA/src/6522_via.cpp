@@ -20,7 +20,25 @@ const uint8_t IFR = 0x0D;
 const uint8_t IER = 0x0E;
 const uint8_t IORA_NOH = 0x0F;
 
-const uint8_t IRQ_CB1 = 0x10;
+
+/* IRQ */
+const uint8_t IRQ_CA2 = (0x01 << 0);
+const uint8_t IRQ_CA1 = (0x01 << 1);
+const uint8_t IRQ_SR = (0x01 << 2);
+const uint8_t IRQ_CB2 = (0x01 << 3);
+const uint8_t IRQ_CB1 = (0x01 << 4);
+const uint8_t IRQ_T2 = (0x01 << 5);
+const uint8_t IRQ_T1 = (0x01 << 6);
+const uint8_t IRQ_IRQ = (0x01 << 7);
+
+#define TST_FLG(data, flag) ((data & flag) == flag)
+#define TST_T1(data) TST_FLG(data, IRQ_T1)
+#define TST_T2(data) TST_FLG(data, IRQ_T2)
+#define TST_CA1(data) TST_FLG(data, IRQ_CA1)
+#define TST_CA2(data) TST_FLG(data, IRQ_CA2)
+#define TST_CB1(data) TST_FLG(data, IRQ_CB1)
+#define TST_CB2(data)  TST_FLG(data, IRQ_CB2)
+#define TST_SR(data)  TST_FLG(data, IRQ_SR)
 
 Via::Via(uint16_t base_address) //
     : base_address_{base_address} //
@@ -93,7 +111,9 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       break;
     case PCR:spdlog::info("Read PCR");
       break;
-    case IFR:data = ifr_;
+    case IFR:
+      if (ifr_ & 0x7f) data = ifr_ | 0x80;
+      else data = 0;
       spdlog::info("Read ({:02x}) from IFR");
       break;
     case IER:
@@ -103,7 +123,7 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
        * Bit 7 is always set when read.
        */
       data = (ier_ | 0x80);
-      spdlog::info("Read IER ({:02x})", data);
+      spdlog::info("Read ({:02x}) from IER", data);
       break;
     default:spdlog::error("Read Unknown register ({:02x})", reg);
       break;
@@ -159,6 +179,24 @@ void Via::write_port_b(uint8_t data) {
   }
 }
 
+void Via::write_irq_enable(uint8_t data) {
+  if (data & 0x80) {
+    ier_ |= data;
+  } else {
+    ier_ &= ~(data | 0x80);
+  }
+  spdlog::info("VIA@{:04X}: set IER (0x{:02x}) T1:{} T2:{} CB1:{} CB2:{} SR:{} CA1:{} CA2:{}",
+               base_address_, data,
+               TST_T1(ier_) ? "1" : "0",
+               TST_T2(ier_) ? "1" : "0",
+               TST_CB1(ier_) ? "1" : "0",
+               TST_CB2(ier_) ? "1" : "0",
+               TST_SR(ier_) ? "1" : "0",
+               TST_CA1(ier_) ? "1" : "0",
+               TST_CA2(ier_) ? "1" : "0"
+  );
+}
+
 void Via::mmio_write(Bus &bus, uint8_t reg) {
   auto data = bus.get_data();
   switch (reg) {
@@ -197,7 +235,7 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
       break;
     case IFR:spdlog::info("Wrote ({:02x}) to IFR", data);
       break;
-    case IER:spdlog::info("Wrote ({:02x}) to IER", data);
+    case IER:write_irq_enable(data);
       break;
     default:spdlog::error("Wrote ({:02x}) to unknown register ({:02x})", data, reg);
       break;
