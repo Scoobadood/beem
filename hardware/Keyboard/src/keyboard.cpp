@@ -8,13 +8,18 @@
 Keyboard::Keyboard() //
     : dips_{0} //
     , auto_scan_enabled_{true} //
+    , caps_lock_led_{false} //
+    , shift_lock_led_{false} //
 {
-  we_src_ = std::make_shared<data_subscriber_8_bit>(0x04);
+  we_src_ = std::make_shared<data_subscriber_8_bit>(0x08);
   data_src_ = std::make_shared<data_subscriber_8_bit>(0x7f);
   provider_ = std::make_shared<data_provider_8_bit>();
+  cl_led_src_ = std::make_shared<data_subscriber_8_bit>(0x40);
+  sl_led_src_ = std::make_shared<data_subscriber_8_bit>(0x80);
 }
 
 void Keyboard::tick() {
+  check_leds();
   check_we();
   if (data_src_->data_changed()) {
     handle_command(data_src_->data());
@@ -35,7 +40,26 @@ void Keyboard::check_we() {
   }
 }
 
-void Keyboard::handle_command(uint8_t key_code) {
+void log_state(const std::string &led_name, bool old_state, bool new_state) {
+  std::string action = (old_state == new_state) ? "still" : "turned";
+  std::string state = new_state ? "on" : "off";
+  spdlog::info("Keyboard: {} LED {} {}", led_name, action, state);
+}
+
+void Keyboard::check_leds() {
+  if (cl_led_src_->data_changed()) {
+    auto on = (cl_led_src_->data() == 0x40);
+    log_state("CAPS Lock", caps_lock_led_, on);
+    caps_lock_led_ = on;
+  }
+  if (sl_led_src_->data_changed()) {
+    auto on = (sl_led_src_->data() == 0x80);
+    log_state("SHIFT Lock", shift_lock_led_, on);
+    shift_lock_led_ = on;
+  }
+}
+
+void Keyboard::handle_command(uint8_t key_code) const {
   key_code &= 0x7f;
   auto scan_result = key_code;
   if (key_code >= KEY_DIP_7 && key_code <= KEY_DIP_0) {

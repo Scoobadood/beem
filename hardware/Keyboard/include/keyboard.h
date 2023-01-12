@@ -152,21 +152,34 @@ class Keyboard {
 
   void tick();
 
+  [[nodiscard]] inline bool caps_lock_led() const { return caps_lock_led_; }
+  [[nodiscard]] inline bool shift_lock_led() const { return shift_lock_led_; }
+  [[nodiscard]] inline bool auto_scan_enabled() const { return auto_scan_enabled_; }
+
   [[nodiscard]] inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
   [[nodiscard]] inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
-  [[nodiscard]] inline data_provider_8_bit_ptr provider() const  { return provider_; }
+  [[nodiscard]] inline data_provider_8_bit_ptr provider() const { return provider_; }
+  [[nodiscard]] inline data_subscriber_8_bit_ptr cl_led_src() const { return cl_led_src_; }
+  [[nodiscard]] inline data_subscriber_8_bit_ptr sl_led_src() const { return sl_led_src_; }
 
  private:
   void check_we();
-  void handle_command(uint8_t key_code);
+  void check_leds();
+  void handle_command(uint8_t key_code) const;
 
   data_subscriber_8_bit_ptr we_src_;
   data_subscriber_8_bit_ptr data_src_;
+  data_subscriber_8_bit_ptr cl_led_src_;
+  data_subscriber_8_bit_ptr sl_led_src_;
   data_provider_8_bit_ptr provider_;
 
   // DIP switches. Default open (0)
   uint8_t dips_;
   bool auto_scan_enabled_;
+
+  // LEDs
+  bool caps_lock_led_;
+  bool shift_lock_led_;
 };
 
 #endif // BEEB_HW_KEYBOARD_H_

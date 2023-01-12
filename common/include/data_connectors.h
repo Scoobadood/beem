@@ -15,13 +15,16 @@ class data_subscriber_8_bit {
       , data_changed_{false} //
   {}
   [[nodiscard]] inline uint8_t mask() const { return mask_; }
-  void set_data(uint8_t bit, bool value) {
-    if (value) {
-      data_ |= (0x01 << bit);
-    } else {
-      data_ &= ~(0x01 << bit);
+  void set_data(uint8_t bit_num, bool value) {
+    auto bit_mask = 0x01 << bit_num;
+    if (mask_ & bit_mask) {
+      if (value) {
+        data_ |= bit_mask;
+      } else {
+        data_ &= ~bit_mask;
+      }
+      data_changed_ = true;
     }
-    data_changed_ = true;
   };
   [[nodiscard]] inline bool data_changed() const { return data_changed_; }
   inline uint8_t data() {
