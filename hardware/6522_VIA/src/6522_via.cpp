@@ -34,6 +34,16 @@ const uint8_t IRQ_IRQ = (0x01 << 7);
 const uint8_t PCR_CA1_IRQ_CTL = 0x01;
 const uint8_t PCR_CB1_IRQ_CTL = 0x10;
 
+/* ACR */
+const uint8_t ACR_PA_LATCH = (0x01 << 0);
+const uint8_t ACR_PB_LATCH = (0x01 << 1);
+#define PA_LATCHED(c) (TST_FLG(c, ACR_PA_LATCH))
+#define PB_LATCHED(c) (TST_FLG(c, ACR_PB_LATCH))
+#define ACR_T1_CTL(c) (TST_FLG(c, 0x40))
+#define ACR_T2_CTL(c) (TST_FLG(c, 0x20))
+
+
+
 #define TST_FLG(data, flag) ((data & flag) == flag)
 #define TST_T1(data) TST_FLG(data, IRQ_T1)
 #define TST_T2(data) TST_FLG(data, IRQ_T2)
@@ -50,11 +60,13 @@ Via::Via(uint16_t base_address) //
     , ora_{0} //
     , ca1_{0} //
     , ca2_{0} //
+    , pa_latch_{0} //
     , ddrb_{0} //
     , irb_{0} //
     , orb_{0} //
     , cb1_{0} //
     , cb2_{0} //
+    , pb_latch_{0} //
     , ier_{0} //
     , ifr_{0} //
     , acr_{0} //
@@ -86,20 +98,40 @@ void Via::check_mmio(Bus &bus) {
 void Via::mmio_read(Bus &bus, uint8_t reg) {
   uint8_t data = bus.get_data();
   switch (reg) {
-    case IORB:data = irb_ & ~ddrb_;
-      spdlog::info("Read ({:02x}) from IRB", data);
+    case IORB:
+      if (PB_LATCHED(acr_)) {
+        data = pb_latch_;
+      } else {
+        data = irb_ & ~ddrb_;
+      }
+      spdlog::info("VIA@{:04X}: Read ({:02x}) from {} IRB",
+                   base_address_, data,
+                   PB_LATCHED(acr_) ? "(latched)" : "");
       break;
+
+
     case IORA:
-    case IORA_NOH:data = read_port_a();
-      spdlog::info("Read ({:02x}) from IRA{}", data, (reg == IORA ? "" : "_NOH"));
+    case IORA_NOH:
+      if (PA_LATCHED(acr_)) {
+        data = pa_latch_;
+      } else {
+        data = read_port_a();
+
+      }
+      spdlog::info("VIA@{:04X}: Read ({:02x}) from {} IRA{}",
+                   base_address_, data,
+                   PA_LATCHED(acr_) ? "(latched)" : "",
+                   (reg == IORA ? "" : "_NOH"));
       break;
 
     case DDRB:data = ddrb_;
       spdlog::info("Read ({:02x}) from DDRB", data);
       break;
+
     case DDRA:data = ddra_;
       spdlog::info("Read ({:02x}) from DDRA", data);
       break;
+
     case T1C_L:spdlog::info("Read T1C_L");
       break;
     case T1C_H:spdlog::info("Read T1C_H");
@@ -112,20 +144,21 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       break;
     case T2C_H:spdlog::info("Read T2C_H");
       break;
-    case SR:spdlog::info("Read SR");
-      break;
-    case ACR:spdlog::info("Read ACR");
+    case spdlog::info("Read SR");
       break;
 
-    case PCR:
-      data = pcr_;
-      spdlog::info("Read ({:02x}) from PCR", pcr_);
+    case ACR:data = acr_;
+      spdlog::info("VIA@{:04X}: Read ({:02x}) ACR", base_address_, acr_);
+      break;
+
+    case PCR:data = pcr_;
+      spdlog::info("VIA@{:04X}: Read ({:02x}) from PCR", base_address_, pcr_);
       break;
 
     case IFR:
       if (ifr_ & 0x7f) data = ifr_ | 0x80;
       else data = 0;
-      spdlog::info("Read ({:02x}) from IFR");
+      spdlog::info("Read ({:02x}) from IFR", data);
       break;
 
     case IER:
@@ -170,7 +203,7 @@ void Via::write_port_a(uint8_t data) {
     // TODO: Handle pulsed output from timer
 
     /* Pulse output */
-    if( ca2_ctl_ == 0x05) {
+    if (ca2_ctl_ == 0x05) {
       // TODO: Pulsed output, pull CA2 low for a cycle
     } else if (ca2_ctl_ == 0x04) {
       // TODO: Handshake. Pull CA2 low until data taken (CA1)
@@ -197,7 +230,7 @@ void Via::write_port_b(uint8_t data) {
     }
 
     /* Pulse output */
-    if( cb2_ctl_ == 0x05) {
+    if (cb2_ctl_ == 0x05) {
       // TODO: Pulsed output, pull CB2 low for a cycle
     } else if (cb2_ctl_ == 0x04) {
       // TODO: Handshake. Pull CB2 low until data taken (CB1)
@@ -215,7 +248,7 @@ void Via::write_irq_enable(uint8_t data) {
     ier_ &= ~(data | 0x80);
   }
   spdlog::info("VIA@{:04X}: T1:{} T2:{} CB1:{} CB2:{} SR:{} CA1:{} CA2:{}",
-               base_address_, data,
+               base_address_,
                TST_T1(ier_) ? "1" : "0",
                TST_T2(ier_) ? "1" : "0",
                TST_CB1(ier_) ? "1" : "0",
@@ -226,6 +259,55 @@ void Via::write_irq_enable(uint8_t data) {
   );
 }
 
+void Via::write_acr(uint8_t data) {
+  spdlog::info("Writing ({:02x}) to ACR", data);
+
+  acr_ = data;
+
+  spdlog::info("VIA@{:04X}: PA_L:{} PB_L:{} CB1:{} CB2:{} SR:{} CA1:{} CA2:{}",
+               base_address_, PA_LATCHED(acr_));
+  spdlog::info("         PB_L:{}", PB_LATCHED(acr_));
+  spdlog::info("       T1_CTL:{}", ACR_T1_CTL(acr_) ? "Countdown pulses" : "Timed IRQ");
+  spdlog::info("       T2_CTL:{}", ACR_T2_CTL(acr_) ? "Countdown pulses" : "Timed IRQ");
+  switch(acr_ >> 5) {
+    case 0:
+    case 1:
+      spdlog::info("          PB7: disabled");
+      break;
+    case 2:
+      spdlog::info("          PB7: One shot");
+      break;
+    case 3:
+      spdlog::info("          PB7: square wave");
+  }
+  switch((acr_ >> 2) & 0x7) {
+    case 0:
+      spdlog::info("           SR: Disabled");
+      break;
+    case 1:
+      spdlog::info("           SR: Shift in T2");
+      break;
+    case 2:
+      spdlog::info("           SR: Shift in 1MHz");
+      break;
+    case 3:
+      spdlog::info("           SR: Shift in Ext Clk");
+      break;
+    case 4:
+      spdlog::info("           SR: Shift out Free running T2");
+      break;
+    case 5:
+      spdlog::info("           SR: Shift out T2");
+      break;
+    case 6:
+      spdlog::info("           SR: Shift out 1MHz");
+      break;
+    case 7:
+      spdlog::info("           SR: Shift out Ext Clk");
+      break;
+  }
+}
+
 void Via::write_pcr(uint8_t data) {
   spdlog::info("Writing ({:02x}) to PCR", data);
   ca1_pos_active_edge_ = TST_FLG(data, PCR_CA1_IRQ_CTL);
@@ -234,10 +316,10 @@ void Via::write_pcr(uint8_t data) {
   cb2_ctl_ = (data >> 5) & 0x07;
   pcr_ = data;
 
-  if( ca2_ctl_ & 0x06) {
+  if (ca2_ctl_ & 0x06) {
     ca2_ = ca2_ctl_ & 0x01;
   }
-  if( cb2_ctl_ & 0x06) {
+  if (cb2_ctl_ & 0x06) {
     cb2_ = cb2_ctl_ & 0x01;
   }
 
@@ -279,10 +361,12 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
       break;
     case SR:spdlog::info("Wrote ({:02x}) to SR", data);
       break;
-    case ACR:spdlog::info("Wrote ({:02x}) to ACR", data);
+    case ACR:write_acr(data);
       break;
+
     case PCR:write_pcr(data);
       break;
+
     case IFR:spdlog::info("Wrote ({:02x}) to IFR", data);
       break;
     case IER:write_irq_enable(data);

@@ -25,7 +25,7 @@ class Via {
   void check_mmio(Bus &bus);
   void write_irq_enable(uint8_t data);
   void write_pcr(uint8_t data);
-
+  void write_acr(uint8_t data);
   void write_port_a(uint8_t data);
   void write_port_b(uint8_t data);
   uint8_t read_port_a();
@@ -37,12 +37,14 @@ class Via {
   uint8_t ora_;
   uint8_t ca1_;
   uint8_t ca2_;
+  uint8_t pa_latch_;
 
   uint8_t ddrb_;
   uint8_t irb_;
   uint8_t orb_;
   uint8_t cb1_;
   uint8_t cb2_;
+  uint8_t pb_latch_;
 
   uint8_t ier_;
   uint8_t ifr_;
