@@ -17,6 +17,7 @@ target_link_libraries(Beeb
         Latch
         SN76489
         Keyboard
+        Acia
         )
 
 add_executable(RunBeeb
