@@ -20,7 +20,6 @@ const uint8_t IFR = 0x0D;
 const uint8_t IER = 0x0E;
 const uint8_t IORA_NOH = 0x0F;
 
-
 /* IRQ */
 const uint8_t IRQ_CA2 = (0x01 << 0);
 const uint8_t IRQ_CA1 = (0x01 << 1);
@@ -30,6 +29,10 @@ const uint8_t IRQ_CB1 = (0x01 << 4);
 const uint8_t IRQ_T2 = (0x01 << 5);
 const uint8_t IRQ_T1 = (0x01 << 6);
 const uint8_t IRQ_IRQ = (0x01 << 7);
+
+/* PCR */
+const uint8_t PCR_CA1_IRQ_CTL = 0x01;
+const uint8_t PCR_CB1_IRQ_CTL = 0x10;
 
 #define TST_FLG(data, flag) ((data & flag) == flag)
 #define TST_T1(data) TST_FLG(data, IRQ_T1)
@@ -56,6 +59,10 @@ Via::Via(uint16_t base_address) //
     , ifr_{0} //
     , acr_{0} //
     , pcr_{0} //
+    , ca1_pos_active_edge_{false} //
+    , cb1_pos_active_edge_{false} //
+    , ca2_ctl_{0} //
+    , cb2_ctl_{0} //
 {}
 
 void Via::check_mmio(Bus &bus) {
@@ -109,13 +116,18 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       break;
     case ACR:spdlog::info("Read ACR");
       break;
-    case PCR:spdlog::info("Read PCR");
+
+    case PCR:
+      data = pcr_;
+      spdlog::info("Read ({:02x}) from PCR", pcr_);
       break;
+
     case IFR:
       if (ifr_ & 0x7f) data = ifr_ | 0x80;
       else data = 0;
       spdlog::info("Read ({:02x}) from IFR");
       break;
+
     case IER:
       /**
        * Reading:
@@ -125,7 +137,8 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       data = (ier_ | 0x80);
       spdlog::info("Read ({:02x}) from IER", data);
       break;
-    default:spdlog::error("Read Unknown register ({:02x})", reg);
+
+    default:spdlog::critical("Read Unknown register ({:02x})", reg);
       break;
   }
   bus.set_data(data);
@@ -156,6 +169,13 @@ void Via::write_port_a(uint8_t data) {
 
     // TODO: Handle pulsed output from timer
 
+    /* Pulse output */
+    if( ca2_ctl_ == 0x05) {
+      // TODO: Pulsed output, pull CA2 low for a cycle
+    } else if (ca2_ctl_ == 0x04) {
+      // TODO: Handshake. Pull CA2 low until data taken (CA1)
+    }
+
     notify_subscribers(port_a_subscribers_, pa, ddra_);
   }
 }
@@ -175,17 +195,26 @@ void Via::write_port_b(uint8_t data) {
        * This produces a true square wave of variable frequency on the PB7 output.
        */
     }
+
+    /* Pulse output */
+    if( cb2_ctl_ == 0x05) {
+      // TODO: Pulsed output, pull CB2 low for a cycle
+    } else if (cb2_ctl_ == 0x04) {
+      // TODO: Handshake. Pull CB2 low until data taken (CB1)
+    }
+
     notify_subscribers(port_b_subscribers_, pb, ddrb_);
   }
 }
 
 void Via::write_irq_enable(uint8_t data) {
+  spdlog::info("VIA@{:04X}: Writing ({:02x}) to IER", base_address_, data);
   if (data & 0x80) {
     ier_ |= data;
   } else {
     ier_ &= ~(data | 0x80);
   }
-  spdlog::info("VIA@{:04X}: set IER (0x{:02x}) T1:{} T2:{} CB1:{} CB2:{} SR:{} CA1:{} CA2:{}",
+  spdlog::info("VIA@{:04X}: T1:{} T2:{} CB1:{} CB2:{} SR:{} CA1:{} CA2:{}",
                base_address_, data,
                TST_T1(ier_) ? "1" : "0",
                TST_T2(ier_) ? "1" : "0",
@@ -195,6 +224,27 @@ void Via::write_irq_enable(uint8_t data) {
                TST_CA1(ier_) ? "1" : "0",
                TST_CA2(ier_) ? "1" : "0"
   );
+}
+
+void Via::write_pcr(uint8_t data) {
+  spdlog::info("Writing ({:02x}) to PCR", data);
+  ca1_pos_active_edge_ = TST_FLG(data, PCR_CA1_IRQ_CTL);
+  cb1_pos_active_edge_ = TST_FLG(data, PCR_CB1_IRQ_CTL);
+  ca2_ctl_ = (data >> 1) & 0x07;
+  cb2_ctl_ = (data >> 5) & 0x07;
+  pcr_ = data;
+
+  if( ca2_ctl_ & 0x06) {
+    ca2_ = ca2_ctl_ & 0x01;
+  }
+  if( cb2_ctl_ & 0x06) {
+    cb2_ = cb2_ctl_ & 0x01;
+  }
+
+  spdlog::info("VIA@{:04X}: CA1:{} active edge", base_address_, cb1_pos_active_edge_ ? "positive" : "negative");
+  spdlog::info("          CB1:{} active edge", cb1_pos_active_edge_ ? "positive" : "negative");
+  spdlog::info("          CA2_CTL1:{}", ca2_ctl_);
+  spdlog::info("          CB2_CTL1:{}", cb2_ctl_);
 }
 
 void Via::mmio_write(Bus &bus, uint8_t reg) {
@@ -209,10 +259,10 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
       write_port_a(data);
       break;
 
-    case DDRB:spdlog::info("Wrote ({:02x}) to DDRB", data);
+    case DDRB:spdlog::info("Writing ({:02x}) to DDRB", data);
       ddrb_ = data;
       break;
-    case DDRA:spdlog::info("Wrote ({:02x}) to DDRA", data);
+    case DDRA:spdlog::info("Writing ({:02x}) to DDRA", data);
       ddra_ = data;
       break;
     case T1C_L:spdlog::info("Wrote ({:02x}) to T1C_L", data);
@@ -231,7 +281,7 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
       break;
     case ACR:spdlog::info("Wrote ({:02x}) to ACR", data);
       break;
-    case PCR:spdlog::info("Wrote ({:02x}) to PCR", data);
+    case PCR:write_pcr(data);
       break;
     case IFR:spdlog::info("Wrote ({:02x}) to IFR", data);
       break;
