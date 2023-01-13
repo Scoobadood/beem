@@ -125,7 +125,7 @@ void SN76489::tick() {
   if (we_src_->data_changed()) {
     handle_we(we_src_->data());
   }
-  if (!we_is_low_) {
+  if (we_is_low_) {
     // Count low cycles
     ++we_cycle_count_;
   }
