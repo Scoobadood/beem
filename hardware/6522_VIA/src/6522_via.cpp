@@ -495,7 +495,7 @@ void Via::check_timers() {
   }
 
   // T2
-  if(~ACR_T2_CTL(acr_)) {
+  if(!ACR_T2_CTL(acr_)) {
     --timer2_count_;
     if( timer2_count_ == 0) {
       if(!TST_T2(ifr_)){
