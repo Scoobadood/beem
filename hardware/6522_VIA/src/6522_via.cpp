@@ -482,8 +482,8 @@ void Via::check_timers() {
       } else {
         if (ACR_T1_PB7(acr_)) pb7_ = 1;
       }
+      raise_irq(IRQ_T1);
     }
-    raise_irq(IRQ_T1);
   }
 
   // T2
