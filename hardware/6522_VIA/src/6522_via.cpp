@@ -288,36 +288,28 @@ void Via::write_acr(uint8_t data) {
 
   acr_ = data;
 
-  spdlog::info("VIA@{:04X}: PA_L:{} PB_L:{} CB1:{} CB2:{} SR:{} CA1:{} CA2:{}",
-               base_address_, PA_LATCHED(acr_));
-  spdlog::info("         PB_L:{}", PB_LATCHED(acr_));
-  spdlog::info("       T1_CTL:{}", ACR_T1_CTL(acr_) ? "Continuous" : "One shot");
-  spdlog::info("       T1_CTL:{}", ACR_T1_PB7(acr_) ? "Triggered" : "Disabled");
-  spdlog::info("       T2_CTL:{}", ACR_T2_CTL(acr_) ? "Continuous" : "One shot");
-  switch (acr_ >> 5) {
-    case 0:
-    case 1:spdlog::info("          PB7: disabled");
-      break;
-    case 2:spdlog::info("          PB7: One shot");
-      break;
-    case 3:spdlog::info("          PB7: square wave");
-  }
+  spdlog::info("VIA@{:04X}: PA_L {}",
+               base_address_, PA_LATCHED(acr_) ? "enabled" : "disabled");
+  spdlog::info("          PB_L {}", PB_LATCHED(acr_) ? "enabled" : "disabled");
+  spdlog::info("          T1 {}", ACR_T1_CTL(acr_) ? "Continuous" : "One shot");
+  spdlog::info("          T2 {}", ACR_T2_CTL(acr_) ? "Count down" : "One shot");
+  spdlog::info("          PB7 {}", ACR_T1_PB7(acr_) ? "Enabled" : "Disabled");
   switch ((acr_ >> 2) & 0x7) {
-    case 0:spdlog::info("           SR: Disabled");
+    case 0:spdlog::info("          SR Disabled");
       break;
-    case 1:spdlog::info("           SR: Shift in T2");
+    case 1:spdlog::info("          SR Shift in T2");
       break;
-    case 2:spdlog::info("           SR: Shift in 1MHz");
+    case 2:spdlog::info("          SR Shift in 1MHz");
       break;
-    case 3:spdlog::info("           SR: Shift in Ext Clk");
+    case 3:spdlog::info("          SR Shift in Ext Clk");
       break;
-    case 4:spdlog::info("           SR: Shift out Free running T2");
+    case 4:spdlog::info("          SR Shift out Free running T2");
       break;
-    case 5:spdlog::info("           SR: Shift out T2");
+    case 5:spdlog::info("          SR Shift out T2");
       break;
-    case 6:spdlog::info("           SR: Shift out 1MHz");
+    case 6:spdlog::info("          SR Shift out 1MHz");
       break;
-    case 7:spdlog::info("           SR: Shift out Ext Clk");
+    case 7:spdlog::info("          SR Shift out Ext Clk");
       break;
   }
 }
