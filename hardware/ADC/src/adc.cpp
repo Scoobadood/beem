@@ -36,7 +36,7 @@ void Adc::tick(Bus &bus) {
         break;
     }
   } else {
-    if (addr != DL_WO) return;
+    if (addr - base_address_ != DL_WO) return;
     auto data = bus.get_data();
     mode_ = (data >> 2) & 0x1;
     channel_ = (data & 0x3);
