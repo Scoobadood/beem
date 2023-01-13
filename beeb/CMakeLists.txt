@@ -18,6 +18,7 @@ target_link_libraries(Beeb
         SN76489
         Keyboard
         Acia
+        Adc
         )
 
 add_executable(RunBeeb
