@@ -33,7 +33,7 @@ void Adc::tick(Bus &bus) {
         break;
 
       default:spdlog::info("ADC@{:04x}: Tried to read unknown reg {:04x}", base_address_, addr);
-        break
+        break;
     }
   } else {
     if (addr != DL_WO) return;
