@@ -39,10 +39,10 @@ const uint8_t ACR_PA_LATCH = (0x01 << 0);
 const uint8_t ACR_PB_LATCH = (0x01 << 1);
 #define PA_LATCHED(c) (TST_FLG(c, ACR_PA_LATCH))
 #define PB_LATCHED(c) (TST_FLG(c, ACR_PB_LATCH))
+
+#define ACR_T1_PB7(c) (TST_FLG(c, 0x80))
 #define ACR_T1_CTL(c) (TST_FLG(c, 0x40))
 #define ACR_T2_CTL(c) (TST_FLG(c, 0x20))
-
-
 
 #define TST_FLG(data, flag) ((data & flag) == flag)
 #define TST_T1(data) TST_FLG(data, IRQ_T1)
@@ -61,12 +61,14 @@ Via::Via(uint16_t base_address) //
     , ca1_{0} //
     , ca2_{0} //
     , pa_latch_{0} //
+    , prev_ca1_{0} //
     , ddrb_{0} //
     , irb_{0} //
     , orb_{0} //
     , cb1_{0} //
     , cb2_{0} //
     , pb_latch_{0} //
+    , prev_cb1_{0} //
     , ier_{0} //
     , ifr_{0} //
     , acr_{0} //
@@ -75,6 +77,9 @@ Via::Via(uint16_t base_address) //
     , cb1_pos_active_edge_{false} //
     , ca2_ctl_{0} //
     , cb2_ctl_{0} //
+    , timer1_count_{0} //
+    , timer1_latch_{0} //
+    , pb7_{0} //
 {}
 
 void Via::check_mmio(Bus &bus) {
@@ -108,7 +113,6 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
                    base_address_, data,
                    PB_LATCHED(acr_) ? "(latched)" : "");
       break;
-
 
     case IORA:
     case IORA_NOH:
@@ -144,7 +148,7 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
       break;
     case T2C_H:spdlog::info("Read T2C_H");
       break;
-    case spdlog::info("Read SR");
+    case SR: spdlog::info("Read SR");
       break;
 
     case ACR:data = acr_;
@@ -177,6 +181,10 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
   bus.set_data(data);
 }
 
+/**
+ * Read the pins of Port A by polling providers.
+ * @return
+ */
 uint8_t Via::read_port_a() {
   auto data_fetched = 0;
   uint8_t out;
@@ -213,20 +221,36 @@ void Via::write_port_a(uint8_t data) {
   }
 }
 
+/**
+ * Read the pins of Port B by polling providers.
+ * @return
+ */
+uint8_t Via::read_port_b() {
+  auto data_fetched = 0;
+  uint8_t out;
+  for (auto &provider: port_b_providers_) {
+    if (provider->has_data()) {
+      out = (irb_ & ~ddrb_ & provider->data()) | (orb_ & ddrb_);
+      ++data_fetched;
+    }
+  }
+  if (data_fetched == 0) {
+    out = (orb_ | ~ddrb_) & irb_;
+  }
+  if (data_fetched > 1) {
+    spdlog::error("VIA${:04x}: Multiple data providers read from PortB", base_address_);
+  }
+  // TODO: If T2 is in pulse counting mode, decrement it eah time PB6 is pulsed low then high
+  return out;
+}
+
 void Via::write_port_b(uint8_t data) {
   orb_ = data;
   if (ddrb_) {
     uint8_t pb = (orb_ & ddrb_) | ~ddrb_;
 
-    if (acr_ & 0x80) {
-      // TODO: Handle pulsed output from timer
-      /**
-       * Timer 1 free-run mode
-       * In the free-running mode, PB7 is inverted and the interrupt flag is set
-       * each time the counter has decremented to zero. The contents of the 16 bit latch are then transferred to
-       * the counter, which decrements to zero again and so on.
-       * This produces a true square wave of variable frequency on the PB7 output.
-       */
+    if (ACR_T1_PB7(acr_)) {
+      pb = (pb & 0x7f) | (pb7_ << 7);
     }
 
     /* Pulse output */
@@ -267,43 +291,33 @@ void Via::write_acr(uint8_t data) {
   spdlog::info("VIA@{:04X}: PA_L:{} PB_L:{} CB1:{} CB2:{} SR:{} CA1:{} CA2:{}",
                base_address_, PA_LATCHED(acr_));
   spdlog::info("         PB_L:{}", PB_LATCHED(acr_));
-  spdlog::info("       T1_CTL:{}", ACR_T1_CTL(acr_) ? "Countdown pulses" : "Timed IRQ");
-  spdlog::info("       T2_CTL:{}", ACR_T2_CTL(acr_) ? "Countdown pulses" : "Timed IRQ");
-  switch(acr_ >> 5) {
+  spdlog::info("       T1_CTL:{}", ACR_T1_CTL(acr_) ? "Continuous" : "One shot");
+  spdlog::info("       T1_CTL:{}", ACR_T1_PB7(acr_) ? "Triggered" : "Disabled");
+  spdlog::info("       T2_CTL:{}", ACR_T2_CTL(acr_) ? "Continuous" : "One shot");
+  switch (acr_ >> 5) {
     case 0:
-    case 1:
-      spdlog::info("          PB7: disabled");
+    case 1:spdlog::info("          PB7: disabled");
       break;
-    case 2:
-      spdlog::info("          PB7: One shot");
+    case 2:spdlog::info("          PB7: One shot");
       break;
-    case 3:
-      spdlog::info("          PB7: square wave");
+    case 3:spdlog::info("          PB7: square wave");
   }
-  switch((acr_ >> 2) & 0x7) {
-    case 0:
-      spdlog::info("           SR: Disabled");
+  switch ((acr_ >> 2) & 0x7) {
+    case 0:spdlog::info("           SR: Disabled");
       break;
-    case 1:
-      spdlog::info("           SR: Shift in T2");
+    case 1:spdlog::info("           SR: Shift in T2");
       break;
-    case 2:
-      spdlog::info("           SR: Shift in 1MHz");
+    case 2:spdlog::info("           SR: Shift in 1MHz");
       break;
-    case 3:
-      spdlog::info("           SR: Shift in Ext Clk");
+    case 3:spdlog::info("           SR: Shift in Ext Clk");
       break;
-    case 4:
-      spdlog::info("           SR: Shift out Free running T2");
+    case 4:spdlog::info("           SR: Shift out Free running T2");
       break;
-    case 5:
-      spdlog::info("           SR: Shift out T2");
+    case 5:spdlog::info("           SR: Shift out T2");
       break;
-    case 6:
-      spdlog::info("           SR: Shift out 1MHz");
+    case 6:spdlog::info("           SR: Shift out 1MHz");
       break;
-    case 7:
-      spdlog::info("           SR: Shift out Ext Clk");
+    case 7:spdlog::info("           SR: Shift out Ext Clk");
       break;
   }
 }
@@ -347,18 +361,35 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
     case DDRA:spdlog::info("Writing ({:02x}) to DDRA", data);
       ddra_ = data;
       break;
-    case T1C_L:spdlog::info("Wrote ({:02x}) to T1C_L", data);
+
+    case T1C_L:spdlog::info("VIA@{:04X}: Writing ({:02x}) to T1C_L", base_address_, data);
+      timer1_latch_ = (timer1_latch_ & 0xff00) | data;
       break;
-    case T1C_H:spdlog::info("Wrote ({:02x}) to T1C_H", data);
+
+    case T1C_H:spdlog::info("VIA@{:04X}: Writing ({:02x}) to T1C_H", base_address_, data);
+      timer1_latch_ = (timer1_latch_ & 0xff) | (data << 8);
+      timer1_count_ = timer1_latch_;
+      if(ACR_T1_PB7(acr_)) pb7_ = 0;
+      clear_irq(IRQ_T1);
       break;
-    case T1L_L:spdlog::info("Wrote ({:02x}) to T1L_L", data);
+
+    case T1L_L:spdlog::info("VIA@{:04X}: Writing ({:02x}) to T1L_L", base_address_, data);
+      timer1_latch_ = (timer1_latch_ & 0xff00) | data;
       break;
-    case T1L_H:spdlog::info("Wrote ({:02x}) to T1L_H", data);
+
+    case T1L_H:spdlog::info("VIA@{:04X}: Writing ({:02x}) to T1L_H", base_address_, data);
+      timer1_latch_ = (timer1_latch_ & 0xff) | (data << 8);
       break;
-    case T2C_L:spdlog::info("Wrote ({:02x}) to T2C_L", data);
+
+    case T2C_L:spdlog::info("VIA@{:04X}: Writing ({:02x}) to T2C_L", base_address_, data);
+      timer2_latch_ = data;
       break;
-    case T2C_H:spdlog::info("Wrote ({:02x}) to T2C_H", data);
+
+    case T2C_H:spdlog::info("VIA@{:04X}: Writing ({:02x}) to T2C_H", base_address_, data);
+      timer2_count_ = (data << 8) | timer2_latch_;
+      clear_irq(IRQ_T2);
       break;
+
     case SR:spdlog::info("Wrote ({:02x}) to SR", data);
       break;
     case ACR:write_acr(data);
@@ -376,7 +407,110 @@ void Via::mmio_write(Bus &bus, uint8_t reg) {
   }
 }
 
+/**
+ * See if CA1 is pulled high or low and latching is enabled.
+ * If so, latch the data and raise an IRQ
+ * https://lateblt.tripod.com/bit67.txt
+ */
+void Via::set_ca1(uint8_t state) {
+  state &= 0x01;
+  if (state == prev_ca1_) return;
+  prev_ca1_ = ca1_;
+  ca1_ = state;
+
+  if (ca1_ == (pcr_ & PCR_CA1_IRQ_CTL)) {
+    // CA1 went active. Generate IRQ and latch data if enabled
+    spdlog::info("VIA${:04x}: CA1 went active", base_address_);
+
+    if (acr_ & ACR_PA_LATCH)
+      pa_latch_ = read_port_a();
+
+    raise_irq(IRQ_CA1);
+  }
+}
+
+/**
+ * See if CB1 is pulled high or low and latching is enabled.
+ * If so, latch the data and raise an IRQ
+ * https://lateblt.tripod.com/bit67.txt
+ */
+void Via::set_cb1(uint8_t state) {
+  state &= 0x01;
+  if (state == prev_cb1_) return;
+  prev_cb1_ = cb1_;
+  cb1_ = state;
+
+  if (cb1_ == (pcr_ & PCR_CB1_IRQ_CTL)) {
+    // CB1 went active. Generate IRQ and latch data if enabled
+    spdlog::info("VIA${:04x}: CB1 went active", base_address_);
+    if (acr_ & ACR_PB_LATCH)
+      pb_latch_ = read_port_b();
+
+    raise_irq(IRQ_CB1);
+  }
+}
+
+void Via::raise_irq(uint8_t irq) {
+  if(!TST_FLG(ier_, irq)) return;
+  if(TST_FLG(ifr_, irq)) return;
+  spdlog::info( "VIA@{:04x}: IRQ {:02x} raised", base_address_, irq);
+  ifr_ |= (irq | IRQ_IRQ);
+}
+
+void Via::clear_irq(uint8_t irq) {
+  if(!TST_FLG(ifr_, irq)) return;
+  spdlog::info( "VIA@{:04x}: IRQ {:02x} cleared", base_address_, irq);
+  ifr_ &= ~irq;
+  if( ifr_ == IRQ_IRQ) ifr_ = 0;
+}
+
+
+void Via::check_irq() {
+  if (TST_FLG(ifr_, IRQ_IRQ)) {
+    // TODO: Pull IRQ line low to alert CPU.
+    // TODO: Implement IRQ line
+  }
+}
+
+/**
+ * If T1 or T2 are running, update them and handle any appropriate
+ * IRQs, relatching etc.
+ */
+void Via::check_timers() {
+  // T1
+  if (timer1_count_ != 0) {
+    --timer1_count_;
+    if (timer1_count_ == 0) {
+      spdlog::info( "VIA@{:04x}: T1 timed out", base_address_);
+      if (ACR_T1_CTL(acr_)) {
+        if (ACR_T1_PB7(acr_)) {
+          pb7_ = 1 - pb7_;
+          timer1_count_ = timer1_latch_;
+        }
+      } else {
+        if (ACR_T1_PB7(acr_)) pb7_ = 1;
+      }
+    }
+    raise_irq(IRQ_T1);
+  }
+
+  // T2
+  if(~ACR_T2_CTL(acr_)) {
+    --timer2_count_;
+    if( timer2_count_ == 0) {
+      if(!TST_T2(ifr_)){
+        spdlog::info( "VIA@{:04x}: T2 timed out", base_address_);
+        raise_irq(IRQ_T2);
+      }
+    }
+  }
+}
+
 void Via::tick(Bus &bus) {
+  check_timers();
+
+  check_irq();
+
   check_mmio(bus);
 }
 
