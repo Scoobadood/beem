@@ -3,67 +3,59 @@
 #include <spdlog/spdlog-inl.h>
 
 const uint8_t VCR_WO = 0x00;
-
-struct Mode {
-  uint8_t cells_x;
-  uint8_t cells_y;
-  uint16_t pixels_x;
-  uint16_t pixels_y;
-  uint8_t colours;
-  uint16_t video_ram_start;
-  uint16_t video_ram_end;
-  bool is_graphics;
-  Mode(uint8_t cells_x,
-       uint8_t cells_y,
-       uint16_t pixels_x,
-       uint16_t pixels_y,
-       uint8_t colours,
-       uint16_t video_ram_start,
-       uint16_t video_ram_end,
-       bool is_graphics
-  ) //
-      : cells_x{cells_x} //
-      , cells_y{cells_y} //
-      , pixels_x{pixels_x} //
-      , pixels_y{pixels_y} //
-      , colours{colours} //
-      , video_ram_start{video_ram_start} //
-      , video_ram_end{video_ram_end} //
-      , is_graphics{is_graphics} //
-  {
-
-  }
-};
-
-Mode modes[8] = {
-    {80, 32, 640, 256, 2, 0x3000, 0x7fff, true},
-    {40, 32, 320, 256, 4, 0x3000, 0x7fff, true},
-    {20, 32, 160, 256, 8, 0x3000, 0x7fff, true},
-    {80, 25, 640, 200, 2, 0x4000, 0x7fff, false},
-    {40, 32, 320, 256, 2, 0x5800, 0x7fff, true},
-    {20, 32, 160, 256, 4, 0x5800, 0x7fff, true},
-    {40, 25, 320, 200, 2, 0x6000, 0x7fff, false},
-    {40, 25, 480, 500, 8, 0x7c00, 0x7fff, false}
-};
+const uint8_t PALETTE_WO = 0x01;
 
 VideoUla::VideoUla(uint16_t base_addr) //
     : base_addr_{base_addr} //
+    , palette_{0, 1, 2, 3, 4, //
+               5, 6, 7, 8, 9, //
+               10, 11, 12, 13, 14, 15}//
+    , colour_name_{"black", "red", "green", "yellow",//
+                   "blue", "magenta", "cyan", "white",//
+                   "flashing black–white", "flashing red–cyan",//
+                   "flashing green–magenta", "flashing yellow–blue",//
+                   "flashing blue–yellow", "flashing magenta–green", //
+                   "flashing cyan–red", "flashing white–black"} //
+    , vula_ctl_{0}//
 {}
 
-void VideoUla::mmio_read(Bus & bus) {
-  spdlog::warn( "vULA: Unimplemented read from {:04x}",bus.get_address());
+void VideoUla::write_palette(uint8_t data) {
+  auto logical = (data >> 4) & 0xf;
+  auto actual = data & 0xf;
+  palette_[logical] = actual;
+  spdlog::info("vULA: Set palette logical {:02x} to actual {}", logical, colour_name_[actual]);
 }
 
-void VideoUla::mmio_write(Bus & bus) {
-  spdlog::warn( "vULA: Unimplemented write of {:02x} to {:04x}", bus.get_data(), bus.get_address());
+void VideoUla::mmio_write(uint16_t addr, Bus &bus) {
+  auto data = bus.get_data();
+  switch (addr - base_addr_) {
+    case VCR_WO: {
+      vula_ctl_ = data;
+      spdlog::info("vULA: Writing {:02x} to VULA_CTL", bus.get_data());
+      spdlog::info("      Flash colour {}", data & 0x01);
+      spdlog::info("      Teletext mode? {}", data & 0x02 ? "Yes" : "No");
+      spdlog::info("      {} characters per line", ((0x01 << ((data >> 2) & 0x03)) * 10));
+      spdlog::info("      {} frequency clock", (data & 0x10) ? "High" : "Low");
+      auto cwb = ((data >> 5) & 0x3);
+      spdlog::info("      Cursor width in bytes {}", ((cwb == 3) ? "4" : (cwb == 2) ? "2" : (cwb == 0) ? "1" : "?"));
+      spdlog::info("      Master cursor width {}", (data & 0x80) ? "large" : "small");
+      break;
+    }
+
+    case PALETTE_WO:write_palette(data);
+      break;
+
+    default:spdlog::warn("vULA: Unimplemented write of {:02x} to {:04x}", bus.get_data(), addr);
+      break;
+  }
 }
 
 void VideoUla::tick(Bus &bus) {
   auto addr = bus.get_address();
-  if (addr < base_addr_ || addr > base_addr_) return;
-  if( bus.tst_RW()) {
-    mmio_read(bus);
-  } else {
-    mmio_write(bus);
+  if (addr < base_addr_ || addr > base_addr_ + 1) return;
+  if (bus.tst_RW()) {
+    spdlog::error("vULA: Unsupported attempt to read Video ULA read from {:04x}", addr);
+    return;
   }
+  mmio_write(addr, bus);
 }
