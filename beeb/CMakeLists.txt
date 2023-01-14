@@ -20,6 +20,7 @@ target_link_libraries(Beeb
         Acia
         Adc
         Rom
+        5C095_vULA
         )
 
 add_executable(RunBeeb
