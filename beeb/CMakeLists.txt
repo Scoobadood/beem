@@ -19,6 +19,7 @@ target_link_libraries(Beeb
         Keyboard
         Acia
         Adc
+        Rom
         )
 
 add_executable(RunBeeb

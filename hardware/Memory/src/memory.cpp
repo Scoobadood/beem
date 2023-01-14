@@ -8,6 +8,8 @@
 #include <iterator>
 #include <fstream>
 
+
+
 Memory::Memory(uint32_t sz) {
   memory_.resize(sz, 0);
 }
@@ -19,7 +21,9 @@ Memory::Memory(std::ifstream &f) {
 
 bool is_memory_mapped(uint16_t addr) {
   // Avoid SHEILA JIM and FRED
-  return (addr >= 0xfc00 && addr <= 0xfeff);
+  return (addr >= 0xfc00 && addr <= 0xfeff) ||
+  // And paged ROMs
+      ( addr >= 0x8000 && addr <= 0xbfff);
 }
 
 void Memory::tick(Bus & bus) {
