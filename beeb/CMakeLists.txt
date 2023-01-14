@@ -21,6 +21,7 @@ target_link_libraries(Beeb
         Adc
         Rom
         5C095_vULA
+        6845_CRTC
         )
 
 add_executable(RunBeeb
