@@ -27,12 +27,12 @@ class Memory {
   /**
    * Return const ref to underlying memory
    */
-  [[nodiscard]] inline std::vector<uint8_t> data() const {
+  [[nodiscard]] inline std::shared_ptr<std::vector<uint8_t>> data(){
     return memory_;
   }
 
  private:
-  std::vector<uint8_t> memory_;
+  std::shared_ptr<std::vector<uint8_t>> memory_;
 };
 
 #endif //M6502_INCLUDE_MEMORY_H_
