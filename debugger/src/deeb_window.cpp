@@ -29,7 +29,8 @@ DeebWindow::DeebWindow(QWidget *parent) //
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
   beeb_ = new Beeb();
-  ui->disasm_view->set_data(std::make_shared<std::vector<uint8_t>>(beeb_->memory()->data()));
+  ui->disasm_view->set_data(beeb_->memory()->data());
+  ui->mem_view->set_memory(beeb_->memory()->data());
   reset_cpu();
 }
 
