@@ -33,9 +33,12 @@ class VideoUla {
 
   void tick(Bus &bus);
 
+  void render_to(uint8_t * buffer, uint32_t buffer_length);
+
  private:
   void mmio_write(uint16_t addr, Bus &bus);
   void write_palette(uint8_t data);
+  void process_data_to_image(uint8_t data);
 
   uint16_t base_addr_;
 
@@ -43,6 +46,16 @@ class VideoUla {
   std::string colour_name_[16];
 
   uint8_t vula_ctl_;
+
+  // Cycles 0,1,2,3. We only have the bus on 2,3
+  uint8_t tick_count_;
+
+  // Render target
+  uint8_t * buffer_;
+  uint32_t buffer_length_;
+  uint32_t buffer_idx_;
+  uint8_t clk_freq_;
+  uint8_t cursor_width_;
 };
 
 #endif // BEEB_HARDWARE_5C095_VULA_H

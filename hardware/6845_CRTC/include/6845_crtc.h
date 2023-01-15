@@ -26,11 +26,21 @@ class Crtc {
 
   void tick(Bus &bus);
 
-  // Lines MA0- MA13
-  inline uint16_t get_ma()const {return char_addr_;}
+  [[nodiscard]] inline uint16_t get_ma()const {return memory_addr_;}
+  [[nodiscard]] inline uint16_t get_ra()const {return row_addr_;}
 
-  // Lines RA0-RA4
-  inline uint8_t get_ra()const {return row_addr_;}
+  [[nodiscard]] inline bool display_enable() const {
+    return (display_enable_h_ & display_enable_v_);
+  }
+  [[nodiscard]] inline bool hsync() const{
+    return (hsync_ == 1);
+  }
+  [[nodiscard]] inline bool vsync() const{
+    return (vsync_ == 1);
+  }
+
+  /* Force screen paint from top of screen */
+  void sync();
 
  private:
   void mmio_read(uint16_t addr, Bus &bus);
@@ -58,13 +68,22 @@ class Crtc {
   uint16_t cursor_pos_;
   uint16_t light_pen_pos_;
 
-  /* Address generation */
-  uint16_t scanline_char_addr_;
-  uint16_t char_addr_;
-  uint16_t row_addr_;
-  uint8_t display_enable_;
+  /* Outputs */
+  uint16_t start_of_line_;
+  uint16_t memory_addr_;
+  uint8_t char_addr_;
+  uint8_t row_addr_;
+  uint8_t char_line_;
+  uint8_t display_enable_h_;
+  uint8_t display_enable_v_;
+  uint8_t hsync_;
+  uint8_t vsync_;
+  uint8_t vsync_clk_;
 
   std::string register_name_[18];
+
+  /* Bus access only on ticks 2,3 of 4. */
+  uint8_t tick_count_;
 };
 
 #endif // BEEB_HARDWARE_6845_CRTC_H_
