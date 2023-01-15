@@ -1,5 +1,4 @@
 /*
- * https://en.wikipedia.org/wiki/Motorola_6845
  */
 #include "6845_crtc.h"
 #include <spdlog/spdlog-inl.h>
@@ -31,6 +30,27 @@ const uint8_t REG_LPEN_POS_LO = 0x11;
 Crtc::Crtc(uint16_t base_addr) //
     : base_addr_{base_addr} //
     , reg_select_{0}//
+    , horz_total_{0} //
+    , horz_displayed_{0} //
+    , hsync_pos_{0} //
+    , vert_total_{0} //
+    , vert_total_adj_{0} //
+    , vert_total_disp_{0} //
+    , hsync_pulse_width_{0} //
+    , vsync_pulse_time_{0} //
+    , vsync_pos_{0} //
+    , ild_{0} //
+    , char_scan_lines_{0} //
+    , cursor_blink_{0} //
+    , cursor_blink_rate_{0} //
+    , cursor_start_line_{0} //
+    , cursor_end_line_{0} //
+    , screen_start_{0} //
+    , cursor_pos_{0} //
+    , light_pen_pos_{0} //
+    , scanline_char_addr_{0} //
+    , char_addr_{0} //
+    , row_addr_{0} //
     , register_name_
           {
               "Horizontal total", "Horizontal displayed characters",
@@ -88,33 +108,43 @@ void Crtc::mmio_write(uint16_t addr, Bus &bus) {
   auto data = bus.get_data();
   switch (reg_select_) {
     case REG_HORZ_TOTAL:horz_total_ = data;
-      spdlog::info("CRTC: Set horz_total to {:02x}", data);
+      spdlog::info("CRTC: Wrote {:02x} to horz_total", data);
       break;
+
     case REG_HORZ_DISP:horz_displayed_ = data;
-      spdlog::info("CRTC: Set horz_disp to {:02x}", data);
+      spdlog::info("CRTC: Wrote {:02x} to horz_disp", data);
       break;
+
     case REG_HSYNC_POS:hsync_pos_ = data;
-      spdlog::info("CRTC: Set hsync_pos to {:02x}", data);
+      spdlog::info("CRTC: Wrote {:02x} to hsync_pos", data);
       break;
+
     case REG_SYNCS:hsync_pulse_width_ = data & 0xf;
       vsync_pulse_time_ = (data >> 4) & 0xf;
-      spdlog::info("CRTC: Set hsync_pulse to {:02x}, vsync_time_ to {:02x}", hsync_pulse_width_, vsync_pulse_time_);
+      spdlog::info("CRTC: Wrote {:02x} to reg_syncs.", data);
+      spdlog::info("      hsync_pulse is {:02x}", hsync_pulse_width_);
+      spdlog::info("      vsync_time_ is {:02x}", vsync_pulse_time_);
       break;
+
     case REG_VERT_TOTAL:vert_total_ = data;
-      spdlog::info("CRTC: Set vert_total to {:02x}", data);
+      spdlog::info("CRTC: Wrote {:02x} to vert_total", data);
       break;
+
     case REG_VERT_TOTAL_ADJ:vert_total_adj_ = data;
-      spdlog::info("CRTC: Set vert_total_adj to {:02x}", data);
+      spdlog::info("CRTC: Wrote {:02x} to vert_total_adj", data);
       break;
+
     case REG_VERT_TOTAL_DISP:vert_total_disp_ = data;
-      spdlog::info("CRTC: Set vert_total_disp to {:02x}", data);
+      spdlog::info("CRTC: {:02x} to vert_total_disp", data);
       break;
+
     case REG_VSYNC_POS:vsync_pos_ = data;
-      spdlog::info("CRTC: Set vsync_pos to {:02x}", data);
+      spdlog::info("CRTC: Wrote {:02x} to vsync_pos", data);
       break;
+
     case REG_ILD: {
       ild_ = data & 0x3f;
-      spdlog::info("CRTC: Wrote {:02x} to {} register.", data, register_name_[reg_select_]);
+      spdlog::info("CRTC: Wrote {:02x} to ILD.", data);
       switch (ild_ & 0x03) {
         case 0:
         case 1:spdlog::info("      Normal (non-interlaced) sync mode.");
@@ -146,43 +176,53 @@ void Crtc::mmio_write(uint16_t addr, Bus &bus) {
       }
     }
       break;
+
     case REG_CHAR_SCAN_LINES:char_scan_lines_ = data & 0x1f;
-      spdlog::info("CRTC: Set char_scan_lines to {:02x}", char_scan_lines_);
+      spdlog::info("CRTC: Wrote {:02x} to char_scan_lines. Scan lines set to {:02x}", data, char_scan_lines_);
       break;
 
     case REG_CURSOR_START:cursor_blink_ = (data >> 6) * 0x01;
       cursor_blink_rate_ = (data >> 5) * 0x01;
       cursor_start_line_ = data & 0x1f;
-      spdlog::info("CRTC: Set cursor blink {} blink rate {} start line {}.", cursor_blink_ ? "enabled" : "disabled",
-                   cursor_blink_rate_ ? "fast" : "slow",
-                   cursor_start_line_);
+      spdlog::info("CRTC: Wrote {:02x} to cursor_start_reg.", data);
+      spdlog::info("      Cursor blink {}", cursor_blink_ ? "enabled" : "disabled");
+      spdlog::info("      blink rate {}", cursor_blink_rate_ ? "fast" : "slow");
+      spdlog::info("      start line {}.", cursor_start_line_);
       break;
 
     case REG_CURSOR_END:cursor_end_line_ = data & 0x1f;
-      spdlog::info("CRTC: Set cursor_end_line to {:02x}", cursor_end_line_);
+      spdlog::info("CRTC: Wrote {:02x} to cursor_end_line", cursor_end_line_);
       break;
 
-    case REG_SCREEN_ADDR_HI:screen_start_ = (screen_start_ & 0xff) | ((data & 0x3f) << 8);
-      spdlog::info("CRTC: Screen start addr (hi) set to {:02x}. Screen start at {:04x}", data, screen_start_);
+    case REG_SCREEN_ADDR_HI:screen_start_ = (screen_start_ & 0x00ff) | ((data & 0x3f) << 8);
+      spdlog::info("CRTC: Wrote {:02x} to scr_start_addr_hi.", data);
+      spdlog::info("      Screen start address is {:04x}", screen_start_);
       break;
 
     case REG_SCREEN_ADDR_LO:screen_start_ = (screen_start_ & 0x3f00) | data;
-      spdlog::info("CRTC: Screen start addr (lo) set to {:02x}. Screen start at {:04x}", data, screen_start_);
+      spdlog::info("CRTC: Wrote {:02x} to scr_start_addr_lo.", data);
+      spdlog::info("      Screen start address is {:04x}", screen_start_);
       break;
 
     case REG_CURSOR_POS_HI:cursor_pos_ = (cursor_pos_ & 0xff) | ((data & 0x3f) << 8);
-      spdlog::info("CRTC: Cursor position (hi) set. Cursor at {} {}",
+      spdlog::info("CRTC: Wrote {:02x} to cur_pos_hi.", data);
+      spdlog::info("      Cursor pos is x{:04x} : {},{}",
+                   cursor_pos_,
                    ((cursor_pos_ >> 7) & 0x7f),
                    (cursor_pos_ & 0x7f));
       break;
+
     case REG_CURSOR_POS_LO:cursor_pos_ = (cursor_pos_ & 0x3f00) | data;
-      spdlog::info("CRTC: Cursor position (lo) set. Cursor at {} {}",
+      spdlog::info("CRTC: Wrote {:02x} to cur_pos_lo.", data );
+      spdlog::info("      Cursor pos is x{:04x} : {},{}",
+                   cursor_pos_,
                    ((cursor_pos_ >> 7) & 0x7f),
                    (cursor_pos_ & 0x7f));
       break;
+
     default:
-      spdlog::error("CRTC: Attempted to write to illegal register {} {}",
-                    reg_select_,
+      spdlog::error("CRTC: Attempted to write {:02x} to illegal register {} {}",
+                    data, reg_select_,
                     reg_select_ <= 17 ? register_name_[reg_select_] : "???");
       break;
   }
@@ -197,5 +237,24 @@ void Crtc::tick(Bus &bus) {
     mmio_read(addr, bus);
   } else {
     mmio_write(addr, bus);
+  }
+
+  // Handle address generation
+  /*
+   * The character address increases linearly.
+   * When the chip signals horizontal sync it increases the row address.
+   * If the row address does not equal the programmatically set number of rows per character, then the character
+   * address is reset to the value it had at the beginning of the scan line that was just completed. Otherwise
+   * the row address is reset to zero and the memory address continues increasing linearly.
+   */
+  char_addr_ = (char_addr_ + 1) & 0x3f;
+  if (char_addr_ == horz_total_) {
+    // hsync
+    row_addr_++;
+    if (row_addr_ == char_scan_lines_) {
+      row_addr_ = 0;
+    } else {
+      char_addr_ = scanline_char_addr_;
+    }
   }
 }
