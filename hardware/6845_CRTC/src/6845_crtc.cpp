@@ -1,6 +1,7 @@
 /*
  */
 #include "6845_crtc.h"
+#include "data_connectors.h"
 #include <spdlog/spdlog-inl.h>
 
 /* MMIO */
@@ -69,7 +70,10 @@ Crtc::Crtc(uint16_t base_addr) //
               "Cursor position hi", "Cursor position lo",
               "Light pen position hi", "Light pen position lo"
           }//
-{}
+{
+  hw_scroll_addr_ = std::make_shared<data_subscriber_8_bit>(0x30);
+
+}
 
 void Crtc::mmio_read(uint16_t addr, Bus &bus) {
   if (addr == CRTC_REG_SELECT) {
@@ -235,25 +239,6 @@ void Crtc::mmio_write(uint16_t addr, Bus &bus) {
   }
 }
 
-void adjust(uint16_t &addr) {
-
-  // TODO Correct this to handle all modes.
-
-  // Decode latch_ bits. For now assume that they are set to 1,0
-  uint8_t c0 = 0, c1 = 1;
-  switch (c1 << 1 | c0) {
-    case 0:addr -= 0x5000;
-      break;
-    case 1:addr -= 0x2000;
-      break;
-    case 2:addr -= 0x5000;
-      break;
-    case 3:addr -= 0x2800;
-      break;
-
-  }
-}
-
 void Crtc::tick(Bus &bus) {
   // Can read instructions on t == 0
   if (tick_count_ == 0) {
@@ -335,8 +320,19 @@ void Crtc::tick(Bus &bus) {
     // TODO: Fix wraparound per description here: https://beebwiki.mdfs.net/Address_translation
 
     uint16_t  output_addr = (row_addr_ & 0x07) | (memory_addr_ << 3);
-    if (output_addr >= 0x8000) {
-      adjust(output_addr);
+    if (output_addr == 0x8000) {
+      // Decode latch_ bits.
+      uint8_t c0c1 = hw_scroll_addr_->data();
+      switch (c0c1) {
+        case 0:output_addr -= 0x5000;
+          break;
+        case 1:output_addr -= 0x2000;
+          break;
+        case 2:output_addr -= 0x5000;
+          break;
+        case 3:output_addr -= 0x2800;
+          break;
+      }
     }
 
     bus.set_address(output_addr);

@@ -5,7 +5,8 @@ target_include_directories(6845_CRTC PUBLIC
         include)
 
 target_link_libraries(6845_CRTC PUBLIC
-        Bus)
+        Bus
+        Common)
 
 add_executable(test_CRTC
         test/main.cpp
@@ -15,4 +16,5 @@ target_include_directories(test_CRTC PRIVATE test)
 
 target_link_libraries(test_CRTC PRIVATE
         gtest
-        6845_CRTC)
+        6845_CRTC
+        Common)

@@ -66,26 +66,46 @@ void TestMode0::SetUp() {
   // Cursor pos
   set_crtc(crtc, bus, REG_SCREEN_ADDR_HI, 0x06); // Actual address / 8
   set_crtc(crtc, bus, REG_SCREEN_ADDR_LO, 0x00);
+  crtc->hw_scroll_addr()->set_data(5, true);
+  crtc->hw_scroll_addr()->set_data(4, false);
 }
 
 void TestMode0::TearDown() {
   delete crtc;
 }
 
-TEST_F(TestMode0, Mode0) {
+TEST_F(TestMode0, M0_DE_addresses_are_correct) {
   crtc->sync();
-  for (int t = 0; t < 8000; ++t) {
-
-    auto addr = bus.get_address();
-    spdlog::info("{:04} | ADDR: {:04x}    MA: {:04x}    RA:{:02x}    DE: {}    HS:{}    VS:{}",
-                 t,
-                 addr,
-                 crtc->get_ma(),
-                 crtc->get_ra(),
-                 crtc->display_enable() ? "true " : "false",
-                 crtc->hsync() ? "x" : " ",
-                 crtc->vsync() ? "x" : " ");
-
+  auto max_tick = 127 * 38 *7;
+  for (auto t = 1; t < max_tick; ++t) {
     tick(bus, crtc);
+
+//    auto addr = bus.get_address();
+//    spdlog::info("{:04} | ADDR: {:04x}    MA: {:04x}    RA:{:02x}    DE: {}    HS:{}    VS:{}",
+//                 t,
+//                 addr,
+//                 crtc->get_ma(),
+//                 crtc->get_ra(),
+//                 crtc->display_enable() ? "true " : "false",
+//                 crtc->hsync() ? "x" : " ",
+//                 crtc->vsync() ? "x" : " ");
+//
+//    if(  scan_row == 0 && col==0 && crtc->display_enable()) {
+//      EXPECT_EQ(0x3000,  addr);
+//    }
+//    if(  scan_row == 0 && col==80 && crtc->display_enable()) {
+//      EXPECT_EQ(0x3278,  addr);
+//    }
+//    if(  scan_row == 1 && col==0 && crtc->display_enable()) {
+//      EXPECT_EQ(0x3001,  addr);
+//    }
+//    if(  scan_row == 8 && col==0 && crtc->display_enable()) {
+//      EXPECT_EQ(0x3280,  addr);
+//    }
+//    if(  scan_row == 256 && col==80 && crtc->display_enable()) {
+//      EXPECT_EQ(0x7fff,  addr);
+//    }
+//
+//
   }
 }

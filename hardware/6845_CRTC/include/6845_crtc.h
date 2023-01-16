@@ -15,6 +15,7 @@
 #define BEEB_HARDWARE_6845_CRTC_H_
 
 #include "bus.h"
+#include "data_connectors.h"
 
 #include <cstdint>
 #include <string>
@@ -25,6 +26,10 @@ class Crtc {
   ~Crtc() = default;
 
   void tick(Bus &bus);
+
+  [[nodiscard]] inline data_subscriber_8_bit_ptr hw_scroll_addr() {
+    return hw_scroll_addr_;
+  }
 
   [[nodiscard]] inline uint16_t get_ma()const {return memory_addr_;}
   [[nodiscard]] inline uint16_t get_ra()const {return row_addr_;}
@@ -81,6 +86,9 @@ class Crtc {
   uint8_t vsync_clk_;
 
   std::string register_name_[18];
+
+  /* Data subscribers for other chips */
+  data_subscriber_8_bit_ptr hw_scroll_addr_;
 
   /* Bus access only on ticks 2,3 of 4. */
   uint8_t tick_count_;
