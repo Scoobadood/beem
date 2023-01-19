@@ -21,6 +21,7 @@ class DeebWindow : public QMainWindow {
  public slots:
   void breakpoint_set(uint16_t brk_addr);
   void breakpoint_cleared(uint16_t brk_addr);
+  void load_symbols();
 
  signals:
   void flags_changed(uint8_t flags);

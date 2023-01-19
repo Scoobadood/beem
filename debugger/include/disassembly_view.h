@@ -19,7 +19,11 @@ class DisassemblyView : public QPlainTextEdit {
 
   void set_data(std::shared_ptr<std::vector<uint8_t>> memory);
 
+  void set_symbols(const std::map<uint16_t, std::string> &symbols);
+
   void mousePressEvent(QMouseEvent *e) override;
+
+  void update_disassembly();
 
  public slots:
   void set_current_address(uint16_t pc);
@@ -32,9 +36,9 @@ class DisassemblyView : public QPlainTextEdit {
 /**
  * Disassemble sufficient data to populate one screen.
  */
-  void update_disassembly();
   void set_bp_formatting(Operation &op, QTextCursor &cursor);
   void clear_bp_formatting(Operation &op, QTextCursor &cursor);
+  std::vector<QString> format_for_display(const Operation &op);
 
   Disassembler disassembler_;
 
@@ -49,6 +53,8 @@ class DisassemblyView : public QPlainTextEdit {
   uint8_t error_;
 
   std::set<uint16_t> breakpoint_lines_;
+
+  std::map<uint16_t, QString> symbols_;
 };
 
 #endif //CHIPS_M6502_DEBUGGER_INCLUDE_DISASSEMBLYVIEW_H_

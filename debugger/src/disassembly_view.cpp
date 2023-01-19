@@ -6,7 +6,6 @@
 #include "disassembler.h"
 #include "moc_disassembly_view.cpp"
 
-
 #include <QWidget>
 #include <QTextBlock>
 #include <QScrollBar>
@@ -32,10 +31,16 @@ DisassemblyView::~DisassemblyView() = default;
  * @param op
  * @return
  */
-std::vector<QString> format_for_display(const Operation &op) {
+std::vector<QString> DisassemblyView::format_for_display(const Operation &op) {
   QString addr = QString("%1:")
       .arg(op.address, 4, 16, QChar('0'));
+
   QString label = QString::fromStdString("");
+  auto iter = symbols_.find( op.address);
+  if(iter!= symbols_.end()) {
+    label = iter->second;
+  }
+
   QString opc = QString::fromStdString(op.opcode.name);
   QString arg;
   switch (op.opcode.addressing_mode) {
@@ -106,15 +111,15 @@ void DisassemblyView::update_disassembly() {
     auto op_colour = palette().color(QPalette::Text).name();
     auto oper_colour = palette().color(QPalette::BrightText).name();
     QString str = "<pre>";
-    str.append("<font color=\""+addr_colour+"\">")
+    str.append("<font color=\"" + addr_colour + "\">")
         .append(formatted_op[0])
-        .append("</font><font color=\""+addr_colour+"\">")
+        .append("</font><font color=\"" + addr_colour + "\">")
         .append(formatted_op[1])
-        .append("</font><font color=\""+op_colour+"\">")
+        .append("</font><font color=\"" + op_colour + "\">")
         .append(formatted_op[2])
-        .append("</font><font color=\""+oper_colour+"\">")
+        .append("</font><font color=\"" + oper_colour + "\">")
         .append(formatted_op[3])
-        .append("</font><font color=\""+addr_colour+"\">")
+        .append("</font><font color=\"" + addr_colour + "\">")
         .append(formatted_op[4])
         .append("</font></pre>");
 
@@ -124,15 +129,25 @@ void DisassemblyView::update_disassembly() {
   update();
 }
 
+void DisassemblyView::set_symbols(const std::map<uint16_t, std::string> &symbols) {
+  symbols_.clear();
+  for( const auto & symbol : symbols) {
+    symbols_.emplace(symbol.first, QString::fromStdString(symbol.second));
+  }
+  auto last_cursor = textCursor();
+  auto line_number = last_cursor.blockNumber();
+  update_disassembly();
+  QTextCursor cursor(document()->findBlockByLineNumber(line_number)); // ln-1 because line number starts from 0
+  setTextCursor(cursor);
+
+}
+
 void DisassemblyView::set_current_address(uint16_t pc) {
   // Deselect
   auto cursor = textCursor();
-//  cursor.select(QTextCursor::LineUnderCursor);
   auto f = textCursor().blockFormat();
   f.setBackground(QColorConstants::White);
   cursor.setBlockFormat(f);
-//  cursor.clearSelection();
-
 
   // Make sure disassembly is correct
   auto iter = addr_to_row_.find(pc);
@@ -158,7 +173,7 @@ void DisassemblyView::set_current_address(uint16_t pc) {
   } else if (display_row >= last_line) {
     auto scroll_delta = display_row - last_line + quarter_screen;
     verticalScrollBar()->setValue(verticalScrollBar()->value() + scroll_delta);
-  }else if (display_row + quarter_screen > last_line) {
+  } else if (display_row + quarter_screen > last_line) {
     verticalScrollBar()->setValue(verticalScrollBar()->value() + 1);
   }
   setTextCursor(cursor);
@@ -197,15 +212,15 @@ void DisassemblyView::set_bp_formatting(Operation &op, QTextCursor &cursor) {
   auto addr_colour = palette().color(QPalette::WindowText).name();
   auto op_colour = palette().color(QPalette::Text).name();
   auto oper_colour = palette().color(QPalette::BrightText).name();
-  str.append("(<font color=\""+addr_colour+R"(" font-weight="bold">)")
+  str.append("(<font color=\"" + addr_colour + R"(" font-weight="bold">)")
       .append(formatted_op[0])
-      .append("</font><font color=\""+op_colour+"\">")
+      .append("</font><font color=\"" + op_colour + "\">")
       .append(formatted_op[1])
-      .append("</font><font color=\""+op_colour+"\">")
+      .append("</font><font color=\"" + op_colour + "\">")
       .append(formatted_op[2])
-      .append("</font><font color=\""+oper_colour+"\">")
+      .append("</font><font color=\"" + oper_colour + "\">")
       .append(formatted_op[3])
-      .append("</font><font color=\""+op_colour+"\">")
+      .append("</font><font color=\"" + op_colour + "\">")
       .append(formatted_op[4])
       .append("</font></pre>");
 
@@ -222,17 +237,16 @@ void DisassemblyView::clear_bp_formatting(Operation &op, QTextCursor &cursor) {
   auto op_colour = palette().color(QPalette::Text).name();
   auto oper_colour = palette().color(QPalette::BrightText).name();
 
-
   QString str = "<pre>";
   str.append(R"(<font color="red" font-weight="bold">)")
       .append(formatted_op[0])
-      .append("</font><font color=\""+addr_colour+"\">")
+      .append("</font><font color=\"" + addr_colour + "\">")
       .append(formatted_op[1])
-      .append("</font><font color=\""+op_colour+"\">")
+      .append("</font><font color=\"" + op_colour + "\">")
       .append(formatted_op[2])
-      .append("</font><font color=\""+oper_colour+"\">")
+      .append("</font><font color=\"" + oper_colour + "\">")
       .append(formatted_op[3])
-      .append("</font><font color=\""+addr_colour+"\">")
+      .append("</font><font color=\"" + addr_colour + "\">")
       .append(formatted_op[4])
       .append("</font></pre>");
   cursor.insertHtml(str);

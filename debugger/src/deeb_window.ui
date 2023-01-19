@@ -93,6 +93,7 @@
     </property>
     <addaction name="act_load_image"/>
     <addaction name="act_load_rom"/>
+    <addaction name="act_load_symbols"/>
    </widget>
    <widget class="QMenu" name="menuDebug">
     <property name="title">
@@ -148,13 +149,22 @@
   </action>
   <action name="act_edit_breakpoints">
    <property name="icon">
-    <iconset theme="flag-aa"/>
+    <iconset theme="flag-aa">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Breakpoints...</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+B</string>
+   </property>
+  </action>
+  <action name="act_load_symbols">
+   <property name="text">
+    <string>Load symbols</string>
+   </property>
+   <property name="shortcut">
+    <string>Meta+Ctrl+S</string>
    </property>
   </action>
  </widget>

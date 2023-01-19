@@ -13,5 +13,7 @@ logs/
 .qtc_clangd
 Beeb.*
 
+/debugger/src/breakpoint_dlg.ui.autosave
+
 .idea/
 

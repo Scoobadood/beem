@@ -27,6 +27,8 @@ DeebWindow::DeebWindow(QWidget *parent) //
   connect(ui->disasm_view, &DisassemblyView::breakpoint_set, this, &DeebWindow::breakpoint_set);
   connect(ui->disasm_view, &DisassemblyView::breakpoint_cleared, this, &DeebWindow::breakpoint_cleared);
 
+  connect(ui->act_load_symbols, &QAction::triggered, this, &DeebWindow::load_symbols);
+
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
@@ -64,7 +66,7 @@ DeebWindow::step() {
   do {
     beeb_->tick();
   } while (!beeb_->bus().tst_SYNC());
-  const auto & cpu = beeb_->cpu();
+  const auto &cpu = beeb_->cpu();
   emit flags_changed(cpu->flags());
   emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
   emit pc_changed(cpu->PC());
@@ -87,7 +89,7 @@ DeebWindow::run() {
     beeb_->tick();
     if (beeb_->bus().tst_SYNC() && (breakpoints_.count(beeb_->bus().get_address()) != 0)) break;
   } while (true);
-  const auto & cpu = beeb_->cpu();
+  const auto &cpu = beeb_->cpu();
   emit flags_changed(cpu->flags());
   emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
   emit pc_changed(cpu->PC());
@@ -96,6 +98,36 @@ DeebWindow::run() {
   ui->act_run->setDisabled(false);
   ui->act_step->setDisabled(false);
 
+}
+
+void DeebWindow::load_symbols() {
+  auto file_name = QFileDialog::getOpenFileName(this,
+                                                tr("Load Symbols"), "",
+                                                tr("Symbol Files (*.txt);;All Files (*)"));
+  if (file_name.isNull() || file_name.isEmpty()) {
+    return;
+  }
+  std::ifstream file{file_name.toStdString(), std::ios::in};
+  if (file.fail()) {
+    spdlog::error("Error reading file {} ", file_name.toStdString());
+  }
+
+  std::string line;
+  std::map<uint16_t, std::string> symbols;
+  while (getline(file, line)) {
+    // Split into address and symbol
+    auto idx = line.find(' ');
+    if (idx != -1) {
+      auto addr_txt = line.substr(0, idx);
+      auto symbol = line.substr(idx);
+      auto addr = (uint16_t) std::stoi(addr_txt, nullptr, 16);
+      symbols.emplace(addr, symbol);
+    }
+  }
+  file.close();
+
+  // Force repeat disassembly
+  ui->disasm_view->set_symbols(symbols);
 }
 
 void DeebWindow::breakpoint_set(uint16_t brk_addr) {
@@ -107,14 +139,14 @@ void DeebWindow::breakpoint_cleared(uint16_t brk_addr) {
 }
 
 void DeebWindow::on_act_edit_breakpoints_triggered() {
-    auto * d = new BreakpointDlg();
-    d->set_breakpoints(breakpoints_);
-    auto btn = d->exec();
-    auto brks = d->breakpoints();
-    for( auto b : brks) {
-      if ( breakpoints_.count( b) > 0 ) continue;
-      breakpoint_set(b);
-    }
-    d->deleteLater();
+  auto *d = new BreakpointDlg();
+  d->set_breakpoints(breakpoints_);
+  auto btn = d->exec();
+  auto brks = d->breakpoints();
+  for (auto b: brks) {
+    if (breakpoints_.count(b) > 0) continue;
+    breakpoint_set(b);
+  }
+  d->deleteLater();
 }
 
