@@ -1,4 +1,4 @@
-#include "clock.h"
+#include "../include/clock.h"
 #include <iostream>
 
 void plot(Clock &c, bool transition_line) {
