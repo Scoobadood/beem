@@ -28,7 +28,10 @@ class DeebWindow : public QMainWindow {
   void pc_changed(uint16_t pc);
   void bus_changed(Bus & bus);
 
- private:
+private slots:
+  void on_act_edit_breakpoints_triggered();
+
+private:
  /**
   * Toggle RST line and wait for CPU to reset.
   */

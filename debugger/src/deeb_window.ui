@@ -84,7 +84,7 @@
      <x>0</x>
      <y>0</y>
      <width>662</width>
-     <height>37</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -101,8 +101,15 @@
     <addaction name="act_step"/>
     <addaction name="act_run"/>
    </widget>
+   <widget class="QMenu" name="menuBreakpoints">
+    <property name="title">
+     <string>Breakpoints</string>
+    </property>
+    <addaction name="act_edit_breakpoints"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuDebug"/>
+   <addaction name="menuBreakpoints"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QToolBar" name="toolBar">
@@ -117,6 +124,7 @@
    </attribute>
    <addaction name="act_run"/>
    <addaction name="act_step"/>
+   <addaction name="act_edit_breakpoints"/>
   </widget>
   <action name="act_load_image">
    <property name="text">
@@ -136,6 +144,17 @@
   <action name="act_run">
    <property name="text">
     <string>Run</string>
+   </property>
+  </action>
+  <action name="act_edit_breakpoints">
+   <property name="icon">
+    <iconset theme="flag-aa"/>
+   </property>
+   <property name="text">
+    <string>Breakpoints...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+B</string>
    </property>
   </action>
  </widget>

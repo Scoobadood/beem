@@ -1,5 +1,7 @@
 #include "deeb_window.h"
+#include "breakpoint_dlg.h"
 #include "ui_deeb_window.h"
+#include "ui_breakpoint_dlg.h"
 
 #include <fstream>
 
@@ -103,3 +105,16 @@ void DeebWindow::breakpoint_set(uint16_t brk_addr) {
 void DeebWindow::breakpoint_cleared(uint16_t brk_addr) {
   breakpoints_.erase(brk_addr);
 }
+
+void DeebWindow::on_act_edit_breakpoints_triggered() {
+    auto * d = new BreakpointDlg();
+    d->set_breakpoints(breakpoints_);
+    auto btn = d->exec();
+    auto brks = d->breakpoints();
+    for( auto b : brks) {
+      if ( breakpoints_.count( b) > 0 ) continue;
+      breakpoint_set(b);
+    }
+    d->deleteLater();
+}
+

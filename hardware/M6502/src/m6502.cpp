@@ -66,9 +66,6 @@ void M6502::maybe_handle_sync(Bus & bus) {
     // load IR register with opcode from data bus, and make room
     // for the 4 bit cycle counter (we only need three but this makes opcodes easier to see)
     // for humans.
-    if( bus.get_address() == 0) {
-      auto x=1;
-    }
     opcode_history_buffer_[next_history_buffer_entry_] = bus.get_data();
     pc_history_buffer_[next_history_buffer_entry_] = bus.get_address();
     next_history_buffer_entry_ = (next_history_buffer_entry_ + 1) % history_size_;
