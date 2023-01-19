@@ -5,8 +5,8 @@
 #include "keyboard.h"
 #include <spdlog/spdlog-inl.h>
 
-Keyboard::Keyboard() //
-    : dips_{0} //
+Keyboard::Keyboard(uint8_t dips) //
+    : dips_{dips} //
     , auto_scan_enabled_{true} //
     , caps_lock_led_{false} //
     , shift_lock_led_{false} //

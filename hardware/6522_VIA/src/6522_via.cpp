@@ -190,7 +190,7 @@ uint8_t Via::read_port_a() {
   uint8_t out;
   for (auto &provider: port_a_providers_) {
     if (provider->has_data()) {
-      out = (ira_ & ~ddra_ & provider->data()) | (ora_ & ddra_);
+      out = (~ddra_ & provider->data()) | (ora_ & ddra_);
       ++data_fetched;
     }
   }
@@ -230,7 +230,7 @@ uint8_t Via::read_port_b() {
   uint8_t out;
   for (auto &provider: port_b_providers_) {
     if (provider->has_data()) {
-      out = (irb_ & ~ddrb_ & provider->data()) | (orb_ & ddrb_);
+      out = (~ddrb_ & provider->data()) | (orb_ & ddrb_);
       ++data_fetched;
     }
   }

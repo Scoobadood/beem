@@ -66,6 +66,14 @@ void M6502::maybe_handle_sync(Bus & bus) {
     // load IR register with opcode from data bus, and make room
     // for the 4 bit cycle counter (we only need three but this makes opcodes easier to see)
     // for humans.
+    if( bus.get_address() == 0) {
+      auto x=1;
+    }
+    opcode_history_buffer_[next_history_buffer_entry_] = bus.get_data();
+    pc_history_buffer_[next_history_buffer_entry_] = bus.get_address();
+    next_history_buffer_entry_ = (next_history_buffer_entry_ + 1) % history_size_;
+
+
     ir_ = bus.get_data() << 4;
     // switch off the SYNC pin
     bus.clr_SYNC();
@@ -78,6 +86,14 @@ void M6502::do_cycle(Bus &bus) {
   if (h == nullptr) {
     auto msg = fmt::format("No cycle handler for opcode 0x{:02x} cycle {} at PC: 0x{:04x}", ir_ >> 4, ir_ & 0xf, pc_);
     spdlog::critical(msg);
+    for( auto i=0; i<history_size_;++i) {
+      auto nn = (next_history_buffer_entry_+i)%history_size_;
+      spdlog::critical("0x{:04x}  {:02x}",
+                       pc_history_buffer_[nn],
+                       opcode_history_buffer_[nn]
+                       );
+    }
+    spdlog::default_logger()->flush();
     throw std::runtime_error(msg);
   }
   ir_++;

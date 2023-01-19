@@ -240,105 +240,97 @@ void Crtc::mmio_write(uint16_t addr, Bus &bus) {
 }
 
 void Crtc::tick(Bus &bus) {
-  // Can read instructions on t == 0
-  if (tick_count_ == 0) {
-    auto addr = bus.get_address();
-    if (addr >= base_addr_ && addr <= base_addr_ + CRTC_READ_WRITE) {
-      addr -= base_addr_;
+  auto addr = bus.get_address();
+  if (addr >= base_addr_ && addr <= base_addr_ + CRTC_READ_WRITE) {
+    addr -= base_addr_;
 
-      if (bus.tst_RW()) {
-        mmio_read(addr, bus);
-      } else {
-        mmio_write(addr, bus);
-      }
+    if (bus.tst_RW()) {
+      mmio_read(addr, bus);
+    } else {
+      mmio_write(addr, bus);
     }
   }
 
-    // Can write video address on t == 2
-  else if (tick_count_ == 2) {
-    // Handle address generation
-    /*
-     * The character address increases linearly.
-     * When the chip signals horizontal sync it increases the row address.
-     * If the row address does not equal the programmatically set number of rows per character, then the character
-     * address is reset to the value it had at the beginning of the scan line that was just completed. Otherwise
-     * the row address is reset to zero and the memory address continues increasing linearly.
-     */
-    bool new_raster_line_expected = false;
+  // Handle address generation
+  /*
+   * The character address increases linearly.
+   * When the chip signals horizontal sync it increases the row address.
+   * If the row address does not equal the programmatically set number of rows per character, then the character
+   * address is reset to the value it had at the beginning of the scan line that was just completed. Otherwise
+   * the row address is reset to zero and the memory address continues increasing linearly.
+   */
+  bool new_raster_line_expected = false;
 
-    char_addr_ = (char_addr_ + 1) & 0xff;
-    memory_addr_++;
-    if (char_addr_ == horz_displayed_) {
-      display_enable_h_ = 0;
-    }
-    if (char_addr_ == hsync_pos_) {
-      hsync_ = 1;
-    }
-    if (char_addr_ == (hsync_pos_ + hsync_pulse_width_)) {
-      hsync_ = 0;
-    }
-    if (char_addr_ == horz_total_) {
-      new_raster_line_expected = true;
-    }
+  char_addr_ = (char_addr_ + 1) & 0xff;
+  memory_addr_++;
+  if (char_addr_ == horz_displayed_) {
+    display_enable_h_ = 0;
+  }
+  if (char_addr_ == hsync_pos_) {
+    hsync_ = 1;
+  }
+  if (char_addr_ == (hsync_pos_ + hsync_pulse_width_)) {
+    hsync_ = 0;
+  }
+  if (char_addr_ == horz_total_) {
+    new_raster_line_expected = true;
+  }
 
-    if (new_raster_line_expected) {
-      char_addr_ = 0;
-      new_raster_line_expected = false;
-      row_addr_ = (row_addr_ + 1) % 0x1f;
-      if (row_addr_ == char_scan_lines_) {
-        memory_addr_ = start_of_line_ + horz_displayed_;
-        row_addr_ = 0;
-        char_line_++;
-      } else {
-        memory_addr_ = start_of_line_;
-      }
-      display_enable_h_ = 1;
-    }
-
-    if (char_line_ == vsync_pos_) {
-      vsync_ = 1;
-      vsync_clk_ = (vsync_pulse_time_ * horz_total_);
-    }
-    vsync_clk_--;
-    if (vsync_clk_ == 0) {
-      vsync_ = 0;
-    }
-
-    if (char_line_ == vert_total_disp_) {
-      display_enable_v_ = 0;
-    }
-    if (char_line_ == vert_total_ && row_addr_ == vert_total_adj_) {
-      memory_addr_ = screen_start_;
-      char_addr_ = 0;
+  if (new_raster_line_expected) {
+    char_addr_ = 0;
+    new_raster_line_expected = false;
+    row_addr_ = (row_addr_ + 1) % 0x1f;
+    if (row_addr_ == char_scan_lines_) {
+      memory_addr_ = start_of_line_ + horz_displayed_;
       row_addr_ = 0;
-      char_line_ = 0;
-      display_enable_v_ = 1;
-      display_enable_h_ = 1;
+      char_line_++;
+    } else {
+      memory_addr_ = start_of_line_;
     }
-
-
-    // TODO: Fix wraparound per description here: https://beebwiki.mdfs.net/Address_translation
-
-    uint16_t  output_addr = (row_addr_ & 0x07) | (memory_addr_ << 3);
-    if (output_addr == 0x8000) {
-      // Decode latch_ bits.
-      uint8_t c0c1 = hw_scroll_addr_->data();
-      switch (c0c1) {
-        case 0:output_addr -= 0x5000;
-          break;
-        case 1:output_addr -= 0x2000;
-          break;
-        case 2:output_addr -= 0x5000;
-          break;
-        case 3:output_addr -= 0x2800;
-          break;
-      }
-    }
-
-    bus.set_address(output_addr);
+    display_enable_h_ = 1;
   }
 
-  tick_count_ = (tick_count_ + 1) % 4;
+  if (char_line_ == vsync_pos_) {
+    vsync_ = 1;
+    vsync_clk_ = (vsync_pulse_time_ * horz_total_);
+  }
+  vsync_clk_--;
+  if (vsync_clk_ == 0) {
+    vsync_ = 0;
+  }
+
+  if (char_line_ == vert_total_disp_) {
+    display_enable_v_ = 0;
+  }
+  if (char_line_ == vert_total_ && row_addr_ == vert_total_adj_) {
+    memory_addr_ = screen_start_;
+    char_addr_ = 0;
+    row_addr_ = 0;
+    char_line_ = 0;
+    display_enable_v_ = 1;
+    display_enable_h_ = 1;
+  }
+
+
+  // TODO: Fix wraparound per description here: https://beebwiki.mdfs.net/Address_translation
+
+  uint16_t output_addr = (row_addr_ & 0x07) | (memory_addr_ << 3);
+  if (output_addr == 0x8000) {
+    // Decode latch_ bits.
+    uint8_t c0c1 = hw_scroll_addr_->data();
+    switch (c0c1) {
+      case 0:output_addr -= 0x5000;
+        break;
+      case 1:output_addr -= 0x2000;
+        break;
+      case 2:output_addr -= 0x5000;
+        break;
+      case 3:output_addr -= 0x2800;
+        break;
+    }
+  }
+
+  bus.set_address(output_addr);
 }
 
 /* Force screen paint from top of screen */

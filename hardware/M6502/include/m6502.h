@@ -128,6 +128,13 @@ class M6502 {
   bool maybe_handle_reset(Bus &bus);
   void maybe_handle_sync(Bus &bus);
   void do_cycle(Bus &bus);
+
+  // DEBUG Tools
+  // Last 5 opcodes and PC
+  static const uint8_t history_size_=50;
+  uint8_t opcode_history_buffer_[history_size_];
+  uint16_t pc_history_buffer_[history_size_];
+  uint8_t next_history_buffer_entry_;
 };
 
 

@@ -20,7 +20,7 @@ target_link_libraries(Beeb
         Acia
         Adc
         Rom
-        5C095_vULA
+        5C094_vULA
         6845_CRTC
         )
 

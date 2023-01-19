@@ -22,6 +22,7 @@
 #define BEEB_HARDWARE_5C095_VULA_H
 
 #include "bus.h"
+#include "6845_crtc.h"
 
 #include <vector>
 #include <string>
@@ -31,14 +32,23 @@ class VideoUla {
   explicit VideoUla(uint16_t base_addr);
   ~VideoUla() = default;
 
+  inline void reset_clk() {tick_count_=0;}
+  void set_crtc( Crtc * crtc);
   void tick(Bus &bus);
 
-  void render_to(uint8_t * buffer, uint32_t buffer_length);
+  /* Read the current RGB value as 00rrggbb */
+  uint32_t rgb() const {
+    return ((red_ << 16) | (grn_<< 8) | blu_) & 0xffffff;
+  }
 
  private:
   void mmio_write(uint16_t addr, Bus &bus);
   void write_palette(uint8_t data);
-  void process_data_to_image(uint8_t data);
+  void maybe_poll_crtc(Bus & bus);
+  bool time_to_shift();
+  void reset_shift_clk();
+
+  void process_data();
 
   uint16_t base_addr_;
 
@@ -47,15 +57,18 @@ class VideoUla {
 
   uint8_t vula_ctl_;
 
-  // Cycles 0,1,2,3. We only have the bus on 2,3
+  uint8_t red_;
+  uint8_t grn_;
+  uint8_t blu_;
+
+  uint8_t shift_clk_;
+  uint8_t shift_countdown_;
+  uint8_t crtc_clk_;
+  uint8_t cursor_width_;
+  uint8_t curr_data_;
   uint8_t tick_count_;
 
-  // Render target
-  uint8_t * buffer_;
-  uint32_t buffer_length_;
-  uint32_t buffer_idx_;
-  uint8_t clk_freq_;
-  uint8_t cursor_width_;
+  Crtc * crtc_;
 };
 
 #endif // BEEB_HARDWARE_5C095_VULA_H

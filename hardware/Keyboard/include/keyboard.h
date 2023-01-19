@@ -148,7 +148,7 @@ const uint8_t KEY_CAPS_LOCK = 0x40;
 
 class Keyboard {
  public:
-  Keyboard();
+  Keyboard(uint8_t dips = 0);
 
   void tick();
 

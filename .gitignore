@@ -5,7 +5,7 @@
 /bin/
 /lib/
 /docs/
-/logs/
+logs/
 /data/
 
 **CMakeLists.txt.user

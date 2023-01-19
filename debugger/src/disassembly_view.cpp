@@ -102,16 +102,19 @@ void DisassemblyView::update_disassembly() {
     // Format and update the UI
     auto formatted_op = format_for_display(op);
 
+    auto addr_colour = palette().color(QPalette::WindowText).name();
+    auto op_colour = palette().color(QPalette::Text).name();
+    auto oper_colour = palette().color(QPalette::BrightText).name();
     QString str = "<pre>";
-    str.append("<font color=\"black\">")
+    str.append("<font color=\""+addr_colour+"\">")
         .append(formatted_op[0])
-        .append("</font><font color=\"blue\">")
+        .append("</font><font color=\""+addr_colour+"\">")
         .append(formatted_op[1])
-        .append("</font><font color=\"darkMagenta\">")
+        .append("</font><font color=\""+op_colour+"\">")
         .append(formatted_op[2])
-        .append("</font><font color=\"darkGreen\">")
+        .append("</font><font color=\""+oper_colour+"\">")
         .append(formatted_op[3])
-        .append("</font><font color=\"black\">")
+        .append("</font><font color=\""+addr_colour+"\">")
         .append(formatted_op[4])
         .append("</font></pre>");
 
@@ -190,17 +193,22 @@ void DisassemblyView::set_bp_formatting(Operation &op, QTextCursor &cursor) {
   cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
   auto formatted_op = format_for_display(op);
   QString str = "<pre>";
-  str.append(R"(<font color="red" font-weight="bold">)")
+
+  auto addr_colour = palette().color(QPalette::WindowText).name();
+  auto op_colour = palette().color(QPalette::Text).name();
+  auto oper_colour = palette().color(QPalette::BrightText).name();
+  str.append("(<font color=\""+addr_colour+R"(" font-weight="bold">)")
       .append(formatted_op[0])
-      .append(R"(</font><font color="blue">)")
+      .append("</font><font color=\""+op_colour+"\">")
       .append(formatted_op[1])
-      .append(R"(</font><font color="darkMagenta">)")
+      .append("</font><font color=\""+op_colour+"\">")
       .append(formatted_op[2])
-      .append(R"(</font><font color="darkGreen">)")
+      .append("</font><font color=\""+oper_colour+"\">")
       .append(formatted_op[3])
-      .append(R"(</font><font color="black">)")
+      .append("</font><font color=\""+op_colour+"\">")
       .append(formatted_op[4])
       .append("</font></pre>");
+
   cursor.insertHtml(str);
   cursor.block().setUserState(1);
 }
@@ -209,16 +217,22 @@ void DisassemblyView::clear_bp_formatting(Operation &op, QTextCursor &cursor) {
   cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
   cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
   auto formatted_op = format_for_display(op);
+
+  auto addr_colour = palette().color(QPalette::WindowText).name();
+  auto op_colour = palette().color(QPalette::Text).name();
+  auto oper_colour = palette().color(QPalette::BrightText).name();
+
+
   QString str = "<pre>";
-  str.append(R"(<font color="black" font-weight="normal">)")
+  str.append(R"(<font color="red" font-weight="bold">)")
       .append(formatted_op[0])
-      .append(R"(</font><font color="blue">)")
+      .append("</font><font color=\""+addr_colour+"\">")
       .append(formatted_op[1])
-      .append(R"(</font><font color="darkMagenta">)")
+      .append("</font><font color=\""+op_colour+"\">")
       .append(formatted_op[2])
-      .append(R"(</font><font color="darkGreen">)")
+      .append("</font><font color=\""+oper_colour+"\">")
       .append(formatted_op[3])
-      .append(R"(</font><font color="black">)")
+      .append("</font><font color=\""+addr_colour+"\">")
       .append(formatted_op[4])
       .append("</font></pre>");
   cursor.insertHtml(str);
