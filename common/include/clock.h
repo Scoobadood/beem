@@ -5,7 +5,7 @@
 #ifndef CHIPS_M6502_HARDWARE_CLOCKS_CLOCK_H_
 #define CHIPS_M6502_HARDWARE_CLOCKS_CLOCK_H_
 
-#include "../../../../../../Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/include/c++/v1/cstdint"
+#include <cstdint>
 
 const uint8_t CLK_1_MHZ = (0x01 << 0);
 const uint8_t CLK_2_MHZ = (0x01 << 1);
@@ -16,7 +16,8 @@ const uint8_t CLK_16_MHZ = (0x01 << 4);
 class Clock {
  public:
   Clock() {
-    clks_ = clks_prev_ = 0;
+    clks_ = 0x1f;
+    clks_prev_ = 0x00;
     ticks_ = 0;
   }
 
