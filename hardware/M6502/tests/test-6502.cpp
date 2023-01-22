@@ -27,7 +27,7 @@ void debug_flags_regs(M6502 *cpu) {
   );
 }
 
-void debug_stack(M6502 *cpu, Memory *memory) {
+void debug_stack(M6502 *cpu, DRAM *memory) {
   std::stringstream s;
   auto sp = cpu->SP();
   for (auto spc = 255; spc >= sp - 1; --spc) {
@@ -39,7 +39,7 @@ void debug_stack(M6502 *cpu, Memory *memory) {
   spdlog::info("        sp:$1{:02x}:  {}", sp, s.str());
 }
 
-void debug(M6502 *cpu, Memory *memory) {
+void debug(M6502 *cpu, DRAM *memory) {
   auto opcode = memory->at(cpu->PC());
   auto op = OpCode::for_value(opcode);
   auto data_size = op.bytes - 1;
@@ -106,7 +106,7 @@ int main(int argc, const char *argv[]) {
     cerr << "File read failed" << endl;
     return 0;
   }
-  auto memory = Memory(f);
+  auto memory = DRAM(f);
   f.close();
 
   M6502 cpu;

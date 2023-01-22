@@ -10,9 +10,6 @@
 #include <vector>
 #include <bitset>
 
-const uint8_t HIGH = 1;
-const uint8_t LOW = 0;
-
 // Status Register flags
 const uint8_t FLAG_N = 1 << 7;
 const uint8_t FLAG_V = 1 << 6;
@@ -32,7 +29,7 @@ class M6502 {
  public:
   M6502();
 
-  void tick(Bus &bus);
+  void tick(const std::shared_ptr<Bus>& bus);
 
   /* General registers */
   inline void setX(uint8_t x) { x_reg_ = x; }
@@ -110,6 +107,12 @@ class M6502 {
   uint8_t brk_flags_;
 
  private:
+  // Internal utility
+  bool maybe_handle_reset(const std::shared_ptr<Bus>& bus);
+  void maybe_handle_sync(const std::shared_ptr<Bus>& bus);
+  void do_cycle(const std::shared_ptr<Bus>& bus);
+
+
   uint16_t pc_;
   uint8_t flags_;
   uint16_t stack_pointer_;
@@ -124,16 +127,11 @@ class M6502 {
   bool reset_in_process_;
   uint8_t reset_cycle_;
 
-  // Internal utility
-  bool maybe_handle_reset(Bus &bus);
-  void maybe_handle_sync(Bus &bus);
-  void do_cycle(Bus &bus);
-
   // DEBUG Tools
   // Last 5 opcodes and PC
   static const uint8_t history_size_=50;
-  uint8_t opcode_history_buffer_[history_size_];
-  uint16_t pc_history_buffer_[history_size_];
+  std::vector<uint8_t> opcode_history_buffer_;
+  std::vector<uint16_t> pc_history_buffer_;
   uint8_t next_history_buffer_entry_;
 };
 

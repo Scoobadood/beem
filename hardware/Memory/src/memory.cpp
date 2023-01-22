@@ -8,11 +8,11 @@
 #include <iterator>
 #include <fstream>
 
-Memory::Memory(uint32_t sz) {
+DRAM::DRAM(uint32_t sz) {
   memory_ = std::make_shared<std::vector<uint8_t>>(sz);
 }
 
-Memory::Memory(std::ifstream &f) {
+DRAM::DRAM(std::ifstream &f) {
   using namespace std;
   memory_ = std::make_shared<std::vector<uint8_t>>((istreambuf_iterator<char>(f)), istreambuf_iterator<char>());
 }
@@ -24,7 +24,7 @@ bool is_memory_mapped(uint16_t addr) {
       ( addr >= 0x8000 && addr <= 0xbfff);
 }
 
-void Memory::tick(Bus & bus) {
+void DRAM::tick(Bus & bus) {
   auto addr = bus.get_address();
   if (is_memory_mapped(addr)) return;
 
@@ -43,11 +43,11 @@ void Memory::tick(Bus & bus) {
  * @param addr The address
  * @return The contents
  */
-uint8_t Memory::at(uint16_t addr) const {
+uint8_t DRAM::at(uint16_t addr) const {
   return memory_->at(addr);
 }
 
-void Memory::insert(uint16_t offset, std::vector<uint8_t> &data) {
+void DRAM::insert(uint16_t offset, std::vector<uint8_t> &data) {
   auto wr_iter =memory_->begin() + offset;
   for(unsigned char & i : data) {
     *wr_iter++ = i;

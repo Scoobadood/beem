@@ -5,11 +5,11 @@
 
 #include <vector>
 
-class Memory {
+class DRAM {
  public:
-  explicit Memory(uint32_t sz);
+  explicit DRAM(uint32_t sz);
 
-  explicit Memory(std::ifstream &f);
+  explicit DRAM(std::ifstream &f);
 
   void tick(Bus & bus);
 

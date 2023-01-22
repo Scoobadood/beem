@@ -22,6 +22,7 @@ target_link_libraries(Beeb
         Rom
         5C094_vULA
         6845_CRTC
+        Clock
         )
 
 add_executable(RunBeeb
