@@ -24,14 +24,15 @@ Rom::Rom(uint16_t sz, uint16_t bus_addr) //
         : bus_address_{bus_addr} {
   check_data_size(sz);
   check_address_range(bus_addr, sz);
-  memory_.resize(sz, 0);
+  memory_ = std::make_shared<std::vector<uint8_t>>(sz, 0);
 }
 
 Rom::Rom(const std::vector<uint8_t> &data, uint16_t bus_addr)//
         : bus_address_{bus_addr} {
   check_data_size(data.size());
   check_address_range(bus_addr, data.size());
-  memory_.insert(memory_.end(), data.begin(), data.end());
+  memory_ = std::make_shared<std::vector<uint8_t>>(data.size(), 0);
+  memory_->insert(memory_->end(), data.begin(), data.end());
 }
 
 Rom::Rom(const std::string &file_name, uint16_t bus_addr) //
@@ -42,23 +43,23 @@ Rom::Rom(const std::string &file_name, uint16_t bus_addr) //
     spdlog::critical(msg);
     throw std::runtime_error(msg);
   }
-  memory_ = std::vector<uint8_t>((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+  memory_ = std::make_shared<std::vector<uint8_t>>((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
   file.close();
-  check_data_size(memory_.size());
-  check_address_range(bus_addr, memory_.size());
+  check_data_size(memory_->size());
+  check_address_range(bus_addr, memory_->size());
 }
 
 void Rom::tick(const std::shared_ptr<Bus> &bus) {
   auto addr = bus->get_address();
-  if( addr < bus_address_ || addr > (bus_address_ + memory_.size())) return;
+  if( addr < bus_address_ || addr > (bus_address_ + memory_->size())) return;
 
   // Read and write memory
   if (bus->tst_RW()) {
-    auto data = memory_.at(addr-bus_address_);
+    auto data = memory_->at(addr-bus_address_);
     bus->set_data(data);
   } else {
     auto data = bus->get_data();
-    memory_.at(addr-bus_address_) = data;
+    memory_->at(addr-bus_address_) = data;
   }
 }
 
@@ -68,5 +69,5 @@ uint8_t Rom::at_bus(uint16_t addr) const {
     spdlog::critical(msg);
     throw std::runtime_error(msg);
   }
-  return memory_.at(addr - bus_address_);
+  return memory_->at(addr - bus_address_);
 }

@@ -43,7 +43,7 @@ void set_crtc(Crtc *crtc, Bus &bus, uint8_t reg, uint8_t value) {
   bus.clr_RW();
 }
 
-void TestMode0::SetUp() {
+void TestBeebMemory::SetUp() {
   bus = Bus();
   crtc = new Crtc(CRTC_BASE);
   set_crtc(crtc, bus, REG_CURSOR_END, 0x08);
@@ -70,11 +70,11 @@ void TestMode0::SetUp() {
   crtc->hw_scroll_addr()->set_data(4, false);
 }
 
-void TestMode0::TearDown() {
+void TestBeebMemory::TearDown() {
   delete crtc;
 }
 
-TEST_F(TestMode0, M0_DE_addresses_are_correct) {
+TEST_F(TestBeebMemory, M0_DE_addresses_are_correct) {
   crtc->sync();
   auto max_tick = 127 * 38 *7;
   for (auto t = 1; t < max_tick; ++t) {

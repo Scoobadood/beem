@@ -6,9 +6,9 @@
 Disassembler::Disassembler() = default;
 
 Operation Disassembler::disassemble_one(//
-    const std::vector<uint8_t> &memory //
-    , uint16_t &offset //
-    , uint8_t &err //
+        const std::vector<uint8_t> &memory //
+        , uint16_t &offset //
+        , uint8_t &err //
 ) //
 {
   if (offset >= memory.size()) {
@@ -19,8 +19,9 @@ Operation Disassembler::disassemble_one(//
 
   OpCode oc = OpCode::for_value(memory.at(offset));
   if (offset + oc.bytes > memory.size()) {
-    spdlog::warn("Arguments for opcode {} at_bus {} have length {} and will be out of out of range {} in disassemble_one()",
-                 oc.name, offset, oc.bytes, memory.size());
+    spdlog::warn(
+            "Arguments for opcode {} at_bus {} have length {} and will be out of out of range {} in disassemble_one()",
+            oc.name, offset, oc.bytes, memory.size());
     err = 1;
     return {offset, oc, 0xffff};
   }
@@ -30,33 +31,34 @@ Operation Disassembler::disassemble_one(//
   if (oc.bytes > 2) data = (data) | (memory[offset + 2] << 8);
 
   auto addr = (uint16_t) (offset + base_address_ & 0xffff);
-  offset  += oc.bytes;
+  offset += oc.bytes;
 
   err = 0;
   return {addr, oc, data};
 }
 
 std::vector<Operation> Disassembler::disassemble_all( //
-    const std::vector<uint8_t> &memory //
-    , uint16_t &offset //
-    , uint8_t &err //
+        const std::vector<uint8_t> &memory //
+        , uint16_t &offset //
+        , uint8_t &err //
 ) //
 {
   using namespace std;
+  if(memory.empty()) return {};
 
   vector<Operation> operations;
   err = 0;
-  while (true) {
+  do {
     auto last_offset = offset;
     auto op = disassemble_one(memory, offset, err);
     if (err) {
       break;
     }
     operations.emplace_back(op);
-    if( offset < last_offset) {
+    if (offset < last_offset) {
       break;
     }
-  }
+  } while (true);
 
   return operations;
 }

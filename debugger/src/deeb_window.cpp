@@ -27,6 +27,8 @@ DeebWindow::DeebWindow(QWidget *parent) //
   connect(ui->disasm_view, &DisassemblyView::breakpoint_set, this, &DeebWindow::breakpoint_set);
   connect(ui->disasm_view, &DisassemblyView::breakpoint_cleared, this, &DeebWindow::breakpoint_cleared);
 
+  connect(ui->mem_view, &MemoryView::needs_data, this, &DeebWindow::beeb_data_needed);
+
   connect(ui->act_load_symbols, &QAction::triggered, this, &DeebWindow::load_symbols);
 
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
@@ -35,19 +37,20 @@ DeebWindow::DeebWindow(QWidget *parent) //
   beeb_ = new Beeb();
 
   // Merge RAM and ROM
-  auto beeb_memory = std::make_shared<std::vector<uint8_t>>();
-  const auto & ram =  beeb_->memory()->data();
-  const auto & rom = beeb_->mos()->data();
-  beeb_memory->insert(beeb_memory->end(), ram->begin(), ram->end());
-  beeb_memory->insert(beeb_memory->end(), 16384, 0);
-  beeb_memory->insert(beeb_memory->end(), rom.begin(), rom.end());
-  ui->disasm_view->set_data(beeb_memory, 0);
-  ui->mem_view->set_memory(beeb_memory);
+  ui->disasm_view->set_data({}, 0);
+  ui->mem_view->set_data({});
   reset_cpu();
 }
 
 DeebWindow::~DeebWindow() {
   delete ui;
+}
+
+
+void DeebWindow::beeb_data_needed(QWidget * source, uint16_t start_address, uint32_t num_bytes) {
+  if( source == ui->mem_view) {
+    ui->mem_view->set_data(beeb_->get_memory_contents(start_address, num_bytes));
+  }
 }
 
 /**

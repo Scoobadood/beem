@@ -187,8 +187,10 @@ void DisassemblyView::set_current_address(uint16_t pc) {
  * Update the data.
  * @param memory
  */
-void DisassemblyView::set_data(std::shared_ptr<std::vector<uint8_t>> memory, uint16_t base_address) {
-  data_ = std::move(memory);
+void DisassemblyView::set_data(const std::vector<uint8_t> & data, uint16_t base_address) {
+  data_.clear();
+  data_.insert(data_.end(), data.begin(), data.end());
+
   disassembler_.set_base_address(base_address);
 
   disassembly_.clear();
@@ -199,7 +201,7 @@ void DisassemblyView::set_data(std::shared_ptr<std::vector<uint8_t>> memory, uin
   row_to_addr_.clear();
   addr_to_row_.clear();
 
-  disassembly_ = disassembler_.disassemble_all(*data_, disassemble_from_, error_);
+  disassembly_ = disassembler_.disassemble_all(data_, disassemble_from_, error_);
 
   update_disassembly();
 }

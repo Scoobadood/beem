@@ -31,6 +31,7 @@ class DeebWindow : public QMainWindow {
 
 private slots:
   void on_act_edit_breakpoints_triggered();
+  void beeb_data_needed(QWidget * source, uint16_t start_address, uint32_t num_bytes);
 
 private:
  /**

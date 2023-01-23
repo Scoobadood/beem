@@ -13,19 +13,36 @@ class MemoryView : public QWidget {
 
  public:
   explicit MemoryView(QWidget *parent = nullptr);
-  ~MemoryView();
+  ~MemoryView() override;
 
-  void set_memory(const std::shared_ptr<std::vector<uint8_t>> &data);
+  void set_data(const std::vector<uint8_t> &data);
   void resizeEvent(QResizeEvent *event) override;
+  void wheelEvent(QWheelEvent * event) override;
+
+signals:
+  void needs_data(QWidget * src, uint16_t start_addr, uint32_t num_bytes );
 
  private:
   void layout_content();
+  uint32_t compute_data_required();
+  void scroll_to(int32_t address);
 
   Ui::MemoryView *ui;
+
+  /* Displayed address of first byte in memory */
   uint16_t first_address_;
-  std::shared_ptr<std::vector<uint8_t>> data_;
+
+  /* Row number of the first displayed row 0x0000 - 0xffff */
+  uint32_t first_row_;
+
+  /* Data for the current page. Should be just enough to fill */
+  std::vector<uint8_t> data_;
+
+  /* Sizes on screen of rendered columns and address */
   QSize addr_size_;
   QSize col_size_;
+
+  /* Dimension of the screen in lines of characters */
   uint32_t num_rows_;
   uint32_t num_cols_;
 };
