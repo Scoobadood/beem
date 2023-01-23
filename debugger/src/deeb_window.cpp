@@ -11,8 +11,8 @@
 #include <QStyle>
 
 DeebWindow::DeebWindow(QWidget *parent) //
-    : QMainWindow(parent) //
-    , ui(new Ui::DeebWindow) //
+        : QMainWindow(parent) //
+        , ui(new Ui::DeebWindow) //
 {
   ui->setupUi(this);
 
@@ -33,8 +33,16 @@ DeebWindow::DeebWindow(QWidget *parent) //
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
   beeb_ = new Beeb();
-  ui->disasm_view->set_data(beeb_->memory()->data());
-  ui->mem_view->set_memory(beeb_->memory()->data());
+
+  // Merge RAM and ROM
+  auto beeb_memory = std::make_shared<std::vector<uint8_t>>();
+  const auto & ram =  beeb_->memory()->data();
+  const auto & rom = beeb_->mos()->data();
+  beeb_memory->insert(beeb_memory->end(), ram->begin(), ram->end());
+  beeb_memory->insert(beeb_memory->end(), 16384, 0);
+  beeb_memory->insert(beeb_memory->end(), rom.begin(), rom.end());
+  ui->disasm_view->set_data(beeb_memory, 0);
+  ui->mem_view->set_memory(beeb_memory);
   reset_cpu();
 }
 

@@ -20,12 +20,19 @@ struct Operation {
 class Disassembler {
  public:
   Disassembler();
+
   Operation disassemble_one(const std::vector<uint8_t> &memory,
                             uint16_t &offset,
                             uint8_t &err);
   std::vector<Operation> disassemble_all(const std::vector<uint8_t> &memory,
                                          uint16_t &offset,
                                          uint8_t &err);
+
+  inline void set_base_address(uint16_t base_address) {base_address_ = base_address;}
+
+private:
+  /* When disassembling data, first byte is assumed at this address */
+  uint16_t base_address_;
 };
 
 #endif //M6502_DEBUGGER_SRC_DISASSEMBLER_H_

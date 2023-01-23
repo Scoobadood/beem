@@ -39,6 +39,7 @@ bool DRAM::load( const std::string& file_name ) {
 
 void DRAM::tick(const std::shared_ptr<Bus>& bus) {
     auto addr = bus->get_address();
+    if( addr < bus_address_ || addr > (bus_address_ + memory_->size())) return;
 
     // Read and write memory
     if (bus->tst_RW()) {

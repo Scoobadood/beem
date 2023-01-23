@@ -17,7 +17,7 @@ class DisassemblyView : public QPlainTextEdit {
   explicit DisassemblyView(QWidget *parent = nullptr);
   ~DisassemblyView() override;
 
-  void set_data(std::shared_ptr<std::vector<uint8_t>> memory);
+  void set_data(std::shared_ptr<std::vector<uint8_t>> memory, uint16_t base_address);
 
   void set_symbols(const std::map<uint16_t, std::string> &symbols);
 

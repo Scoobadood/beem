@@ -29,7 +29,7 @@ Operation Disassembler::disassemble_one(//
   if (oc.bytes > 1) data = memory[offset + 1];
   if (oc.bytes > 2) data = (data) | (memory[offset + 2] << 8);
 
-  auto addr = offset;
+  auto addr = (uint16_t) (offset + base_address_ & 0xffff);
   offset  += oc.bytes;
 
   err = 0;
