@@ -8,6 +8,8 @@
 logs/
 /data/
 
+cmake-build-debug/
+
 **CMakeLists.txt.user
 
 .qtc_clangd
