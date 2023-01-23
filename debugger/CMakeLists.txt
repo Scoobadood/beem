@@ -10,7 +10,7 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 add_executable(deeb
         src/main.cpp
         src/disassembler.cpp
-        src/disassembly_view.cpp
+        src/disassembly_view.cpp src/disassembly_view.ui include/disassembly_view.h
         src/reg_view.cpp src/reg_view.ui include/reg_view.h
         src/bus_view.cpp src/bus_view.ui include/bus_view.h
         src/deeb_window.cpp src/deeb_window.ui include/deeb_window.h

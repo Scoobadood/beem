@@ -16,21 +16,12 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <widget class="DisassemblyView" name="disasm_view">
+     <widget class="DisassemblyView" name="disassembly_view" native="true">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>1</horstretch>
+       <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+        <horstretch>2</horstretch>
         <verstretch>0</verstretch>
        </sizepolicy>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>12</pointsize>
-        <kerning>false</kerning>
-       </font>
-      </property>
-      <property name="horizontalScrollBarPolicy">
-       <enum>Qt::ScrollBarAlwaysOff</enum>
       </property>
      </widget>
     </item>
@@ -176,11 +167,6 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>DisassemblyView</class>
-   <extends>QPlainTextEdit</extends>
-   <header>disassembly_view.h</header>
-  </customwidget>
-  <customwidget>
    <class>BusView</class>
    <extends>QWidget</extends>
    <header>bus_view.h</header>
@@ -190,6 +176,12 @@
    <class>MemoryView</class>
    <extends>QWidget</extends>
    <header>memory_view.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>DisassemblyView</class>
+   <extends>QWidget</extends>
+   <header>disassembly_view.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -21,13 +21,13 @@ DeebWindow::DeebWindow(QWidget *parent) //
 
   connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
   connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
-  connect(this, &DeebWindow::pc_changed, ui->disasm_view, &DisassemblyView::set_current_address);
+  connect(this, &DeebWindow::pc_changed, ui->disassembly_view, &DisassemblyView::set_pc);
   connect(this, &DeebWindow::bus_changed, ui->bus_view, &BusView::set_bus);
 
-  connect(ui->disasm_view, &DisassemblyView::breakpoint_set, this, &DeebWindow::breakpoint_set);
-  connect(ui->disasm_view, &DisassemblyView::breakpoint_cleared, this, &DeebWindow::breakpoint_cleared);
-
+  connect(ui->disassembly_view, &DisassemblyView::breakpoint_set, this, &DeebWindow::breakpoint_set);
+  connect(ui->disassembly_view, &DisassemblyView::breakpoint_cleared, this, &DeebWindow::breakpoint_cleared);
   connect(ui->mem_view, &MemoryView::needs_data, this, &DeebWindow::beeb_data_needed);
+  connect(ui->disassembly_view, &DisassemblyView::needs_data, this, &DeebWindow::beeb_data_needed);
 
   connect(ui->act_load_symbols, &QAction::triggered, this, &DeebWindow::load_symbols);
 
@@ -36,9 +36,6 @@ DeebWindow::DeebWindow(QWidget *parent) //
 
   beeb_ = new Beeb();
 
-  // Merge RAM and ROM
-  ui->disasm_view->set_data({}, 0);
-  ui->mem_view->set_data({});
   reset_cpu();
 }
 
@@ -47,9 +44,12 @@ DeebWindow::~DeebWindow() {
 }
 
 
-void DeebWindow::beeb_data_needed(QWidget * source, uint16_t start_address, uint32_t num_bytes) {
-  if( source == ui->mem_view) {
-    ui->mem_view->set_data(beeb_->get_memory_contents(start_address, num_bytes));
+void DeebWindow::beeb_data_needed(QWidget *source, uint16_t start_address, uint32_t num_bytes) {
+  auto data = beeb_->get_memory_contents(start_address, num_bytes);
+  if (source == ui->mem_view) {
+    ui->mem_view->set_data(data);
+  } else if (source == ui->disassembly_view) {
+    ui->disassembly_view->set_data(data);
   }
 }
 
@@ -138,7 +138,7 @@ void DeebWindow::load_symbols() {
   file.close();
 
   // Force repeat disassembly
-  ui->disasm_view->set_symbols(symbols);
+//  ui->disassembly_view->set_symbols(symbols);
 }
 
 void DeebWindow::breakpoint_set(uint16_t brk_addr) {
@@ -158,6 +158,7 @@ void DeebWindow::on_act_edit_breakpoints_triggered() {
     if (breakpoints_.count(b) > 0) continue;
     breakpoint_set(b);
   }
+  ui->disassembly_view->update_breakpoints(breakpoints_);
   d->deleteLater();
 }
 

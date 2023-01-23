@@ -1,9 +1,11 @@
 #include "memory_view.h"
 #include "ui_memory_view.h"
+#include "spdlog/spdlog.h"
 
 #include <QStringBuilder>
 #include <QResizeEvent>
 #include <QWheelEvent>
+#include <QFontDatabase>
 
 MemoryView::MemoryView(QWidget *parent)//
         : QWidget(parent), ui(new Ui::MemoryView)//
@@ -17,7 +19,7 @@ MemoryView::MemoryView(QWidget *parent)//
   ui->te_memory->setContextMenuPolicy(Qt::NoContextMenu);
   ui->te_memory->setReadOnly(true);
   ui->te_memory->setUndoRedoEnabled(false);
-  ui->te_memory->setFont(QFont("Courier", 12));
+  ui->te_memory->setFont(QFont("Monaco", 12));
 
   auto fm = ui->te_memory->fontMetrics();
   addr_size_ = fm.size(Qt::TextSingleLine, "0000:");
