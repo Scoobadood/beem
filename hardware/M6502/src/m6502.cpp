@@ -85,7 +85,7 @@ void M6502::maybe_handle_sync(const std::shared_ptr<Bus> &bus) {
 void M6502::do_cycle(const std::shared_ptr<Bus> &bus) {
   auto handler = cycle_handler(ir_);
   if (handler == nullptr) {
-    auto msg = fmt::format("No cycle handler for opcode 0x{:02x} cycle {} at PC: 0x{:04x}", ir_ >> 4, ir_ & 0xf, pc_);
+    auto msg = fmt::format("No cycle handler for opcode 0x{:02x} cycle {} at_bus PC: 0x{:04x}", ir_ >> 4, ir_ & 0xf, pc_);
     spdlog::critical(msg);
     for (auto i = 0; i < history_size_; ++i) {
       auto nn = (next_history_buffer_entry_ + i) % history_size_;

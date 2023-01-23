@@ -65,7 +65,7 @@ DeebWindow::step() {
 
   do {
     beeb_->tick();
-  } while (!beeb_->bus().tst_SYNC());
+  } while (!beeb_->bus()->tst_SYNC());
   const auto &cpu = beeb_->cpu();
   emit flags_changed(cpu->flags());
   emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
@@ -87,7 +87,7 @@ DeebWindow::run() {
 
   do {
     beeb_->tick();
-    if (beeb_->bus().tst_SYNC() && (breakpoints_.count(beeb_->bus().get_address()) != 0)) break;
+    if (beeb_->bus()->tst_SYNC() && (breakpoints_.count(beeb_->bus()->get_address()) != 0)) break;
   } while (true);
   const auto &cpu = beeb_->cpu();
   emit flags_changed(cpu->flags());

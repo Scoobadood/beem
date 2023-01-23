@@ -35,26 +35,26 @@ class M6502 {
   inline void setX(uint8_t x) { x_reg_ = x; }
   inline void decX() { x_reg_--; }
   inline void incX() { x_reg_++; }
-  [[nodiscard]] inline uint8_t X() const { return x_reg_; }
+   inline uint8_t X() const { return x_reg_; }
 
   inline void setY(uint8_t y) { y_reg_ = y; }
   inline void decY() { y_reg_--; }
   inline void incY() { y_reg_++; }
-  [[nodiscard]] inline uint8_t Y() const { return y_reg_; }
+   inline uint8_t Y() const { return y_reg_; }
 
   inline void setA(uint8_t a) { accumulator_ = a; }
-  [[nodiscard]] inline uint8_t A() const { return accumulator_; }
+   inline uint8_t A() const { return accumulator_; }
 
   inline void setPC(uint16_t pc) { pc_ = pc; }
   inline uint16_t incPC() { return pc_++; }
-  [[nodiscard]] inline uint16_t PC() const { return pc_; }
+   inline uint16_t PC() const { return pc_; }
 
   inline void setSP(uint8_t sp) { stack_pointer_ = sp; }
   /* Return SP and decrement */
   inline uint8_t decSP() { return stack_pointer_--; }
   /* Increment SP and return */
   inline uint8_t incSP() { return ++stack_pointer_; }
-  [[nodiscard]] inline uint8_t SP() const { return stack_pointer_; }
+   inline uint8_t SP() const { return stack_pointer_; }
 
   /* Flag manipulation */
   inline void set_flags(uint8_t flags) { flags_ = flags; }
@@ -62,23 +62,23 @@ class M6502 {
 
   inline void setC() { flags_ |= FLAG_C; }
   inline void clrC() { flags_ &= ~FLAG_C; }
-  [[nodiscard]] inline bool tstC() const { return (flags_ & FLAG_C); }
+   inline bool tstC() const { return (flags_ & FLAG_C); }
 
   inline void setD() { flags_ |= FLAG_D; }
   inline void clrD() { flags_ &= ~FLAG_D; }
-  [[nodiscard]] inline bool tstD() const { return (flags_ & FLAG_D); }
+   inline bool tstD() const { return (flags_ & FLAG_D); }
 
   inline void setV() { flags_ |= FLAG_V; }
   inline void clrV() { flags_ &= ~FLAG_V; }
-  [[nodiscard]] inline bool tstV() const { return (flags_ & FLAG_V); }
+   inline bool tstV() const { return (flags_ & FLAG_V); }
 
   inline void setZ() { flags_ |= FLAG_Z; }
   inline void clrZ() { flags_ &= ~FLAG_Z; }
-  [[nodiscard]] inline bool tstZ() const { return (flags_ & FLAG_Z); }
+   inline bool tstZ() const { return (flags_ & FLAG_Z); }
 
   inline void setN() { flags_ |= FLAG_N; }
   inline void clrN() { flags_ &= ~FLAG_N; }
-  [[nodiscard]] inline bool tstN() const { return (flags_ & FLAG_N); }
+   inline bool tstN() const { return (flags_ & FLAG_N); }
 
   inline void setI() { flags_ |= FLAG_I; }
   inline void clrI() { flags_ &= ~FLAG_I; }
@@ -97,9 +97,9 @@ class M6502 {
   inline void set_temp_addr_high(uint8_t high) { temp_addr_ |= (high << 8); }
   inline void set_temp_addr_low(uint8_t low) { temp_addr_ |= low; }
   inline void set_temp_addr(uint16_t addr) { temp_addr_ = addr; }
-  [[nodiscard]] inline uint16_t temp_addr_low() const { return temp_addr_ & 0xff; }
-  [[nodiscard]] inline uint16_t temp_addr_high() const { return temp_addr_ & 0xff00; }
-  [[nodiscard]] inline uint16_t temp_addr() const { return temp_addr_; }
+   inline uint16_t temp_addr_low() const { return temp_addr_ & 0xff; }
+   inline uint16_t temp_addr_high() const { return temp_addr_ & 0xff00; }
+   inline uint16_t temp_addr() const { return temp_addr_; }
 
   // Used by indirect addressing modes when page doesn't wrap
   inline void skip_cycle() { ir_++; };

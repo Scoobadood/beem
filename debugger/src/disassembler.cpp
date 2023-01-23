@@ -19,7 +19,7 @@ Operation Disassembler::disassemble_one(//
 
   OpCode oc = OpCode::for_value(memory.at(offset));
   if (offset + oc.bytes > memory.size()) {
-    spdlog::warn("Arguments for opcode {} at {} have length {} and will be out of out of range {} in disassemble_one()",
+    spdlog::warn("Arguments for opcode {} at_bus {} have length {} and will be out of out of range {} in disassemble_one()",
                  oc.name, offset, oc.bytes, memory.size());
     err = 1;
     return {offset, oc, 0xffff};

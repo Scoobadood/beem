@@ -27,7 +27,7 @@ class DeebWindow : public QMainWindow {
   void flags_changed(uint8_t flags);
   void registers_changed(uint8_t a, uint8_t x, uint8_t y, uint16_t pc, uint16_t sp);
   void pc_changed(uint16_t pc);
-  void bus_changed(Bus & bus);
+  void bus_changed(const std::shared_ptr<Bus>& bus);
 
 private slots:
   void on_act_edit_breakpoints_triggered();

@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
-project(Chips/M6502
+
+project(Beeb
         VERSION 0.1
         LANGUAGES CXX)
 
@@ -53,6 +54,5 @@ enable_testing()
 add_subdirectory(hardware)
 add_subdirectory(beeb)
 add_subdirectory(debugger)
-add_subdirectory(roms)
 add_subdirectory(common)
 add_subdirectory(video_subsystem_test)

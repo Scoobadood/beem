@@ -17,7 +17,7 @@ public:
     ~BusView() override;
 
  public slots:
-  void set_bus(const Bus & bus);
+  void set_bus(const std::shared_ptr<Bus>& bus);
 
 private:
     Ui::BusView *ui;

@@ -14,8 +14,8 @@ void set_binary_value(QLabel *label, uint8_t value) {
   label->setText(QString("%1").arg(value, 8, 2, QChar('0')));
 }
 
-void BusView::set_bus(const Bus &bus) {
-  auto new_addr = bus.get_address();
+void BusView::set_bus(const std::shared_ptr<Bus>& bus) {
+  auto new_addr = bus->get_address();
   if ((new_addr & 0xff00) != (old_addr_ & 0xff00)) {
     set_binary_value(ui->lbl_addr_bin_hi, new_addr >> 8);
     ui->lbl_addr_bin_hi->setStyleSheet("QLabel {color:red; }");
@@ -32,7 +32,7 @@ void BusView::set_bus(const Bus &bus) {
   old_addr_ = new_addr;
   ui->lbl_addr_hex->setText(QString("%1").arg(new_addr, 4, 16, QChar('0')));
 
-  auto new_data = bus.get_data();
+  auto new_data = bus->get_data();
   if (old_data_ != new_data) {
     set_binary_value(ui->lbl_data_bin, new_data);
     ui->lbl_data_bin->setStyleSheet("QLabel {color:red; }");
@@ -42,9 +42,9 @@ void BusView::set_bus(const Bus &bus) {
   old_data_ = new_data;
   ui->lbl_data_hex->setText(QString("%1").arg(new_data, 2, 16, QChar('0')));
 
-  ui->rb_sync->setChecked(bus.tst_SYNC());
-  ui->rb_reset->setChecked(bus.tst_RST());
-  ui->rb_rw->setChecked(bus.tst_RW());
+  ui->rb_sync->setChecked(bus->tst_SYNC());
+  ui->rb_reset->setChecked(bus->tst_RST());
+  ui->rb_rw->setChecked(bus->tst_RW());
 }
 
 BusView::~BusView() {

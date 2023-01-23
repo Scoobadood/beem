@@ -29,7 +29,7 @@ void SN76489::play_sound() const {
   const std::vector<std::string> noise_freq{"LOW", "MED", "HIGH", "SINGLE TONE"};
 
   if (noise_volume_ != 0) {
-    spdlog::info("Playing {} noise at {} frequency, volume {} on noise channel",
+    spdlog::info("Playing {} noise at_bus {} frequency, volume {} on noise channel",
                  (noise_control_ & 0x4) ? "WHITE" : "PERIODIC",
                  noise_freq[noise_control_ & 0x3], noise_volume_);
   }
@@ -37,7 +37,7 @@ void SN76489::play_sound() const {
   for (auto channel = 0; channel < 3; ++channel) {
     if (volumes_[channel] == 0) continue;
     auto frequency = 4000000 / (32 * frequency_[channel]);
-    spdlog::info("Playing {}Hz note at volume {} on channel {}", frequency, volumes_[channel], channel);
+    spdlog::info("Playing {}Hz note at_bus volume {} on channel {}", frequency, volumes_[channel], channel);
   }
 }
 

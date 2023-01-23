@@ -27,7 +27,7 @@
  *    $60 | TAB         Z      SPACE   V       B       M       ,       .       /       COPY
  *    $70 | ESCAPE      f1     f2      f3      f5      f6      f8      f9      \       RIGHT
  *
- * 'bit n' refers to the row of eight hardware DIP switches inside the case at the bottom
+ * 'bit n' refers to the row of eight hardware DIP switches inside the case at_bus the bottom
  * right of the keyboard:
  *
  * See dips.png
@@ -152,15 +152,15 @@ class Keyboard {
 
   void tick();
 
-  [[nodiscard]] inline bool caps_lock_led() const { return caps_lock_led_; }
-  [[nodiscard]] inline bool shift_lock_led() const { return shift_lock_led_; }
-  [[nodiscard]] inline bool auto_scan_enabled() const { return auto_scan_enabled_; }
+   inline bool caps_lock_led() const { return caps_lock_led_; }
+   inline bool shift_lock_led() const { return shift_lock_led_; }
+   inline bool auto_scan_enabled() const { return auto_scan_enabled_; }
 
-  [[nodiscard]] inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
-  [[nodiscard]] inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
-  [[nodiscard]] inline data_provider_8_bit_ptr provider() const { return provider_; }
-  [[nodiscard]] inline data_subscriber_8_bit_ptr cl_led_src() const { return cl_led_src_; }
-  [[nodiscard]] inline data_subscriber_8_bit_ptr sl_led_src() const { return sl_led_src_; }
+   inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
+   inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
+   inline data_provider_8_bit_ptr provider() const { return provider_; }
+   inline data_subscriber_8_bit_ptr cl_led_src() const { return cl_led_src_; }
+   inline data_subscriber_8_bit_ptr sl_led_src() const { return sl_led_src_; }
 
  private:
   void check_we();

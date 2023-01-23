@@ -3,8 +3,8 @@
  * All chips can talk to the bus.
  */
 
-#ifndef CHIPS_M6502_CHIPS_BUS_H_
-#define CHIPS_M6502_CHIPS_BUS_H_
+#ifndef BEEB_HARDWARE_MAIN_BUS_H_
+#define BEEB_HARDWARE_MAIN_BUS_H_
 
 #include <vector>
 
@@ -16,7 +16,7 @@ const uint64_t PIN_RD_NOT_WR = 0x04000000;
 
 class Bus {
  public:
-  [[nodiscard]] inline uint16_t get_address() const {
+  inline uint16_t get_address() const {
     return (pins_ & PIN_ADDR_MASK) >> 8;
   }
 
@@ -24,7 +24,7 @@ class Bus {
     pins_ = (pins_ & ~PIN_ADDR_MASK) | ((address & 0xffff) << 8);
   }
 
-  [[nodiscard]] inline uint8_t get_data() const {
+  inline uint8_t get_data() const {
     return (pins_ & PIN_DATA_MASK);
   }
 
@@ -32,7 +32,7 @@ class Bus {
     pins_ = (pins_ & ~PIN_DATA_MASK) | (data & 0xff);
   }
 
-  [[nodiscard]] inline bool tst_RST() const {
+  inline bool tst_RST() const {
     return ( pins_ & PIN_RST);
   }
 
@@ -44,7 +44,7 @@ class Bus {
     pins_ &= ~PIN_RST;
   }
 
-  [[nodiscard]] inline bool tst_RW() const {
+  inline bool tst_RW() const {
     return (pins_ & PIN_RD_NOT_WR);
   }
 
@@ -56,7 +56,7 @@ class Bus {
     pins_ &= ~PIN_RD_NOT_WR;
   }
 
-  [[nodiscard]] inline bool tst_SYNC() const {
+   inline bool tst_SYNC() const {
     return (pins_ & PIN_SYNC);
   }
 
@@ -72,4 +72,4 @@ class Bus {
   uint64_t pins_;
 };
 
-#endif //CHIPS_M6502_CHIPS_BUS_H_
+#endif //BEEB_HARDWARE_MAIN_BUS_H_

@@ -15,8 +15,8 @@ class SN76489 {
 
   void tick();
 
-  [[nodiscard]] inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
-  [[nodiscard]] inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
+   inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
+   inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
 
  private:
   void maybe_process_new_data();

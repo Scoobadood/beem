@@ -27,20 +27,20 @@ class Crtc {
 
   void tick(Bus &bus);
 
-  [[nodiscard]] inline data_subscriber_8_bit_ptr hw_scroll_addr() {
+   inline data_subscriber_8_bit_ptr hw_scroll_addr() {
     return hw_scroll_addr_;
   }
 
-  [[nodiscard]] inline uint16_t get_ma()const {return memory_addr_;}
-  [[nodiscard]] inline uint16_t get_ra()const {return row_addr_;}
+   inline uint16_t get_ma()const {return memory_addr_;}
+   inline uint16_t get_ra()const {return row_addr_;}
 
-  [[nodiscard]] inline bool display_enable() const {
+   inline bool display_enable() const {
     return (display_enable_h_ & display_enable_v_);
   }
-  [[nodiscard]] inline bool hsync() const{
+   inline bool hsync() const{
     return (hsync_ == 1);
   }
-  [[nodiscard]] inline bool vsync() const{
+   inline bool vsync() const{
     return (vsync_ == 1);
   }
 

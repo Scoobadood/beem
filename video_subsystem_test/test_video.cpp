@@ -13,11 +13,11 @@ const uint16_t CRTC_BASE = 0xfe00;
 uint8_t g_tick_count = 0;
 
 void tick(Crtc *crtc, VideoUla *v_ula, Bus &bus) {
-  // CRTC runs at 1MHz in this example
+  // CRTC runs at_bus 1MHz in this example
   if (g_tick_count % 16 == 0 && crtc)
     crtc->tick(bus);
 
-  // Bus runs at 4MHz
+  // Bus runs at_bus 4MHz
   if (g_tick_count % 4 == 0) {
     auto addr = bus.get_address();
     if (addr >= 0x5800 && addr <= 0x8000) {

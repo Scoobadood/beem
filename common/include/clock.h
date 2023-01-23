@@ -22,11 +22,11 @@ class Clock {
   }
 
   void tick();
-  [[nodiscard]] inline bool is_high(uint8_t clk) const { return clks_ & clk; }
-  [[nodiscard]] inline bool is_low(uint8_t clk) const { return (clks_ & clk) == 0; }
-  [[nodiscard]] inline bool went_high(uint8_t clk) const { return (clks_ & clk) && ((clks_prev_ & clk) == 0); }
-  [[nodiscard]] inline bool went_low(uint8_t clk) const { return (clks_ & clk) == 0 && (clks_prev_ & clk); }
-  [[nodiscard]] inline bool changed(uint8_t clk) const { return (clks_ & clk) != (clks_prev_ & clk); }
+   inline bool is_high(uint8_t clk) const { return clks_ & clk; }
+   inline bool is_low(uint8_t clk) const { return (clks_ & clk) == 0; }
+   inline bool went_high(uint8_t clk) const { return (clks_ & clk) && ((clks_prev_ & clk) == 0); }
+   inline bool went_low(uint8_t clk) const { return (clks_ & clk) == 0 && (clks_prev_ & clk); }
+   inline bool changed(uint8_t clk) const { return (clks_ & clk) != (clks_prev_ & clk); }
 
  private:
   uint8_t ticks_;

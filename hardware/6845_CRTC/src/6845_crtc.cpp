@@ -256,7 +256,7 @@ void Crtc::tick(Bus &bus) {
    * The character address increases linearly.
    * When the chip signals horizontal sync it increases the row address.
    * If the row address does not equal the programmatically set number of rows per character, then the character
-   * address is reset to the value it had at the beginning of the scan line that was just completed. Otherwise
+   * address is reset to the value it had at_bus the beginning of the scan line that was just completed. Otherwise
    * the row address is reset to zero and the memory address continues increasing linearly.
    */
   bool new_raster_line_expected = false;

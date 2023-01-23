@@ -1,5 +1,5 @@
 #include "m6502.h"
-#include "memory.h"
+#include "dram.h"
 #include "bus.h"
 #include "cycle_handler.h"
 #include "opcodes.h"
@@ -27,28 +27,28 @@ void debug_flags_regs(M6502 *cpu) {
   );
 }
 
-void debug_stack(M6502 *cpu, DRAM *memory) {
+void debug_stack(M6502 *cpu, const std::shared_ptr<DRAM> &memory) {
   std::stringstream s;
   auto sp = cpu->SP();
   for (auto spc = 255; spc >= sp - 1; --spc) {
     s << ((spc == sp) ? " [" : "  ");
-    s << "0x" << std::setw(2) << std::hex << std::setfill('0') << (int) memory->at(0x100 | spc);
+    s << "0x" << std::setw(2) << std::hex << std::setfill('0') << (int) memory->at_bus(0x100 | spc);
     s << ((spc == sp) ? "] " : "  ");
   }
 
   spdlog::info("        sp:$1{:02x}:  {}", sp, s.str());
 }
 
-void debug(M6502 *cpu, DRAM *memory) {
-  auto opcode = memory->at(cpu->PC());
+void debug(M6502 *cpu, const std::shared_ptr<DRAM> &memory) {
+  auto opcode = memory->at_bus(cpu->PC());
   auto op = OpCode::for_value(opcode);
   auto data_size = op.bytes - 1;
   uint16_t arg = 0;
   if (data_size == 1) {
-    arg = memory->at(cpu->PC() + 1);
+    arg = memory->at_bus(cpu->PC() + 1);
   }
   if (data_size == 2) {
-    arg = memory->at(cpu->PC() + 1) + (memory->at(cpu->PC() + 2) * 256);
+    arg = memory->at_bus(cpu->PC() + 1) + (memory->at_bus(cpu->PC() + 2) * 256);
   }
 
   std::string msg;
@@ -100,14 +100,8 @@ int main(int argc, const char *argv[]) {
 
   bool should_debug = ((argc > 1) && (strlen(argv[1]) == 2) && (argv[1][0] == '-') && (argv[1][1] == 'd'));
 
-  // Load bin file
-  ifstream f("data/6502_functional_test.bin", ios::binary);
-  if (!f.is_open()) {
-    cerr << "File read failed" << endl;
-    return 0;
-  }
-  auto memory = DRAM(f);
-  f.close();
+  auto memory = make_shared<DRAM>(0x8000, 0);
+  memory->load("data/6502_functional_test.bin");
 
   M6502 cpu;
 
@@ -118,34 +112,34 @@ int main(int argc, const char *argv[]) {
   std::vector<uint16_t> pc_history(buffer_size, 0);
 
   // Pull reset low
-  Bus bus{};
+  auto bus = std::make_shared<Bus>();
 
   auto start = std::chrono::high_resolution_clock::now();
 
   while (true) {
     cpu.tick(bus);
-    bus.set_RST();
+    bus->set_RST();
 
-    // Make sure code execution starts at 0x400, not reset vector
-    auto addr = bus.get_address();
+    // Make sure code execution starts at_bus 0x400, not reset vector
+    auto addr = bus->get_address();
 
     // Special case reset
     if (addr == 0xfffc) {
-      bus.set_data(0);
+      bus->set_data(0);
       continue;
     } else if (addr == 0xfffd) {
-      bus.set_data(4);
+      bus->set_data(4);
       continue;
     }
 
-    memory.tick(bus);
+    memory->tick(bus);
 
     // Log PC to history buffer
-    if (bus.tst_SYNC()) {
+    if (bus->tst_SYNC()) {
       if (should_debug) {
         debug_flags_regs(&cpu);
-        debug_stack(&cpu, &memory);
-        debug(&cpu, &memory);
+        debug_stack(&cpu, memory);
+        debug(&cpu, memory);
       }
 
       auto pc = cpu.PC();
@@ -161,7 +155,7 @@ int main(int argc, const char *argv[]) {
             spdlog::info("All tests passed in {:02}:{:02}", (duration.count() / 60), duration.count() % 60);
             return EXIT_SUCCESS;
           } else {
-            spdlog::critical("Stuck in a loop at PC: 0x{:04x}", pc);
+            spdlog::critical("Stuck in a loop at_bus PC: 0x{:04x}", pc);
             for (auto i = 1; i <= buffer_size; ++i) {
               spdlog::info("{:04x}", pc_history.at((buffer_idx + i) % buffer_size));
             }

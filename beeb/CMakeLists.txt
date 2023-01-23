@@ -12,17 +12,17 @@ target_include_directories(Beeb
 target_link_libraries(Beeb
         PUBLIC
         M6502
-        Memory
+        DRAM
+        ROM
         Via
         Latch
         SN76489
         Keyboard
         Acia
         Adc
-        Rom
         5C094_vULA
         6845_CRTC
-        Clock
+        Common
         )
 
 add_executable(RunBeeb

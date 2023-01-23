@@ -14,7 +14,7 @@ class data_subscriber_8_bit {
       , data_{0} //
       , data_changed_{false} //
   {}
-  [[nodiscard]] inline uint8_t mask() const { return mask_; }
+   inline uint8_t mask() const { return mask_; }
   void set_data(uint8_t bit_num, bool value) {
     auto bit_mask = 0x01 << bit_num;
     if (mask_ & bit_mask) {
@@ -26,7 +26,7 @@ class data_subscriber_8_bit {
       data_changed_ = true;
     }
   };
-  [[nodiscard]] inline bool data_changed() const { return data_changed_; }
+   inline bool data_changed() const { return data_changed_; }
   inline uint8_t data() {
     data_changed_ = false;
     return data_;
@@ -40,7 +40,7 @@ class data_subscriber_8_bit {
 class data_provider_8_bit {
  public:
   data_provider_8_bit() : data_{0}, has_data_{false} {}
-  [[nodiscard]] inline bool has_data() const { return has_data_; }
+   inline bool has_data() const { return has_data_; }
   inline uint8_t data() {
     has_data_ = false;
     return data_;

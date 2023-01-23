@@ -16,7 +16,7 @@ class BreakpointDlg : public QDialog {
   ~BreakpointDlg() override;
 
   void set_breakpoints(const std::set<uint16_t> &breakpoints);
-  [[nodiscard]] inline const std::set<uint16_t> breakpoints() const {return breakpoints_;}
+   inline const std::set<uint16_t> breakpoints() const {return breakpoints_;}
 
  private:
   Ui::BreakpointDlg *ui;
