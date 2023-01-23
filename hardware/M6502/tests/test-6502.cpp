@@ -98,6 +98,8 @@ void debug(M6502 *cpu, const std::shared_ptr<DRAM> &memory) {
 int main(int argc, const char *argv[]) {
   using namespace std;
 
+  cout << "Running Dormann 6502 tests" << endl;
+
   bool should_debug = ((argc > 1) && (strlen(argv[1]) == 2) && (argv[1][0] == '-') && (argv[1][1] == 'd'));
 
   auto memory = make_shared<DRAM>(0x8000, 0);
