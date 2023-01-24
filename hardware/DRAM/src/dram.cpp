@@ -1,20 +1,28 @@
 #include "dram.h"
 #include "bus.h"
 
-#include <spdlog//spdlog-inl.h>
+#include <spdlog/spdlog-inl.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
 #include <iterator>
 #include <fstream>
 
-DRAM::DRAM(uint32_t sz, uint16_t bus_addr)
+DRAM::DRAM(uint16_t sz, uint16_t bus_addr)
         : bus_address_{bus_addr} {
-  if (bus_addr + sz >= 0x10000) {
+  if (bus_addr + sz >= MAX_BUS_ADDR) {
     auto msg = fmt::format("DRAM: Can't allocate {} bytes of DRAM at_bus 0x{:04} as it exceeds 32K addressable space.",
                            sz, bus_addr);
     spdlog::critical(msg);
-    throw std::runtime_error(msg);
   }
+
   memory_ = std::make_shared<std::vector<uint8_t>>(sz);
+
+  try {
+    auto logger = spdlog::basic_logger_mt("DRAM", "logs/dram-log.txt");
+  }
+  catch (const spdlog::spdlog_ex &ex) {
+    spdlog::warn("Log init failed for DRAM: {}", ex.what());
+  }
 }
 
 bool DRAM::load(const std::string &file_name) {
@@ -39,6 +47,8 @@ bool DRAM::load(const std::string &file_name) {
 
 
 void DRAM::tick(const std::shared_ptr<Bus> &bus) {
+  auto debug_logger = spdlog::get("DRAM");
+
   auto addr = bus->get_address();
   if (addr < bus_address_ || addr >= (bus_address_ + memory_->size())) return;
 
@@ -46,9 +56,13 @@ void DRAM::tick(const std::shared_ptr<Bus> &bus) {
   if (bus->tst_RW()) {
     auto data = memory_->at(addr - bus_address_);
     bus->set_data(data);
+
+    debug_logger->debug("R 0x{:04x} -> :02x", addr, data);
   } else {
     auto data = bus->get_data();
     memory_->at(addr - bus_address_) = data;
+
+    debug_logger->debug("W :02x -> 0x{:04x}", data, addr);
   }
 }
 
@@ -58,6 +72,8 @@ void DRAM::tick(const std::shared_ptr<Bus> &bus) {
  * @return The contents
  */
 uint8_t DRAM::at_bus(uint16_t addr) const {
+  spdlog::get("DRAM")->debug("at_bus( 0x{:04x} )", addr);
+
   return memory_->at(addr - bus_address_);
 }
 
