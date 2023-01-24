@@ -75,10 +75,10 @@
      <x>0</x>
      <y>0</y>
      <width>662</width>
-     <height>22</height>
+     <height>37</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuFile">
+   <widget class="QMenu" name="mnu_file">
     <property name="title">
      <string>File</string>
     </property>
@@ -86,27 +86,38 @@
     <addaction name="act_load_rom"/>
     <addaction name="act_load_symbols"/>
    </widget>
-   <widget class="QMenu" name="menuDebug">
+   <widget class="QMenu" name="mnu_dbg">
     <property name="title">
      <string>Debug</string>
     </property>
     <addaction name="act_step"/>
     <addaction name="act_run"/>
+    <addaction name="act_break"/>
    </widget>
-   <widget class="QMenu" name="menuBreakpoints">
+   <widget class="QMenu" name="mnu_nav">
     <property name="title">
-     <string>Breakpoints</string>
+     <string>Navigation</string>
     </property>
     <addaction name="act_edit_breakpoints"/>
+    <addaction name="act_go_to"/>
    </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuDebug"/>
-   <addaction name="menuBreakpoints"/>
+   <addaction name="mnu_file"/>
+   <addaction name="mnu_dbg"/>
+   <addaction name="mnu_nav"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
     <string>toolBar</string>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>16</width>
+     <height>16</height>
+    </size>
+   </property>
+   <property name="toolButtonStyle">
+    <enum>Qt::ToolButtonTextUnderIcon</enum>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -116,6 +127,7 @@
    </attribute>
    <addaction name="act_run"/>
    <addaction name="act_step"/>
+   <addaction name="act_break"/>
    <addaction name="act_edit_breakpoints"/>
   </widget>
   <action name="act_load_image">
@@ -129,19 +141,39 @@
    </property>
   </action>
   <action name="act_step">
+   <property name="icon">
+    <iconset theme="media-playback-start"/>
+   </property>
    <property name="text">
     <string>Step</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+   <property name="autoRepeat">
+    <bool>false</bool>
+   </property>
+   <property name="visible">
+    <bool>true</bool>
+   </property>
   </action>
   <action name="act_run">
+   <property name="icon">
+    <iconset theme="media-seek-forward"/>
+   </property>
    <property name="text">
     <string>Run</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+R</string>
+   </property>
+   <property name="autoRepeat">
+    <bool>false</bool>
    </property>
   </action>
   <action name="act_edit_breakpoints">
    <property name="icon">
-    <iconset theme="flag-aa">
-     <normaloff>.</normaloff>.</iconset>
+    <iconset theme="dialog-error"/>
    </property>
    <property name="text">
     <string>Breakpoints...</string>
@@ -156,6 +188,28 @@
    </property>
    <property name="shortcut">
     <string>Meta+Ctrl+S</string>
+   </property>
+  </action>
+  <action name="act_break">
+   <property name="icon">
+    <iconset theme="media-playback-pause"/>
+   </property>
+   <property name="text">
+    <string>Break</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+T</string>
+   </property>
+   <property name="autoRepeat">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="act_go_to">
+   <property name="text">
+    <string>Go to...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+G</string>
    </property>
   </action>
  </widget>

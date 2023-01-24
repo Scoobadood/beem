@@ -9,15 +9,18 @@
 #include <QFileDialog>
 #include <QThread>
 #include <QStyle>
+#include <QtConcurrent/QtConcurrent>
 
 DeebWindow::DeebWindow(QWidget *parent) //
         : QMainWindow(parent) //
         , ui(new Ui::DeebWindow) //
+        , brk_requested_{false} //
 {
   ui->setupUi(this);
 
   connect(ui->act_step, &QAction::triggered, this, &DeebWindow::step);
   connect(ui->act_run, &QAction::triggered, this, &DeebWindow::run);
+  connect(ui->act_break, &QAction::triggered, this, &DeebWindow::brk);
 
   connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
   connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
@@ -72,7 +75,9 @@ void DeebWindow::reset_cpu() {
  */
 void
 DeebWindow::step() {
-  ui->act_step->setDisabled(true);
+  ui->act_step->setEnabled(false);
+  ui->act_run->setEnabled(false);
+  ui->act_break->setEnabled(false);
 
   do {
     beeb_->tick();
@@ -83,7 +88,9 @@ DeebWindow::step() {
   emit pc_changed(cpu->PC());
   emit bus_changed(beeb_->bus());
 
-  ui->act_step->setDisabled(false);
+  ui->act_step->setEnabled(true);
+  ui->act_run->setEnabled(true);
+  ui->act_break->setEnabled(true);
 }
 
 /**
@@ -93,23 +100,33 @@ DeebWindow::step() {
  */
 void
 DeebWindow::run() {
-  ui->act_run->setDisabled(true);
-  ui->act_step->setDisabled(true);
+  ui->act_run->setEnabled(false);
+  ui->act_step->setEnabled(false);
+  ui->act_break->setEnabled(true);
 
-  do {
-    beeb_->tick();
-    if (beeb_->bus()->tst_SYNC() && (breakpoints_.count(beeb_->bus()->get_address()) != 0)) break;
-  } while (true);
-  const auto &cpu = beeb_->cpu();
-  emit flags_changed(cpu->flags());
-  emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
-  emit pc_changed(cpu->PC());
-  emit bus_changed(beeb_->bus());
+  brk_requested_ = false;
+  QtConcurrent::run([&] {
+    do {
+      beeb_->tick();
+      if (beeb_->bus()->tst_SYNC() && (breakpoints_.count(beeb_->bus()->get_address()) != 0)) break;
+    } while (!brk_requested_);
+    const auto &cpu = beeb_->cpu();
+    emit flags_changed(cpu->flags());
+    emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
+    emit pc_changed(cpu->PC());
+    emit bus_changed(beeb_->bus());
 
-  ui->act_run->setDisabled(false);
-  ui->act_step->setDisabled(false);
-
+    ui->act_run->setEnabled(true);
+    ui->act_step->setEnabled(false);
+    ui->act_break->setEnabled(false);
+  });
 }
+
+void DeebWindow::brk() {
+  brk_requested_ = true;
+  ui->act_break->setEnabled(false);
+}
+
 
 void DeebWindow::load_symbols() {
   auto file_name = QFileDialog::getOpenFileName(this,

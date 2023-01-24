@@ -142,7 +142,10 @@ bool DisassemblyView::address_on_screen(uint16_t addr, uint32_t *row, float *pro
  *
  */
 void DisassemblyView::set_pc(uint16_t pc) {
-  if (displayed_rows_ == 0) return;
+  if (displayed_rows_ == 0) {
+    current_pc_ = pc;
+    return;
+  }
 
   uint32_t row;
   float prop;

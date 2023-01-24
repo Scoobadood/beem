@@ -38,10 +38,13 @@ private:
   * Toggle RST line and wait for CPU to reset.
   */
   void reset_cpu();
-  
-  Ui::DeebWindow *ui;
   void step();
   void run();
+  void brk();
+
+  Ui::DeebWindow *ui;
+
+  bool brk_requested_;
 
   std::set<uint16_t> breakpoints_;
 
