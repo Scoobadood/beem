@@ -75,13 +75,13 @@ Crtc::Crtc(uint16_t base_addr) //
 
 }
 
-void Crtc::mmio_read(uint16_t addr, Bus &bus) {
+void Crtc::mmio_read(uint16_t addr, const std::shared_ptr<Bus>& bus) {
   if (addr == CRTC_REG_SELECT) {
     spdlog::error("CRTC: Invalid attempt to read from REG_SELECT");
     return;
   }
 
-  auto data = bus.get_data();
+  auto data = bus->get_data();
   switch (reg_select_) {
     case REG_CURSOR_POS_HI:data = (cursor_pos_ >> 8) & 0x3f;
       spdlog::info("CRTC: Read cursor position hi ({:02x})", data);
@@ -101,12 +101,12 @@ void Crtc::mmio_read(uint16_t addr, Bus &bus) {
                     reg_select_ <= 17 ? register_name_[reg_select_] : "???");
       return;
   }
-  bus.set_data(data);
+  bus->set_data(data);
 }
 
-void Crtc::mmio_write(uint16_t addr, Bus &bus) {
+void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus>& bus) {
   if (addr == CRTC_REG_SELECT) {
-    auto reg = bus.get_data();
+    auto reg = bus->get_data();
     if (reg > 17) {
       spdlog::error("CRTC: Selected invalid register {}", reg);
     } else {
@@ -116,7 +116,7 @@ void Crtc::mmio_write(uint16_t addr, Bus &bus) {
     return;
   }
 
-  auto data = bus.get_data();
+  auto data = bus->get_data();
   switch (reg_select_) {
     case REG_HORZ_TOTAL:horz_total_ = data;
       spdlog::info("CRTC: Wrote {:02x} to horz_total", data);
@@ -239,12 +239,12 @@ void Crtc::mmio_write(uint16_t addr, Bus &bus) {
   }
 }
 
-void Crtc::tick(Bus &bus) {
-  auto addr = bus.get_address();
+void Crtc::tick(const std::shared_ptr<Bus>& bus) {
+  auto addr = bus->get_address();
   if (addr >= base_addr_ && addr <= base_addr_ + CRTC_READ_WRITE) {
     addr -= base_addr_;
 
-    if (bus.tst_RW()) {
+    if (bus->tst_RW()) {
       mmio_read(addr, bus);
     } else {
       mmio_write(addr, bus);
@@ -330,7 +330,7 @@ void Crtc::tick(Bus &bus) {
     }
   }
 
-  bus.set_address(output_addr);
+  bus->set_address(output_addr);
 }
 
 /* Force screen paint from top of screen */

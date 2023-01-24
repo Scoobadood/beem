@@ -25,7 +25,7 @@ class Crtc {
   explicit Crtc(uint16_t base_addr);
   ~Crtc() = default;
 
-  void tick(Bus &bus);
+  void tick(const std::shared_ptr<Bus>& bus);
 
    inline data_subscriber_8_bit_ptr hw_scroll_addr() {
     return hw_scroll_addr_;
@@ -48,8 +48,8 @@ class Crtc {
   void sync();
 
  private:
-  void mmio_read(uint16_t addr, Bus &bus);
-  void mmio_write(uint16_t addr, Bus &bus);
+  void mmio_read(uint16_t addr, const std::shared_ptr<Bus>& bus);
+  void mmio_write(uint16_t addr, const std::shared_ptr<Bus>& bus);
 
   uint16_t base_addr_;
   uint8_t reg_select_;

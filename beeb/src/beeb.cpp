@@ -34,37 +34,35 @@ Beeb::Beeb() {
   basic_rom_ = make_shared<Rom>("data/Basic2.rom", BASIC_ROM_BASE);
   mos_ = make_shared<Rom>("data/os120.bin", MOS_ROM_BASE);
 
+  system_via_ = new Via(0xfe40);
+  user_via_ = new Via(0xfe60);
 
-//  system_via_ = new Via(clock_, 0xfe40);
-//  user_via_ = new Via(clock_, 0xfe60);
-//
-//  latch_ = new IC32Latch(clock_);
-//
-//  system_via_->subscribe_port_b(latch_->src());
-//
-//  // Attach Sound chip
-//  sound_chip_ = new SN76489(clock_);
-//  latch_->subscribe(sound_chip_->we_src());
-//  system_via_->subscribe_port_a(sound_chip_->data_src());
-//
-//  // Attach keyboard
-//  keyboard_ = new Keyboard(clock_, 0x01 /* Boot into mode 6 */);
-//  latch_->subscribe(keyboard_->we_src());
-//  latch_->subscribe(keyboard_->cl_led_src());
-//  latch_->subscribe(keyboard_->sl_led_src());
-//  system_via_->subscribe_port_a(keyboard_->data_src());
-//  system_via_->provide_port_a(keyboard_->provider());
-//
-//  // ACIA
-//  acia_ = new Acia(clock_);
-//
-//  // ADC
-//  adc_ = new Adc(clock_, 0xfec0);
-//
-//
-//  // Video ULA
-//  v_ula_ = new VideoUla(clock_, 0xfe20);
-//
+  latch_ = new IC32Latch();
+  system_via_->subscribe_port_b(latch_->src());
+
+  // Attach Sound chip
+  sound_chip_ = new SN76489();
+  latch_->subscribe(sound_chip_->we_src());
+  system_via_->subscribe_port_a(sound_chip_->data_src());
+
+  // Attach keyboard
+  keyboard_ = new Keyboard(0x01 /* Boot into mode 6 */);
+  latch_->subscribe(keyboard_->we_src());
+  latch_->subscribe(keyboard_->cl_led_src());
+  latch_->subscribe(keyboard_->sl_led_src());
+  system_via_->subscribe_port_a(keyboard_->data_src());
+  system_via_->provide_port_a(keyboard_->provider());
+
+  // ACIA
+  acia_ = new Acia();
+
+  // ADC
+  adc_ = new Adc(0xfec0);
+
+
+  // Video ULA
+  v_ula_ = new VideoUla(0xfe20);
+
 //  // CRTC
 //  crtc_ = new Crtc(0xfe00);
 //  latch_->subscribe(crtc_->hw_scroll_addr());
@@ -119,9 +117,9 @@ void Beeb::reset() {
  */
 bool Beeb::data_bus_isolated() {
   // Isolated when phi is low
-  if (clock_->is_low(CLK_2_MHZ)) return true;  
+  if (clock_->is_low(CLK_2_MHZ)) return true;
 
-  // Isolated unless weriting to vULA regs or DRAM
+  // Isolated unless writing to vULA regs or DRAM
   auto addr = bus_->get_address();
   if ((addr > DRAM_LAST) &&
       addr != MMIO_VULA_REG_SEL &&
@@ -137,37 +135,45 @@ bool Beeb::address_bus_isolated() {
 void Beeb::tick() {
   clock_->tick();
 
-//      v_ula_->tick(bus_);
-
-  if (clock_->went_low(CLK_2_MHZ)) {
+// CPU normally does internal work in LOW phase and then
+// Bus RW in high phase. We're phaking it so we just go
+// Off the high phase which also makes the isolation code work.
+  if (clock_->went_high(CLK_2_MHZ)) {
     cpu_->tick(bus_);
+    system_via_->tick(bus_);
+    user_via_->tick(bus_);
+    keyboard_->tick();
+    latch_->tick();
+    sound_chip_->tick();
+    acia_->tick(bus_);
+    adc_->tick(bus_);
   }
 
   if (clock_->went_low(CLK_4_MHZ)) {
 
     // TODO: Consider making DramBus a subclass of Bus and move this into it.
     if (!address_bus_isolated()) {
+
+      if (bus_->tst_RW()) dram_bus_->set_RW();
+      else dram_bus_->clr_RW();
+
       dram_bus_->set_address(bus_->get_address());
-      if ((bus_->tst_RW() == 1) & !data_bus_isolated()) {
+      if ((bus_->tst_RW() == 0) & !data_bus_isolated()) {
         dram_bus_->set_data(bus_->get_data());
       }
     }
 
     dram_->tick(dram_bus_);
 
-    if ((bus_->tst_RW() == 0) && !data_bus_isolated()) {
+    if ((bus_->tst_RW() == 1) && !data_bus_isolated()) {
       bus_->set_data(dram_bus_->get_data());
     }
     mos_->tick(bus_);
   }
 
-//      system_via_->tick(bus_);
-//      user_via_->tick(bus_);
-//      keyboard_->tick();
-//      latch_->tick();
-//      sound_chip_->tick();
-//      acia_->tick(bus_);
-//      adc_->tick(bus_);
+  if( clock_->went_low(CLK_16_MHZ)) {
+    v_ula_->tick(bus_);
+  }
 }
 
 std::vector<uint8_t> Beeb::get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const {

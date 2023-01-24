@@ -46,8 +46,8 @@ void VideoUla::write_palette(uint8_t data) {
   spdlog::get("vULA")->info("vULA: Set palette logical {:02x} to actual {}", logical, colour_name_[actual]);
 }
 
-void VideoUla::mmio_write(uint16_t addr, Bus &bus) {
-  auto data = bus.get_data();
+void VideoUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus>& bus) {
+  auto data = bus->get_data();
   switch (addr - base_addr_) {
     case VCR_WO: {
       vula_ctl_ = data;
@@ -64,7 +64,7 @@ void VideoUla::mmio_write(uint16_t addr, Bus &bus) {
           cursor_width_ = 1;
           break;
       }
-      spdlog::get("vULA")->info("vULA: Writing {:02x} to VULA_CTL", bus.get_data());
+      spdlog::get("vULA")->info("vULA: Writing {:02x} to VULA_CTL", bus->get_data());
       spdlog::get("vULA")->info("      Flash colour {}", data & 0x01);
       spdlog::get("vULA")->info("      Teletext mode? {}", data & 0x02 ? "Yes" : "No");
       spdlog::get("vULA")->info("      {} characters per line", ((0x01 << ((data >> 2) & 0x03)) * 10));
@@ -80,7 +80,7 @@ void VideoUla::mmio_write(uint16_t addr, Bus &bus) {
     case PALETTE_WO:write_palette(data);
       break;
 
-    default:spdlog::warn("vULA: Unimplemented write of {:02x} to {:04x}", bus.get_data(), addr);
+    default:spdlog::warn("vULA: Unimplemented write of {:02x} to {:04x}", bus->get_data(), addr);
       break;
   }
 }
@@ -130,14 +130,14 @@ void VideoUla::reset_shift_clk() {
   }
 }
 
-void VideoUla::maybe_poll_crtc(Bus &bus) {
+void VideoUla::maybe_poll_crtc(const std::shared_ptr<Bus>& bus) {
   if ((tick_count_ == 0) || (tick_count_ == 8 && crtc_clk_ == 1)) {
     spdlog::get("vULA")->info("{}| reload ({:02x}) from &{:04x}", tick_count_,
-                              bus.get_data(), bus.get_address());
+                              bus->get_data(), bus->get_address());
 
     if (crtc_)
       crtc_->tick(bus);
-    curr_data_ = bus.get_data();
+    curr_data_ = bus->get_data();
     reset_shift_clk();
   }
 }
@@ -146,10 +146,10 @@ void VideoUla::set_crtc(Crtc *crtc) {
   crtc_ = crtc;
 }
 
-void VideoUla::tick(Bus &bus) {
-  auto addr = bus.get_address();
+void VideoUla::tick(const std::shared_ptr<Bus>& bus) {
+  auto addr = bus->get_address();
   if (addr == base_addr_ || addr == base_addr_ + 1) {
-    if (bus.tst_RW()) {
+    if (bus->tst_RW()) {
       spdlog::error("vULA: Unsupported attempt to read Video ULA read from {:04x}", addr);
     } else {
       mmio_write(addr, bus);

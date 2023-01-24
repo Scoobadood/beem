@@ -10,15 +10,17 @@
 #include <cstdint>
 
 class Acia {
- public:
+public:
   Acia();
 
-  void tick(Bus &bus);
+  void tick(const std::shared_ptr<Bus> &bus);
 
- private:
+private:
   void master_reset();
-  void write_ctl(uint8_t data, Bus & bus);
-  void mmio_write(uint16_t addr, Bus &bus);
+
+  void write_ctl(uint8_t data, const std::shared_ptr<Bus> &bus);
+
+  void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
 
   /* Control register */
   uint8_t clk_divisor_{};

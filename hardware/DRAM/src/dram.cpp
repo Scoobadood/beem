@@ -19,6 +19,7 @@ DRAM::DRAM(uint16_t sz, uint16_t bus_addr)
 
   try {
     auto logger = spdlog::basic_logger_mt("DRAM", "logs/dram-log.txt");
+    logger->flush_on(spdlog::level::debug);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::warn("Log init failed for DRAM: {}", ex.what());
@@ -57,12 +58,12 @@ void DRAM::tick(const std::shared_ptr<Bus> &bus) {
     auto data = memory_->at(addr - bus_address_);
     bus->set_data(data);
 
-    debug_logger->debug("R 0x{:04x} -> :02x", addr, data);
+    debug_logger->debug("R 0x{:04x} -> {:02x}", addr, data);
   } else {
     auto data = bus->get_data();
     memory_->at(addr - bus_address_) = data;
 
-    debug_logger->debug("W :02x -> 0x{:04x}", data, addr);
+    debug_logger->debug("W {:02x} -> 0x{:04x}", data, addr);
   }
 }
 

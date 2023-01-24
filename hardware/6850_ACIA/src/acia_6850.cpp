@@ -15,15 +15,15 @@ const uint16_t WO_CTL = 0xfe08;
 #define RX_INT_ENBL(c) ((c & 0x80) == 0x80)
 
 Acia::Acia() //
-    : clk_divisor_{1} //
-    , stop_bits_{2} //
-    , word_length_{7} //
-    , parity_{2} //
-    , tx_int_enabled_{false} //
-    , rx_int_enabled_{false} //
+        : clk_divisor_{1} //
+        , stop_bits_{2} //
+        , word_length_{7} //
+        , parity_{2} //
+        , tx_int_enabled_{false} //
+        , rx_int_enabled_{false} //
 {}
 
-void mmio_read(uint16_t addr, Bus &bus) {
+void mmio_read(uint16_t addr, const std::shared_ptr<Bus>& bus) {
   spdlog::info("ACIA: Read from 0x{:04x}", addr);
 }
 
@@ -31,7 +31,7 @@ void Acia::master_reset() {
   spdlog::info("ACIA: Master Reset");
 }
 
-void Acia::write_ctl(uint8_t data, Bus &bus) {
+void Acia::write_ctl(uint8_t data, const std::shared_ptr<Bus> &bus) {
   if (MASTER_RESET(data)) {
     master_reset();
   } else {
@@ -40,49 +40,61 @@ void Acia::write_ctl(uint8_t data, Bus &bus) {
   }
 
   switch (WORD_SEL(data)) {
-    case 0:word_length_ = 7;
+    case 0:
+      word_length_ = 7;
       parity_ = 2;
       stop_bits_ = 2;
       break;
-    case 1:word_length_ = 7;
+    case 1:
+      word_length_ = 7;
       parity_ = 1;
       stop_bits_ = 2;
       break;
-    case 2:word_length_ = 7;
+    case 2:
+      word_length_ = 7;
       parity_ = 2;
       stop_bits_ = 1;
       break;
-    case 3:word_length_ = 7;
+    case 3:
+      word_length_ = 7;
       parity_ = 1;
       stop_bits_ = 1;
       break;
-    case 4:word_length_ = 8;
+    case 4:
+      word_length_ = 8;
       parity_ = 0;
       stop_bits_ = 2;
       break;
-    case 5:word_length_ = 8;
+    case 5:
+      word_length_ = 8;
       parity_ = 0;
       stop_bits_ = 1;
       break;
-    case 6:word_length_ = 8;
+    case 6:
+      word_length_ = 8;
       parity_ = 2;
       stop_bits_ = 1;
       break;
-    case 7:word_length_ = 8;
+    case 7:
+      word_length_ = 8;
       parity_ = 1;
       stop_bits_ = 1;
       break;
   }
   switch (TX_CTL_BITS(data)) {
-    case 0:rts_default_low_ = true;
+    case 0:
+      rts_default_low_ = true;
       tx_int_enabled_ = false;
       break;
-    case 1:rts_default_low_ = true;
+    case 1:
+      rts_default_low_ = true;
       tx_int_enabled_ = true;
       break;
-    case 2:rts_default_low_ = false;
+    case 2:
+      rts_default_low_ = false;
       tx_int_enabled_ = false;
-    case 3:rts_default_low_ = true;
+    case 3:
+      rts_default_low_ = true;
       tx_int_enabled_ = false;
   }
   rx_int_enabled_ = RX_INT_ENBL(data);
@@ -97,20 +109,22 @@ void Acia::write_ctl(uint8_t data, Bus &bus) {
   spdlog::info("      RX interrupts {}enabled", rx_int_enabled_ ? "" : "not ");
 }
 
-void Acia::mmio_write(uint16_t addr, Bus &bus) {
-  auto data = bus.get_data();
+void Acia::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
+  auto data = bus->get_data();
   switch (addr) {
-    case WO_CTL:write_ctl(data, bus);
+    case WO_CTL:
+      write_ctl(data, bus);
       break;
-    default:spdlog::info("ACIA: Write ({:02x}) to 0x{:04x}", bus.get_data(), addr);
+    default:
+      spdlog::info("ACIA: Write ({:02x}) to 0x{:04x}", bus->get_data(), addr);
       break;
   }
 }
 
-void Acia::tick(Bus &bus) {
-  auto addr = bus.get_address();
+void Acia::tick(const std::shared_ptr<Bus> &bus) {
+  auto addr = bus->get_address();
   if (addr < 0xfe08 || addr > 0xfe0f) return;
-  auto read = bus.tst_RW();
+  auto read = bus->tst_RW();
   if (read) {
     mmio_read(addr, bus);
   } else {

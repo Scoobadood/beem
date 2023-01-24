@@ -11,7 +11,7 @@ class Via {
  public:
   explicit Via(uint16_t base_address);
 
-  void tick(Bus &bus);
+  void tick(const std::shared_ptr<Bus>& bus);
 
   void subscribe_port_a(const data_subscriber_8_bit_ptr &subscriber);
   void unsubscribe_port_a(const data_subscriber_8_bit_ptr &subscriber);
@@ -25,11 +25,11 @@ class Via {
  private:
   void raise_irq(uint8_t irq);
   void clear_irq(uint8_t irq);
-  void mmio_read(Bus &bus, uint8_t reg);
-  void mmio_write(Bus &bus, uint8_t reg);
+  void mmio_read(const std::shared_ptr<Bus>& bus, uint8_t reg);
+  void mmio_write(const std::shared_ptr<Bus>& bus, uint8_t reg);
   void check_irq();
   void check_timers();
-  void check_mmio(Bus &bus);
+  void check_mmio(const std::shared_ptr<Bus>& bus);
   void write_irq_enable(uint8_t data);
   void write_pcr(uint8_t data);
   void write_acr(uint8_t data);

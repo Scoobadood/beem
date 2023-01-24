@@ -13,7 +13,7 @@ class Adc {
  public:
   explicit Adc(uint16_t base_address);
 
-  void tick(Bus &bus);
+  void tick(const std::shared_ptr<Bus>& bus);
 
  private:
   uint16_t base_address_;

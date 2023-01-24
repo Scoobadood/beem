@@ -34,7 +34,7 @@ class VideoUla {
 
   inline void reset_clk() {tick_count_=0;}
   void set_crtc( Crtc * crtc);
-  void tick(Bus &bus);
+  void tick(const std::shared_ptr<Bus>& bus);
 
   /* Read the current RGB value as 00rrggbb */
   uint32_t rgb() const {
@@ -42,9 +42,9 @@ class VideoUla {
   }
 
  private:
-  void mmio_write(uint16_t addr, Bus &bus);
+  void mmio_write(uint16_t addr, const std::shared_ptr<Bus>& bus);
   void write_palette(uint8_t data);
-  void maybe_poll_crtc(Bus & bus);
+  void maybe_poll_crtc(const std::shared_ptr<Bus>&  bus);
   bool time_to_shift();
   void reset_shift_clk();
 

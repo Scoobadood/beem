@@ -82,8 +82,8 @@ Via::Via(uint16_t base_address) //
     , pb7_{0} //
 {}
 
-void Via::check_mmio(Bus &bus) {
-  auto addr = bus.get_address();
+void Via::check_mmio(const std::shared_ptr<Bus>& bus) {
+  auto addr = bus->get_address();
   if (addr < base_address_) {
     return;
   }
@@ -93,15 +93,15 @@ void Via::check_mmio(Bus &bus) {
     return;
   }
 
-  if (bus.tst_RW()) {
+  if (bus->tst_RW()) {
     mmio_read(bus, addr);
   } else {
     mmio_write(bus, addr);
   }
 }
 
-void Via::mmio_read(Bus &bus, uint8_t reg) {
-  uint8_t data = bus.get_data();
+void Via::mmio_read(const std::shared_ptr<Bus>& bus, uint8_t reg) {
+  uint8_t data = bus->get_data();
   switch (reg) {
     case IORB:
       if (PB_LATCHED(acr_)) {
@@ -178,7 +178,7 @@ void Via::mmio_read(Bus &bus, uint8_t reg) {
     default:spdlog::critical("Read Unknown register ({:02x})", reg);
       break;
   }
-  bus.set_data(data);
+  bus->set_data(data);
 }
 
 /**
@@ -335,8 +335,8 @@ void Via::write_pcr(uint8_t data) {
   spdlog::info("          CB2_CTL1:{}", cb2_ctl_);
 }
 
-void Via::mmio_write(Bus &bus, uint8_t reg) {
-  auto data = bus.get_data();
+void Via::mmio_write(const std::shared_ptr<Bus>& bus, uint8_t reg) {
+  auto data = bus->get_data();
   switch (reg) {
     case IORB:spdlog::info("Writing ({:02x}) to ORB", data);
       write_port_b(data);
@@ -498,7 +498,7 @@ void Via::check_timers() {
   }
 }
 
-void Via::tick(Bus &bus) {
+void Via::tick(const std::shared_ptr<Bus>& bus) {
   check_timers();
 
   check_irq();
