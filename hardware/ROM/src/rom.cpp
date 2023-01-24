@@ -51,7 +51,7 @@ Rom::Rom(const std::string &file_name, uint16_t bus_addr) //
 
 void Rom::tick(const std::shared_ptr<Bus> &bus) {
   auto addr = bus->get_address();
-  if( addr < bus_address_ || addr > (bus_address_ + memory_->size())) return;
+  if( addr < bus_address_ || addr >= (bus_address_ + memory_->size())) return;
 
   // Read and write memory
   if (bus->tst_RW()) {
