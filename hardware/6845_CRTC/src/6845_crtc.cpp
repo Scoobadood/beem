@@ -3,6 +3,7 @@
 #include "6845_crtc.h"
 #include "data_connectors.h"
 #include <spdlog/spdlog-inl.h>
+#include "spdlog/sinks/basic_file_sink.h"
 
 /* MMIO */
 const uint8_t CRTC_REG_SELECT = 0x00;
@@ -72,6 +73,15 @@ Crtc::Crtc(uint16_t base_addr) //
           }//
 {
   hw_scroll_addr_ = std::make_shared<data_subscriber_8_bit>(0x30);
+
+  try {
+    auto logger = spdlog::basic_logger_mt("CRTC", "logs/crtc-log.txt", true);
+    logger->flush_on(spdlog::level::debug);
+  }
+  catch (const spdlog::spdlog_ex &ex) {
+    spdlog::error("Log init failed: {}", ex.what());
+  }
+
 
 }
 
@@ -239,7 +249,7 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus>& bus) {
   }
 }
 
-void Crtc::tick(const std::shared_ptr<Bus>& bus) {
+void Crtc::tick(const std::shared_ptr<Bus>& bus, const std::shared_ptr<Bus>& dram_bus) {
   auto addr = bus->get_address();
   if (addr >= base_addr_ && addr <= base_addr_ + CRTC_READ_WRITE) {
     addr -= base_addr_;
@@ -330,7 +340,9 @@ void Crtc::tick(const std::shared_ptr<Bus>& bus) {
     }
   }
 
-  bus->set_address(output_addr);
+  spdlog::get("CRTC")->debug("Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
+  dram_bus->set_address(output_addr);
+  dram_bus->set_RW();
 }
 
 /* Force screen paint from top of screen */

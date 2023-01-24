@@ -39,7 +39,7 @@ public:
 private:
   bool data_bus_isolated();
 
-  bool address_bus_isolated();
+  bool cpu_has_address_bus();
 
   std::shared_ptr<Clock> clock_;
   std::shared_ptr<M6502> cpu_;

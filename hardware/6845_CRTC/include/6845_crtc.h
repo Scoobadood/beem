@@ -25,7 +25,7 @@ class Crtc {
   explicit Crtc(uint16_t base_addr);
   ~Crtc() = default;
 
-  void tick(const std::shared_ptr<Bus>& bus);
+  void tick(const std::shared_ptr<Bus>& bus, const std::shared_ptr<Bus>& dram_bus);
 
    inline data_subscriber_8_bit_ptr hw_scroll_addr() {
     return hw_scroll_addr_;

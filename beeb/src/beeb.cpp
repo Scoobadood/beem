@@ -129,8 +129,8 @@ bool Beeb::data_bus_isolated() {
   return false;
 }
 
-bool Beeb::address_bus_isolated() {
-  return false;
+bool Beeb::cpu_has_address_bus() {
+  return clock_->is_high(CLK_2_MHZ);
 }
 
 void Beeb::tick() {
@@ -150,16 +150,19 @@ void Beeb::tick() {
     adc_->tick(bus_);
   }
 
+  if (clock_->went_high(CLK_16_MHZ)) {
+    v_ula_->tick(bus_, dram_bus_);
+  }
+
   if (clock_->went_low(CLK_4_MHZ)) {
 
     // TODO: Consider making DramBus a subclass of Bus and move this into it.
-    if (!address_bus_isolated()) {
-
+    if (cpu_has_address_bus()) {
       if (bus_->tst_RW()) dram_bus_->set_RW();
       else dram_bus_->clr_RW();
-
       dram_bus_->set_address(bus_->get_address());
-      if ((bus_->tst_RW() == 0) & !data_bus_isolated()) {
+
+      if ((bus_->tst_RW() == 0) && !data_bus_isolated()) {
         dram_bus_->set_data(bus_->get_data());
       }
     }
@@ -172,9 +175,6 @@ void Beeb::tick() {
     mos_->tick(bus_);
   }
 
-  if( clock_->went_low(CLK_16_MHZ)) {
-    v_ula_->tick(bus_);
-  }
 }
 
 std::vector<uint8_t> Beeb::get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const {

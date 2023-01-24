@@ -34,13 +34,14 @@ public:
 
   ~VideoUla() = default;
 
-  void set_clock(std::shared_ptr<Clock> clk) {clock_ = clk;}
+  void set_clock(std::shared_ptr<Clock> clk) { clock_ = clk; }
 
   inline void reset_clk() { tick_count_ = 0; }
 
   void set_crtc(Crtc *crtc);
 
-  void tick(const std::shared_ptr<Bus> &bus);
+  void tick(const std::shared_ptr<Bus> &main_bus,
+            const std::shared_ptr<Bus> &dram_bus);
 
   /* Read the current RGB value as 00rrggbb */
   uint32_t rgb() const {
@@ -52,7 +53,9 @@ private:
 
   void write_palette(uint8_t data);
 
-  void maybe_poll_crtc(const std::shared_ptr<Bus> &bus);
+  void maybe_latch_new_data(const std::shared_ptr<Bus> &dram_bus);
+
+  void maybe_drive_crtc(const std::shared_ptr<Bus> &main_bus, const std::shared_ptr<Bus> &dram_bus);
 
   bool time_to_shift();
 
