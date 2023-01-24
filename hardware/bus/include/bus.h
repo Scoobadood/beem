@@ -8,6 +8,8 @@
 
 #include <vector>
 
+const uint32_t MAX_BUS_ADDR = 0x10000f;
+
 const uint64_t PIN_DATA_MASK = 0x000000ff;
 const uint64_t PIN_ADDR_MASK = 0x00ffff00;
 const uint64_t PIN_SYNC = 0x01000000;
