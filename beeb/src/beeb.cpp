@@ -62,11 +62,12 @@ Beeb::Beeb() {
 
   // Video ULA
   v_ula_ = new VideoUla(0xfe20);
+  v_ula_->set_clock(clock_);
 
-//  // CRTC
-//  crtc_ = new Crtc(0xfe00);
-//  latch_->subscribe(crtc_->hw_scroll_addr());
-//  v_ula_->set_crtc(crtc_);
+  // CRTC
+  crtc_ = new Crtc(0xfe00);
+  latch_->subscribe(crtc_->hw_scroll_addr());
+  v_ula_->set_crtc(crtc_);
 }
 
 void Beeb::reset() {

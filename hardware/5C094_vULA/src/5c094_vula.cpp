@@ -131,7 +131,8 @@ void VideoUla::reset_shift_clk() {
 }
 
 void VideoUla::maybe_poll_crtc(const std::shared_ptr<Bus>& bus) {
-  if ((tick_count_ == 0) || (tick_count_ == 8 && crtc_clk_ == 1)) {
+
+  if (clock_->went_high(CLK_2_MHZ) || (clock_->went_high(CLK_1_MHZ) && crtc_clk_ == 1)) {
     spdlog::get("vULA")->info("{}| reload ({:02x}) from &{:04x}", tick_count_,
                               bus->get_data(), bus->get_address());
 

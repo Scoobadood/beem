@@ -23,29 +23,39 @@
 
 #include "bus.h"
 #include "6845_crtc.h"
+#include "clock.h"
 
 #include <vector>
 #include <string>
 
 class VideoUla {
- public:
+public:
   explicit VideoUla(uint16_t base_addr);
+
   ~VideoUla() = default;
 
-  inline void reset_clk() {tick_count_=0;}
-  void set_crtc( Crtc * crtc);
-  void tick(const std::shared_ptr<Bus>& bus);
+  void set_clock(std::shared_ptr<Clock> clk) {clock_ = clk;}
+
+  inline void reset_clk() { tick_count_ = 0; }
+
+  void set_crtc(Crtc *crtc);
+
+  void tick(const std::shared_ptr<Bus> &bus);
 
   /* Read the current RGB value as 00rrggbb */
   uint32_t rgb() const {
-    return ((red_ << 16) | (grn_<< 8) | blu_) & 0xffffff;
+    return ((red_ << 16) | (grn_ << 8) | blu_) & 0xffffff;
   }
 
- private:
-  void mmio_write(uint16_t addr, const std::shared_ptr<Bus>& bus);
+private:
+  void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
+
   void write_palette(uint8_t data);
-  void maybe_poll_crtc(const std::shared_ptr<Bus>&  bus);
+
+  void maybe_poll_crtc(const std::shared_ptr<Bus> &bus);
+
   bool time_to_shift();
+
   void reset_shift_clk();
 
   void process_data();
@@ -68,7 +78,8 @@ class VideoUla {
   uint8_t curr_data_;
   uint8_t tick_count_;
 
-  Crtc * crtc_;
+  std::shared_ptr<Clock> clock_;
+  Crtc *crtc_;
 };
 
 #endif // BEEB_HARDWARE_5C095_VULA_H
