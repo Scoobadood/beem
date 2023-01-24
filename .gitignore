@@ -13,7 +13,8 @@ cmake-build-debug/
 **CMakeLists.txt.user
 
 .qtc_clangd
-Beeb.*
+
+debugger/Beeb.*
 
 /debugger/src/breakpoint_dlg.ui.autosave
 
