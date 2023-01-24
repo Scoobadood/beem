@@ -137,8 +137,11 @@ void VideoUla::reset_shift_clk() {
 }
 
 void VideoUla::maybe_drive_crtc(const std::shared_ptr<Bus> &main_bus, const std::shared_ptr<Bus> &dram_bus) {
+  if (crtc_ && (clock_->went_high(CLK_1_MHZ) || (clock_->went_high(CLK_2_MHZ) && crtc_clk_ == 1))) {
+    crtc_->tick_high(main_bus);
+  }
   if (crtc_ && (clock_->went_low(CLK_1_MHZ) || (clock_->went_low(CLK_2_MHZ) && crtc_clk_ == 1))) {
-    crtc_->tick(main_bus, dram_bus);
+    crtc_->tick_low(dram_bus);
   }
 }
 

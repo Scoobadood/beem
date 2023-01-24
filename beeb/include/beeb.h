@@ -58,6 +58,9 @@ private:
   Adc *adc_;
   VideoUla *v_ula_;
   Crtc *crtc_;
+
+  uint32_t pixel_x_, pixel_y_;
+  uint32_t * screen_Data_;
 };
 
 #endif //M6502_SRC_BEEB_H_

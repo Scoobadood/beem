@@ -15,16 +15,6 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
-     <widget class="DisassemblyView" name="disassembly_view" native="true">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-        <horstretch>2</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-    </item>
     <item row="0" column="1">
      <widget class="QWidget" name="widget" native="true">
       <property name="sizePolicy">
@@ -61,6 +51,37 @@
            <horstretch>0</horstretch>
            <verstretch>2</verstretch>
           </sizepolicy>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="0" column="0">
+     <widget class="QWidget" name="ctr" native="true">
+      <property name="minimumSize">
+       <size>
+        <width>100</width>
+        <height>0</height>
+       </size>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="CrtView" name="crt_view" native="true"/>
+       </item>
+       <item>
+        <widget class="DisassemblyView" name="disassembly_view" native="true">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
          </property>
         </widget>
        </item>
@@ -251,6 +272,12 @@
    <class>DisassemblyView</class>
    <extends>QWidget</extends>
    <header>disassembly_view.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>CrtView</class>
+   <extends>QWidget</extends>
+   <header>crt_view.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -46,7 +46,7 @@ Beeb::Beeb() {
   system_via_->subscribe_port_a(sound_chip_->data_src());
 
   // Attach keyboard
-  keyboard_ = new Keyboard(0x01 /* Boot into mode 6 */);
+  keyboard_ = new Keyboard(0x05 /* Boot into mode 2 */);
   latch_->subscribe(keyboard_->we_src());
   latch_->subscribe(keyboard_->cl_led_src());
   latch_->subscribe(keyboard_->sl_led_src());
@@ -68,6 +68,9 @@ Beeb::Beeb() {
   crtc_ = new Crtc(0xfe00);
   latch_->subscribe(crtc_->hw_scroll_addr());
   v_ula_->set_crtc(crtc_);
+
+  screen_Data_ = new uint32_t[640 * 256];
+  pixel_x_ = pixel_y_ = 0;
 }
 
 void Beeb::reset() {
@@ -152,6 +155,16 @@ void Beeb::tick() {
 
   if (clock_->went_high(CLK_16_MHZ)) {
     v_ula_->tick(bus_, dram_bus_);
+    auto rgb = v_ula_->rgb();
+    screen_Data_[pixel_y_ * 640 + pixel_x_] = rgb;
+    pixel_x_++;
+    if (pixel_x_ == 640) {
+      pixel_x_ = 0;
+      pixel_y_++;
+      if (pixel_y_ == 250) {
+        pixel_y_ = 0;
+      }
+    }
   }
 
   if (clock_->went_low(CLK_4_MHZ)) {

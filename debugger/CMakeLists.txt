@@ -16,6 +16,7 @@ add_executable(deeb
         src/deeb_window.cpp src/deeb_window.ui include/deeb_window.h
         src/memory_view.cpp src/memory_view.ui include/memory_view.h
         src/breakpoint_dlg.cpp src/breakpoint_dlg.ui include/breakpoint_dlg.h
+        src/crt_view.cpp src/crt_view.ui include/crt_view.h
         )
 
 target_include_directories(deeb
