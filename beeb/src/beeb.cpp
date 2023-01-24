@@ -129,12 +129,10 @@ bool Beeb::data_bus_isolated() {
     return true;
   return false;
 }
-FUCKSICKLE
+
 bool Beeb::address_bus_isolated() {
   return false;
 }
-SHITWITTERY
-
 
 void Beeb::tick() {
   clock_->tick();
