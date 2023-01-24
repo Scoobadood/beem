@@ -93,6 +93,7 @@
     <addaction name="act_step"/>
     <addaction name="act_run"/>
     <addaction name="act_break"/>
+    <addaction name="act_reset"/>
    </widget>
    <widget class="QMenu" name="mnu_nav">
     <property name="title">
@@ -128,6 +129,7 @@
    <addaction name="act_run"/>
    <addaction name="act_step"/>
    <addaction name="act_break"/>
+   <addaction name="act_reset"/>
    <addaction name="act_edit_breakpoints"/>
   </widget>
   <action name="act_load_image">
@@ -142,7 +144,8 @@
   </action>
   <action name="act_step">
    <property name="icon">
-    <iconset theme="media-playback-start"/>
+    <iconset theme="media-playback-start">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Step</string>
@@ -159,7 +162,8 @@
   </action>
   <action name="act_run">
    <property name="icon">
-    <iconset theme="media-seek-forward"/>
+    <iconset theme="media-seek-forward">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Run</string>
@@ -173,7 +177,8 @@
   </action>
   <action name="act_edit_breakpoints">
    <property name="icon">
-    <iconset theme="dialog-error"/>
+    <iconset theme="dialog-error">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Breakpoints...</string>
@@ -192,7 +197,8 @@
   </action>
   <action name="act_break">
    <property name="icon">
-    <iconset theme="media-playback-pause"/>
+    <iconset theme="media-playback-pause">
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>Break</string>
@@ -210,6 +216,14 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+G</string>
+   </property>
+  </action>
+  <action name="act_reset">
+   <property name="icon">
+    <iconset theme="system-reboot"/>
+   </property>
+   <property name="text">
+    <string>Reset</string>
    </property>
   </action>
  </widget>

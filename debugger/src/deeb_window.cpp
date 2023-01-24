@@ -21,6 +21,7 @@ DeebWindow::DeebWindow(QWidget *parent) //
   connect(ui->act_step, &QAction::triggered, this, &DeebWindow::step);
   connect(ui->act_run, &QAction::triggered, this, &DeebWindow::run);
   connect(ui->act_break, &QAction::triggered, this, &DeebWindow::brk);
+  connect(ui->act_reset, &QAction::triggered, this, &DeebWindow::reset_cpu);
 
   connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
   connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
@@ -47,6 +48,20 @@ DeebWindow::~DeebWindow() {
 }
 
 
+void DeebWindow::set_debug_buttons_paused() {
+  ui->act_break->setEnabled(false);
+  ui->act_run->setEnabled(true);
+  ui->act_step->setEnabled(true);
+  ui->act_reset->setEnabled(true);
+}
+
+void DeebWindow::set_debug_buttons_running() {
+  ui->act_break->setEnabled(true);
+  ui->act_run->setEnabled(false);
+  ui->act_step->setEnabled(false);
+  ui->act_reset->setEnabled(false);
+}
+
 void DeebWindow::beeb_data_needed(QWidget *source, uint16_t start_address, uint32_t num_bytes) {
   auto data = beeb_->get_memory_contents(start_address, num_bytes);
   if (source == ui->mem_view) {
@@ -61,11 +76,13 @@ void DeebWindow::beeb_data_needed(QWidget *source, uint16_t start_address, uint3
  */
 
 void DeebWindow::reset_cpu() {
+  set_debug_buttons_running();
   beeb_->reset();
   auto cpu = beeb_->cpu();
   emit flags_changed(cpu->flags());
   emit registers_changed(cpu->A(), cpu->X(), cpu->Y(), cpu->PC(), cpu->SP());
   emit pc_changed(cpu->PC());
+  set_debug_buttons_paused();
 }
 
 /**
@@ -75,10 +92,12 @@ void DeebWindow::reset_cpu() {
  */
 void
 DeebWindow::step() {
-  ui->act_step->setEnabled(false);
-  ui->act_run->setEnabled(false);
-  ui->act_break->setEnabled(false);
-
+  set_debug_buttons_running();
+  // Wait for sync to clear
+  while (beeb_->bus()->tst_SYNC()) {
+    beeb_->tick();
+  }
+  // Now wait for it to be set.
   do {
     beeb_->tick();
   } while (!beeb_->bus()->tst_SYNC());
@@ -88,9 +107,7 @@ DeebWindow::step() {
   emit pc_changed(cpu->PC());
   emit bus_changed(beeb_->bus());
 
-  ui->act_step->setEnabled(true);
-  ui->act_run->setEnabled(true);
-  ui->act_break->setEnabled(true);
+  set_debug_buttons_paused();
 }
 
 /**
@@ -100,9 +117,7 @@ DeebWindow::step() {
  */
 void
 DeebWindow::run() {
-  ui->act_run->setEnabled(false);
-  ui->act_step->setEnabled(false);
-  ui->act_break->setEnabled(true);
+  set_debug_buttons_running();
 
   brk_requested_ = false;
   QtConcurrent::run([&] {
@@ -116,9 +131,7 @@ DeebWindow::run() {
     emit pc_changed(cpu->PC());
     emit bus_changed(beeb_->bus());
 
-    ui->act_run->setEnabled(true);
-    ui->act_step->setEnabled(false);
-    ui->act_break->setEnabled(false);
+    set_debug_buttons_paused();
   });
 }
 
@@ -155,7 +168,7 @@ void DeebWindow::load_symbols() {
   file.close();
 
   // Force repeat disassembly
-//  ui->disassembly_view->set_symbols(symbols);
+  ui->disassembly_view->set_symbols(symbols);
 }
 
 void DeebWindow::breakpoint_set(uint16_t brk_addr) {
