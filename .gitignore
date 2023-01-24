@@ -14,9 +14,8 @@ cmake-build-debug/
 
 .qtc_clangd
 
-debugger/Beeb.*
-
-/debugger/src/breakpoint_dlg.ui.autosave
+/debugger/Beeb.*
+debugger/src/breakpoint_dlg.ui.autosave
 
 .idea/
 
