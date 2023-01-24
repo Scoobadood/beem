@@ -4,6 +4,7 @@
 
 #include <QResizeEvent>
 #include <QTextBlock>
+#include <QTextDocumentFragment>
 
 struct DisassemblyView::FormattedOperation {
   QString address;
@@ -21,6 +22,7 @@ DisassemblyView::DisassemblyView(QWidget *parent) //
         , row_height_{0} //
         , displayed_rows_{0} //
         , first_displayed_byte_offset_{0} //
+        , pc_colour_{186, 231, 255} //
 {
   ui->setupUi(this);
   ui->te_disassembly->viewport()->installEventFilter(this);
@@ -34,6 +36,10 @@ DisassemblyView::DisassemblyView(QWidget *parent) //
 
   auto fm = ui->te_disassembly->fontMetrics();
   row_height_ = fm.size(Qt::TextSingleLine, "0000").height();
+
+  ui->te_disassembly->setFixedWidth(48 * fm.maxWidth());
+  ui->te_disassembly->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+  ui->te_disassembly->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
 }
 
 DisassemblyView::~DisassemblyView() {
@@ -69,6 +75,12 @@ bool DisassemblyView::eventFilter(QObject *obj, QEvent *event) {
   return false;
 }
 
+
+void DisassemblyView::resize(const QSize &size) {
+  // Keep text edit a fixed size
+  ui->te_disassembly->setFixedWidth(700);
+}
+
 /**
  * Capture some key attributes about the view and then
  * populate it.
@@ -100,8 +112,6 @@ void DisassemblyView::resizeEvent(QResizeEvent *event) {
  * take it from there
  */
 void DisassemblyView::scroll_to(uint16_t address) {
-  spdlog::info("scroll_to({:04x})", address);
-
   first_displayed_byte_offset_ = address;
   auto num_bytes = std::min(displayed_rows_ * 3, 0x10000 - first_displayed_byte_offset_);
   ui->sb_disassembly->blockSignals(true);
@@ -150,6 +160,7 @@ void DisassemblyView::set_pc(uint16_t pc) {
   uint32_t row;
   float prop;
   if (!address_on_screen(pc, &row, &prop)) {
+
     // Desired PC is not on screen, scroll to display it.
     // This will clear any old PC automatically.
     current_pc_ = pc;
@@ -167,6 +178,7 @@ void DisassemblyView::set_pc(uint16_t pc) {
     current_pc_ = pc;
     auto next_addr = row_to_addr_.at(1);
     scroll_to(next_addr);
+    return;
   }
 
   // PC is on screen and high enough up that we aren;t going to scroll
@@ -182,7 +194,8 @@ void DisassemblyView::set_pc(uint16_t pc) {
   auto blk = ui->te_disassembly->document()->findBlockByLineNumber(row);
   auto cursor = QTextCursor(blk);
   redraw(cursor, true);
-  update();
+
+  ui->te_disassembly->update();
 }
 
 /**
@@ -265,14 +278,13 @@ DisassemblyView::FormattedOperation DisassemblyView::format_for_display(const Op
  * Highlight the row containing the PC if present
  */
 void DisassemblyView::redraw(QTextCursor cursor, bool is_pc) {
-  cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+  cursor.movePosition(QTextCursor::StartOfLine, QTextCursor::MoveAnchor);
   cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 1);
-  cursor.movePosition(QTextCursor::EndOfLine, QTextCursor::MoveAnchor);
+
   QTextCharFormat fmt{};
-  fmt.setForeground(QBrush{is_pc ? QColorConstants::LightGray : QColorConstants::White});
-  cursor.setCharFormat(fmt);
-  cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
-  update();
+  fmt.setBackground(QBrush{is_pc ? pc_colour_: QColorConstants::White});
+  cursor.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
+  cursor.mergeCharFormat(fmt);
 }
 
 void DisassemblyView::clear_brkpt_formatting(QTextCursor cursor) {
@@ -344,7 +356,7 @@ void DisassemblyView::layout_disassembly() {
     }
 
     if (op.address == current_pc_) {
-      ui->te_disassembly->setTextBackgroundColor(QColorConstants::LightGray);
+      ui->te_disassembly->setTextBackgroundColor(pc_colour_);
     } else {
       ui->te_disassembly->setTextBackgroundColor(QColorConstants::White);
     }
@@ -397,9 +409,9 @@ void DisassemblyView::mousePressEvent(QMouseEvent *e) {
   }
 }
 
-void DisassemblyView::set_symbols(const std::map<uint16_t, std::string>& symbols) {
+void DisassemblyView::set_symbols(const std::map<uint16_t, std::string> &symbols) {
   symbols_.clear();
-  for( const auto & s : symbols) {
+  for (const auto &s: symbols) {
     symbols_.emplace(s.first, QString::fromStdString(s.second));
   }
   layout_disassembly();

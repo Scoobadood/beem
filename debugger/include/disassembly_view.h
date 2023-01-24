@@ -32,6 +32,8 @@ public:
 
   void mousePressEvent(QMouseEvent *e) override;
 
+  void resize(const QSize & size);
+
   void scroll_to(uint16_t address);
 
   void set_pc(uint16_t pc);
@@ -90,6 +92,8 @@ private:
 
   /** A map of adress to symbol lookup */
   std::map<uint16_t, QString> symbols_;
+
+  const QColor pc_colour_;
 
   std::vector<Operation> disassembly_;
 };
