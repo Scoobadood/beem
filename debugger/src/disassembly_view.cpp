@@ -182,6 +182,7 @@ void DisassemblyView::set_pc(uint16_t pc) {
   auto blk = ui->te_disassembly->document()->findBlockByLineNumber(row);
   auto cursor = QTextCursor(blk);
   redraw(cursor, true);
+  update();
 }
 
 /**
@@ -394,4 +395,12 @@ void DisassemblyView::mousePressEvent(QMouseEvent *e) {
     breakpoint_addresses_.emplace(it->second);
     emit breakpoint_set(it->second);
   }
+}
+
+void DisassemblyView::set_symbols(const std::map<uint16_t, std::string>& symbols) {
+  symbols_.clear();
+  for( const auto & s : symbols) {
+    symbols_.emplace(s.first, QString::fromStdString(s.second));
+  }
+  layout_disassembly();
 }

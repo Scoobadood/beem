@@ -24,6 +24,8 @@ public:
 
   void set_data(const std::vector<uint8_t> &data);
 
+  void set_symbols(const std::map<uint16_t, std::string>& symbols);
+
   void resizeEvent(QResizeEvent *event) override;
 
   bool eventFilter(QObject *obj, QEvent *event) override;
