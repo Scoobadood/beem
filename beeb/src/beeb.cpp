@@ -17,8 +17,25 @@ const uint16_t BASIC_ROM_LAST = 0xBfff;
 const uint16_t BASIC_ROM_SIZE = BASIC_ROM_LAST - BASIC_ROM_BASE + 1;
 const uint16_t MOS_ROM_BASE = 0xC000;
 
+/* MMIO addresses */
+const uint16_t MMIO_SULA_START = 0xfe08;
+const uint16_t MMIO_SULA_END = 0xfe1f;
+const uint16_t MMIO_CRTC_REG_SEL = 0xfe00;
+const uint16_t MMIO_CRTC_READ_WRITE = 0xfe01;
+const uint16_t MMIO_ACIA = 0xfe08;
+const uint16_t MMIO_ECONET_STATID = 0xfe18;
 const uint16_t MMIO_VULA_REG_SEL = 0xfe20;
 const uint16_t MMIO_VULA_PLT = 0xfe21;
+const uint16_t MMIO_SYSTEM_VIA_START = 0xfe40;
+const uint16_t MMIO_SYSTEM_VIA_END = 0xfe4f;
+const uint16_t MMIO_USER_VIA_START = 0xfe60;
+const uint16_t MMIO_USER_VIA_END = 0xfe6f;
+const uint16_t MMIO_ADC_START = 0xfec0;
+const uint16_t MMIO_ADC_END = 0xfec2;
+const uint16_t MMIO_FRED_START = 0xfc00;
+const uint16_t MMIO_FRED_END = 0xfcff;
+const uint16_t MMIO_JIM_START = 0xfd00;
+const uint16_t MMIO_JIM_END = 0xfdff;
 
 Beeb::Beeb() {
   using namespace std;
@@ -46,7 +63,7 @@ Beeb::Beeb() {
   system_via_->subscribe_port_a(sound_chip_->data_src());
 
   // Attach keyboard
-  keyboard_ = new Keyboard(0x05 /* Boot into mode 2 */);
+  keyboard_ = new Keyboard(0x00 /* Boot into mode 0 */);
   latch_->subscribe(keyboard_->we_src());
   latch_->subscribe(keyboard_->cl_led_src());
   latch_->subscribe(keyboard_->sl_led_src());
@@ -69,7 +86,7 @@ Beeb::Beeb() {
   latch_->subscribe(crtc_->hw_scroll_addr());
   v_ula_->set_crtc(crtc_);
 
-  screen_Data_ = new uint32_t[640 * 256];
+  screen_Data_ = new uint8_t[640 * 256 * 3];
   pixel_x_ = pixel_y_ = 0;
 }
 
@@ -121,7 +138,7 @@ void Beeb::reset() {
  */
 bool Beeb::data_bus_isolated() {
   // Isolated when phi is low
-  if (clock_->is_low(CLK_2_MHZ)) return true;
+  if (clock_->is_low(CLK_E_2_MHZ)) return true;
 
   // Isolated unless writing to vULA regs or DRAM
   auto addr = bus_->get_address();
@@ -133,38 +150,67 @@ bool Beeb::data_bus_isolated() {
 }
 
 bool Beeb::cpu_has_address_bus() {
-  return clock_->is_high(CLK_2_MHZ);
+  return clock_->is_high(CLK_E_2_MHZ);
 }
 
+/*
+ * Return true if the address on the bus corresponds to 1MHz HW, specifically:
+ * -
+ *
+ */
+bool Beeb::is_1mhz_device_address(const std::shared_ptr<Bus> &bus) {
+  auto addr = bus->get_address();
+
+  /* CRTC */
+  if (addr == MMIO_CRTC_READ_WRITE || addr == MMIO_CRTC_REG_SEL) return true;
+
+  /* ACIA */
+  if (addr == MMIO_ACIA) return true;
+
+  /* Serial ULA */
+  if (addr >= MMIO_SULA_START && addr <= MMIO_SULA_END) return true;
+
+  /* Econet station id */
+  if (addr >= MMIO_ECONET_STATID) return true;
+
+  /* Two VIAs */
+  if (addr >= MMIO_SYSTEM_VIA_START && addr <= MMIO_SYSTEM_VIA_END) return true;
+  if (addr >= MMIO_USER_VIA_START && addr <= MMIO_USER_VIA_END) return true;
+
+  if (addr >= MMIO_ADC_START && addr <= MMIO_ADC_END) return true;
+
+  if (addr >= MMIO_FRED_START && addr <= MMIO_FRED_END) return true;
+  if (addr >= MMIO_JIM_START && addr <= MMIO_JIM_END) return true;
+
+  return false;
+}
+
+
 void Beeb::tick() {
+  static int scrid = 0;
+
   clock_->tick();
 
 // CPU normally does internal work in LOW phase and then
 // Bus RW in high phase. We're phaking it so we just go
 // Off the high phase which also makes the isolation code work.
-  if (clock_->went_high(CLK_2_MHZ)) {
+  if (clock_->went_high(CLK_E_2_MHZ)) {
     cpu_->tick(bus_);
-    system_via_->tick(bus_);
-    user_via_->tick(bus_);
-    keyboard_->tick();
-    latch_->tick();
-    sound_chip_->tick();
-    acia_->tick(bus_);
-    adc_->tick(bus_);
+    if (is_1mhz_device_address(bus_)) {
+      clock_->begin_time_stretch();
+    }
   }
 
-  if (clock_->went_high(CLK_16_MHZ)) {
-    v_ula_->tick(bus_, dram_bus_);
-    auto rgb = v_ula_->rgb();
-    screen_Data_[pixel_y_ * 640 + pixel_x_] = rgb;
-    pixel_x_++;
-    if (pixel_x_ == 640) {
-      pixel_x_ = 0;
-      pixel_y_++;
-      if (pixel_y_ == 250) {
-        pixel_y_ = 0;
-      }
-    }
+  /* Tick the 1MHz stuff */
+  if (clock_->went_high(CLK_1_MHZ)) {
+    system_via_->tick(bus_);
+    user_via_->tick(bus_);
+
+    keyboard_->tick();
+    latch_->tick();
+//    sound_chip_->tick();
+//    acia_->tick(bus_);
+//    adc_->tick(bus_);
   }
 
   if (clock_->went_low(CLK_4_MHZ)) {
@@ -187,6 +233,28 @@ void Beeb::tick() {
     }
     mos_->tick(bus_);
   }
+  if (clock_->went_high(CLK_16_MHZ)) {
+    v_ula_->tick(bus_, dram_bus_);
+    auto rgb = v_ula_->rgb();
+    screen_Data_[(pixel_y_ * 640 + pixel_x_) * 3] = (rgb >> 16) & 0xff;
+    screen_Data_[(pixel_y_ * 640 + pixel_x_) * 3 + 1] = (rgb >> 8) & 0xff;
+    screen_Data_[(pixel_y_ * 640 + pixel_x_) * 3 + 2] = rgb & 0xff;
+    pixel_x_++;
+    if (pixel_x_ == 640) {
+      pixel_x_ = 0;
+      pixel_y_++;
+      if (pixel_y_ == 250) {
+        pixel_y_ = 0;
+        auto scr_file_name = fmt::format("/Users/dave/Desktop/screen_{:02}.data", scrid);
+        std::ofstream d{scr_file_name, std::ios::binary|std::ios::out};
+        d.write((const char *) screen_Data_, 640*250*3);
+        d.close();
+        memset(screen_Data_, 0, 640*250*3);
+        scrid = (scrid + 1) % 100;
+      }
+    }
+  }
+
 
 }
 

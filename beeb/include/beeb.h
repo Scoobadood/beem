@@ -41,6 +41,8 @@ private:
 
   bool cpu_has_address_bus();
 
+  bool is_1mhz_device_address(const std::shared_ptr<Bus> &bus);
+
   std::shared_ptr<Clock> clock_;
   std::shared_ptr<M6502> cpu_;
   std::shared_ptr<DRAM> dram_;
@@ -60,7 +62,7 @@ private:
   Crtc *crtc_;
 
   uint32_t pixel_x_, pixel_y_;
-  uint32_t * screen_Data_;
+  uint8_t *screen_Data_;
 };
 
 #endif //M6502_SRC_BEEB_H_
