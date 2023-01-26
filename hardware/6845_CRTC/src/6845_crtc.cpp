@@ -348,6 +348,7 @@ void Crtc::tick_low(const std::shared_ptr<Bus> &dram_bus) {
   }
   if (char_line_ == vert_total_ && row_addr_ == vert_total_adj_) {
     memory_addr_ = screen_start_;
+    start_of_line_ = screen_start_;
     char_addr_ = 0;
     row_addr_ = 0;
     char_line_ = 0;

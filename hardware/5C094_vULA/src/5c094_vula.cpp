@@ -164,6 +164,7 @@ void VideoUla::tick(const std::shared_ptr<Bus> &main_bus,
     if (main_bus->tst_RW()) {
       spdlog::error("vULA: Unsupported attempt to read Video ULA read from {:04x}", addr);
     } else {
+      spdlog::info("Read VULA {:04x}", addr);
       mmio_write(addr, main_bus);
     }
     tick_count_ = (tick_count_ + 1) % 16;
