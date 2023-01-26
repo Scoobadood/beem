@@ -12,6 +12,9 @@ void TestUla::SetUp() {
   char_line_ = 0;
 
   pixel_buffer_ = nullptr;
+
+  bus = std::make_shared<Bus>();
+  dram_bus = std::make_shared<Bus>();
 }
 
 void TestUla::TearDown() {
@@ -38,10 +41,11 @@ void TestUla::init_pixel_buffer(uint32_t sz) {
 
 void TestUla::set_mode(uint8_t mode) {
   // Set VULA
-  bus.set_address(0xfe20);
-  bus.set_data(vula_config_[mode]);
-  bus.clr_RW();
-  v_ula->tick(bus);
+  bus->set_address(0xfe20);
+  bus->set_data(vula_config_[mode]);
+  bus->clr_RW();
+
+  v_ula->tick(bus, dram_bus);
 
   uint8_t *plt;
   switch (mode) {
@@ -101,9 +105,9 @@ void TestUla::set_mode(uint8_t mode) {
 
   // Set palette
   for (int i = 0; i < 16; ++i) {
-    bus.set_address(0xfe21);
-    bus.set_data(plt[i]);
-    v_ula->tick(bus);
+    bus->set_address(0xfe21);
+    bus->set_data(plt[i]);
+    v_ula->tick(bus, dram_bus);
   }
 }
 
@@ -122,8 +126,8 @@ void TestUla::update_row_column() {
 }
 void TestUla::load_next_byte() {
   auto sdi = generate_sdi();
-  bus.set_address(0x0000 + sdi);
-  bus.set_data(data_[sdi]);
+  dram_bus->set_address(0x0000 + sdi);
+  dram_bus->set_data(data_[sdi]);
 }
 
 void TestUla::render_output() {
@@ -161,7 +165,7 @@ void TestUla::run_test(uint8_t mode, const std::string &file_name) {
     load_next_byte();
 
     for (uint32_t j = 0; j < ticks_required; ++j) {
-      v_ula->tick(bus);
+      v_ula->tick(bus, dram_bus);
       render_output();
     }
     update_row_column();

@@ -27,9 +27,12 @@ class TestUla : public ::testing::Test {
   VideoUla *v_ula;
 
 /* Bus needed until we can mock one */
-  Bus bus;
+  std::shared_ptr<Bus> bus;
+  std::shared_ptr<Bus> dram_bus;
 
-/* Render target */
+
+
+  /* Render target */
   uint32_t pixel_buffer_size_;
   uint32_t pixel_buffer_idx_;
   uint8_t *pixel_buffer_;
