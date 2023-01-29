@@ -7,5 +7,7 @@ target_include_directories(DRAM PUBLIC
         )
 
 target_link_libraries(DRAM
-        PUBLIC Bus
+        PUBLIC
+        Bus
+        Common
         )

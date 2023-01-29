@@ -102,7 +102,7 @@ int main(int argc, const char *argv[]) {
 
   bool should_debug = ((argc > 1) && (strlen(argv[1]) == 2) && (argv[1][0] == '-') && (argv[1][1] == 'd'));
 
-  auto memory = make_shared<DRAM>(0x8000, 0);
+  auto memory = make_shared<DRAM>(0x8000, 0, nullptr);
   memory->load("data/6502_functional_test.bin");
 
   M6502 cpu;

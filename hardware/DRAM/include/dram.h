@@ -2,6 +2,7 @@
 #define BEEB_HARDWARE_DRAM_H_
 
 #include "bus.h"
+#include "clock.h"
 
 #include <vector>
 
@@ -13,7 +14,7 @@ public:
    * @param bus_address The base address of the first byte of memory in this DRAM.
    * NB bus_address + sz cannot by 0x10000 or greater as this is out of the adressabel range of the BBC
    */
-  DRAM(uint16_t sz, uint16_t bus_address);
+  DRAM(uint16_t sz, uint16_t bus_address, std::shared_ptr<Clock> clk);
 
   /**
    * Load the memory from binary data in the specified file.
@@ -47,6 +48,9 @@ private:
 
   /* The stored memory */
   std::shared_ptr<std::vector<uint8_t>> memory_;
+
+  /* A copy f the system clock */
+  std::shared_ptr<Clock> clock_;
 };
 
 #endif // BEEB_HARDWARE_DRAM_H_

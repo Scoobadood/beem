@@ -29,7 +29,7 @@ const uint8_t REG_CURSOR_POS_LO = 0x0f;
 const uint8_t REG_LPEN_POS_HI = 0x10;
 const uint8_t REG_LPEN_POS_LO = 0x11;
 
-Crtc::Crtc(uint16_t base_addr) //
+Crtc::Crtc(uint16_t base_addr, const std::shared_ptr<Clock> &clk) //
         : base_addr_{base_addr} //
         , reg_select_{0}//
         , horz_total_{0} //
@@ -50,16 +50,19 @@ Crtc::Crtc(uint16_t base_addr) //
         , screen_start_{0} //
         , cursor_pos_{0} //
         , light_pen_pos_{0} //
-        , start_of_line_{0} //
+        , char_cnt_{0} //
+        , line_cnt_{0} //
+        , raster_cnt_{0} //
+        , adj_cnt_{0} //
+        , hsync_width_cnt_{0} //
+        , vsync_width_cnt_{0} //
+        , cursor_enabled_{false} //
         , memory_addr_{0} //
-        , char_addr_{0} //
-        , row_addr_{0} //
-        , char_line_{0} //
-        , display_enable_h_{0} //
-        , display_enable_v_{0} //
+        , h_disp_enable_{0} //
+        , v_disp_enable_{0} //
         , hsync_{0} //
         , vsync_{0} //
-        , vsync_clk_{0} //
+        , clock_{clk} //
         , register_name_
                   {
                           "Horizontal total", "Horizontal displayed characters",
@@ -74,16 +77,17 @@ Crtc::Crtc(uint16_t base_addr) //
                   }//
 {
   hw_scroll_addr_ = std::make_shared<data_subscriber_8_bit>(0x30);
-
   try {
     auto logger = spdlog::basic_logger_mt("CRTC", "logs/crtc-log.txt", true);
-    logger->flush_on(spdlog::level::debug);
+    logger->
+            flush_on(spdlog::level::debug);
+    logger = spdlog::basic_logger_mt("CRTC-counter", "logs/crtc-counter-log.txt", true);
+    logger->
+            flush_on(spdlog::level::debug);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
-
-
 }
 
 void Crtc::mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus) {
@@ -135,16 +139,19 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
   switch (reg_select_) {
     case REG_HORZ_TOTAL:
       horz_total_ = data;
+      sync();
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to horz_total", data);
       break;
 
     case REG_HORZ_DISP:
       horz_displayed_ = data;
+      sync();
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to horz_disp", data);
       break;
 
     case REG_HSYNC_POS:
       hsync_pos_ = data;
+      sync();
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to hsync_pos", data);
       break;
 
@@ -158,16 +165,19 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
 
     case REG_VERT_TOTAL:
       vert_total_ = data;
+      sync();
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to vert_total", data);
       break;
 
     case REG_VERT_TOTAL_ADJ:
       vert_total_adj_ = data;
+      sync();
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to vert_total_adj", data);
       break;
 
     case REG_VERT_TOTAL_DISP:
       vert_total_disp_ = data;
+      sync();
       spdlog::get("CRTC")->info("CRTC: {:02x} to vert_total_disp", data);
       break;
 
@@ -224,6 +234,7 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
 
     case REG_CHAR_SCAN_LINES:
       char_scan_lines_ = data & 0x1f;
+      sync();
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to char_scan_lines. Scan lines set to {:02x}", data,
                                 char_scan_lines_);
       break;
@@ -245,12 +256,14 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
 
     case REG_SCREEN_ADDR_HI:
       screen_start_ = (screen_start_ & 0x00ff) | ((data & 0x3f) << 8);
+      sync();
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to scr_start_addr_hi.", data);
       spdlog::get("CRTC")->info("      Screen start address is {:04x}", screen_start_);
       break;
 
     case REG_SCREEN_ADDR_LO:
       screen_start_ = (screen_start_ & 0x3f00) | data;
+      sync();
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to scr_start_addr_lo.", data);
       spdlog::get("CRTC")->info("      Screen start address is {:04x}", screen_start_);
       break;
@@ -281,87 +294,128 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
   }
 }
 
-void Crtc::tick_high(const std::shared_ptr<Bus> &bus) {
+/**
+ * Poll the address bus for data and read it if my address is present.
+ * This is tied to the BBC 1MHzE clock falling edge.
+ * @param bus
+ */
+void Crtc::tick(const std::shared_ptr<Bus> &bus) {
   auto addr = bus->get_address();
-  if (addr >= base_addr_ && addr <= base_addr_ + CRTC_READ_WRITE) {
-    addr -= base_addr_;
+  spdlog::get("DebugCRTC")->debug("CRTC  : Polling bus");
+  spdlog::get("DebugCRTC")->debug("      : Addr {:04x}", addr);
+  spdlog::get("DebugCRTC")->debug("      :   RW {}  {}",
+                                  bus->tst_RW() ? "R" : "W",
+                                  bus->tst_RW() ? "" : fmt::format("D {:02x}", bus->get_data())
+  );
+  spdlog::get("DebugCRTC")->debug("      : Clk 16:{}, 8:{}, 4:{}, 2E:{}, 2:{}, 1:{}",
+                                  clock_->is_high(CLK_16_MHZ) ? "H" : "L",
+                                  clock_->is_high(CLK_8_MHZ) ? "H" : "L",
+                                  clock_->is_high(CLK_4_MHZ) ? "H" : "L",
+                                  clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
+                                  clock_->is_high(CLK_2_MHZ) ? "H" : "L",
+                                  clock_->is_high(CLK_1_MHZ) ? "H" : "L"
+  );
 
-    if (bus->tst_RW()) {
-      mmio_read(addr, bus);
-    } else {
-      mmio_write(addr, bus);
-    }
+
+  if (addr < base_addr_ || addr > (base_addr_ + CRTC_READ_WRITE)) {
+    spdlog::get("DebugCRTC")->debug("      : Ignored");
+    return;
+  }
+  spdlog::get("DebugCRTC")->debug("      : Applied this. See CRTC log.");
+
+  spdlog::get("CRTC")->info("CRTC: CS Addr: {:04x}, RW:{}, {}.",
+                            addr,
+                            (bus->tst_RW() ? "R" : "W"),
+                            (bus->tst_RW() ? "" : fmt::format("D:{:02x}", bus->get_data())));
+  addr -= base_addr_;
+
+  if (bus->tst_RW()) {
+    mmio_read(addr, bus);
+  } else {
+    mmio_write(addr, bus);
   }
 }
 
-void Crtc::tick_low(const std::shared_ptr<Bus> &dram_bus) {
-  // Handle address generation
-  /*
-   * The character address increases linearly.
-   * When the chip signals horizontal sync it increases the row address.
-   * If the row address does not equal the programmatically set number of rows per character, then the character
-   * address is reset to the value it had at_bus the beginning of the scan line that was just completed. Otherwise
-   * the row address is reset to zero and the memory address continues increasing linearly.
-   */
-  bool new_raster_line_expected = false;
+void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
+  // Zero any wrapped registers
 
-  char_addr_ = (char_addr_ + 1) & 0xff;
-  memory_addr_++;
-  if (char_addr_ == horz_displayed_) {
-    display_enable_h_ = 0;
-  }
-  if (char_addr_ == hsync_pos_) {
-    hsync_ = 1;
-  }
-  if (char_addr_ == (hsync_pos_ + hsync_pulse_width_)) {
-    hsync_ = 0;
-  }
-  if (char_addr_ == horz_total_) {
-    new_raster_line_expected = true;
-  }
-
-  if (new_raster_line_expected) {
-    char_addr_ = 0;
-    new_raster_line_expected = false;
-    row_addr_ = (row_addr_ + 1) % 0x1f;
-    if (row_addr_ == char_scan_lines_) {
-      memory_addr_ = start_of_line_ + horz_displayed_;
-      row_addr_ = 0;
-      char_line_++;
-    } else {
-      memory_addr_ = start_of_line_;
+  if (char_cnt_ == horz_total_) {
+    char_cnt_ = 0;
+    if (raster_cnt_ == char_scan_lines_) {
+      raster_cnt_ = 0;
     }
-    display_enable_h_ = 1;
-  }
-
-  if (char_line_ == vsync_pos_) {
-    vsync_ = 1;
-    vsync_clk_ = (vsync_pulse_time_ * horz_total_);
-  }
-  vsync_clk_--;
-  if (vsync_clk_ == 0) {
-    vsync_ = 0;
-  }
-
-  if (char_line_ == vert_total_disp_) {
-    display_enable_v_ = 0;
-  }
-  if (char_line_ == vert_total_ && row_addr_ == vert_total_adj_) {
-    memory_addr_ = screen_start_;
-    start_of_line_ = screen_start_;
-    char_addr_ = 0;
-    row_addr_ = 0;
-    char_line_ = 0;
-    display_enable_v_ = 1;
-    display_enable_h_ = 1;
+    if (line_cnt_ == vert_total_ && adj_cnt_ == vert_total_adj_) {
+      line_cnt_ = 0;
+      adj_cnt_ = 0;
+    }
+    memory_addr_ = line_cnt_ * horz_displayed_ + screen_start_;
+  } else {
+    memory_addr_++;
   }
 
 
-  // TODO: Fix wraparound per description here: https://beebwiki.mdfs.net/Address_translation
+  char_cnt_++;
+  if (char_cnt_ == horz_displayed_) {
+    h_disp_enable_ = 0;
+  }
+  if (hsync_) {
+    hsync_width_cnt_++;
+    if (hsync_width_cnt_ == hsync_pulse_width_) {
+      hsync_ = 0;
+    }
+  }
+  if (char_cnt_ == hsync_pos_) {
+    hsync_ = 1;
+    hsync_width_cnt_ = 0;
+  }
+  bool raster_ended = false;
+  if (char_cnt_ == horz_total_) {
+    raster_cnt_++;
+    raster_ended = true;
+    h_disp_enable_ = 1;
+  }
 
-  uint16_t output_addr = (row_addr_ & 0x07) | (memory_addr_ << 3);
+  bool line_ended = false;
+  if (raster_ended) {
+    if (raster_cnt_ == char_scan_lines_) {
+      line_cnt_++;
+      line_ended = true;
+    }
+  }
+
+  if (line_ended) {
+    if (line_cnt_ == vert_total_disp_) {
+      v_disp_enable_ = 0;
+    }
+
+    if (vsync_) {
+      vsync_width_cnt_++;
+      if (vsync_width_cnt_ == vsync_pulse_time_) {
+        vsync_ = 0;
+      }
+    }
+
+    if (line_cnt_ == vsync_pos_) {
+      vsync_ = 1;
+      vsync_width_cnt_ = 0;
+    }
+  }
+
+  if ((line_cnt_ == vert_total_) && raster_ended) {
+    if (adj_cnt_ == vert_total_adj_) {
+      h_disp_enable_ = 1;
+      v_disp_enable_ = 1;
+    } else {
+      ++adj_cnt_;
+    }
+  }
+
+
+// TODO: Fix wraparound per description here: https://beebwiki.mdfs.net/Address_translation
+
+  uint16_t output_addr = (raster_cnt_ & 0x07) | (memory_addr_ << 3);
   if (output_addr == 0x8000) {
-    // Decode latch_ bits.
+// Decode latch_ bits.
     uint8_t c0c1 = hw_scroll_addr_->data();
     switch (c0c1) {
       case 0:
@@ -381,18 +435,25 @@ void Crtc::tick_low(const std::shared_ptr<Bus> &dram_bus) {
 
   spdlog::get("CRTC")->debug("Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
   dram_bus->set_address(output_addr);
+// Set to R so that DRAM will write the contents of video RAM to DRAM data bus.
   dram_bus->set_RW();
+
+  if (output_addr == 0x596e) {
+    spdlog::get("DebugCRTC")->debug("CRTC  : Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
+  }
+
+
 }
 
 /* Force screen paint from top of screen */
 void Crtc::sync() {
   memory_addr_ = screen_start_;
-  start_of_line_ = screen_start_;
-  char_addr_ = 0;
-  row_addr_ = 0;
-  char_line_ = 0;
+  char_cnt_ = horz_total_;
+  raster_cnt_ = vert_total_adj_;
+  line_cnt_ = vert_total_;
+  adj_cnt_ = vert_total_adj_;
   vsync_ = 0;
   hsync_ = 0;
-  display_enable_v_ = 1;
-  display_enable_h_ = 1;
+  v_disp_enable_ = 1;
+  h_disp_enable_ = 1;
 }

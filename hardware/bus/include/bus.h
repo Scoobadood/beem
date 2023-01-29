@@ -17,7 +17,7 @@ const uint64_t PIN_RST = 0x02000000;
 const uint64_t PIN_RD_NOT_WR = 0x04000000;
 
 class Bus {
- public:
+public:
   inline uint16_t get_address() const {
     return (pins_ & PIN_ADDR_MASK) >> 8;
   }
@@ -35,7 +35,7 @@ class Bus {
   }
 
   inline bool tst_RST() const {
-    return ( pins_ & PIN_RST);
+    return (pins_ & PIN_RST);
   }
 
   inline void set_RST() {
@@ -58,7 +58,7 @@ class Bus {
     pins_ &= ~PIN_RD_NOT_WR;
   }
 
-   inline bool tst_SYNC() const {
+  inline bool tst_SYNC() const {
     return (pins_ & PIN_SYNC);
   }
 
@@ -70,7 +70,16 @@ class Bus {
     pins_ &= ~PIN_SYNC;
   }
 
- private:
+  // For caching bus state, not emulation
+  [[nodiscard]] inline uint64_t get_pins() const {
+    return pins_;
+  }
+
+  inline void set_pins(uint64_t pins) {
+    pins_ = pins;
+  }
+
+private:
   uint64_t pins_;
 };
 

@@ -41,7 +41,10 @@ private:
 
   bool cpu_has_address_bus();
 
-  bool is_1mhz_device_address(const std::shared_ptr<Bus> &bus);
+  void pre_dram_checks();
+  void post_dram_checks();
+
+  static bool is_1mhz_device_address(const std::shared_ptr<Bus> &bus);
 
   std::shared_ptr<Clock> clock_;
   std::shared_ptr<M6502> cpu_;
@@ -61,7 +64,10 @@ private:
   VideoUla *v_ula_;
   Crtc *crtc_;
 
+  uint64_t cached_dram_bus_;
+
   uint32_t pixel_x_, pixel_y_;
+  uint32_t pixel_addr_ = 0;
   uint8_t *screen_Data_;
 };
 
