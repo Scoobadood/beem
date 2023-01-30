@@ -36,8 +36,6 @@ public:
 
   void set_clock(std::shared_ptr<Clock> clk) { clock_ = clk; }
 
-  inline void reset_clk() { tick_count_ = 0; }
-
   void set_crtc(Crtc *crtc);
 
   void tick(const std::shared_ptr<Bus> &main_bus,
@@ -79,7 +77,6 @@ private:
   uint8_t crtc_clk_;
   uint8_t cursor_width_;
   uint8_t curr_data_;
-  uint8_t tick_count_;
 
   std::shared_ptr<Clock> clock_;
   Crtc *crtc_;

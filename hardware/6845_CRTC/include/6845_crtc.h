@@ -47,6 +47,8 @@ public:
     return (hsync_ == 1);
   }
 
+  [[nodiscard]] inline uint16_t last_generated_address() { return last_generated_address_; }
+
   [[nodiscard]] inline bool vsync() const {
     return (vsync_ == 1);
   }
@@ -101,6 +103,8 @@ private:
   uint8_t v_disp_enable_;
   uint8_t hsync_;
   uint8_t vsync_;
+
+  uint16_t last_generated_address_;
 
   /* Global clock */
   std::shared_ptr<Clock> clock_;

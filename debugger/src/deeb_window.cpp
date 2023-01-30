@@ -35,10 +35,30 @@ DeebWindow::DeebWindow(QWidget *parent) //
 
   connect(ui->act_load_symbols, &QAction::triggered, this, &DeebWindow::load_symbols);
 
+  connect(this, &DeebWindow::pixel_received, ui->crt_view, &CrtView::set_next_pixel);
+  connect(this, &DeebWindow::hblank_received, ui->crt_view, &CrtView::hblank);
+  connect(this, &DeebWindow::vblank_received, ui->crt_view, &CrtView::vblank);
+
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
-  beeb_ = new Beeb();
+
+  uint8_t mode = 7;
+  if(qApp->arguments().count() == 2 ) {
+    mode = qApp->arguments().at(1).toInt() & 0x07;
+  }
+  beeb_ = new Beeb(mode);
+  beeb_->set_pixel_function([this](uint8_t r, uint8_t g, uint8_t b, bool hblank, bool vblank) {
+    if (hblank) {
+      emit hblank_received();
+      return;
+    }
+    if (vblank) {
+      emit vblank_received();
+      return;
+    }
+    emit pixel_received(r, g, b);
+  });
 
   reset_cpu();
 }

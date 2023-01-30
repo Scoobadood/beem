@@ -27,7 +27,6 @@ VideoUla::VideoUla(uint16_t base_addr) //
         , crtc_clk_{0} //
         , cursor_width_{0} //
         , curr_data_{0} //
-        , tick_count_{0} //
         , crtc_{nullptr} //
 {
   try {
@@ -68,16 +67,24 @@ void VideoUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
           cursor_width_ = 1;
           break;
       }
+      auto num_cols_flags = (data >> 2) & 0x03;
+      /*
+       * b3	b2	Number of columns	 Pixel rate
+       * 0	0	     10	              2 MHz
+       * 0	1	     20	              4 MHz
+       * 1	0	     40	              8 MHz
+       * 1	1	     80	              16 MHz
+       */
+      auto chars_per_line = (1 << num_cols_flags) * 10;
+      shift_clk_ = (1 << num_cols_flags) * 2;
       spdlog::get("vULA")->info("vULA: Writing {:02x} to VULA_CTL", bus->get_data());
       spdlog::get("vULA")->info("      Flash colour {}", data & 0x01);
       spdlog::get("vULA")->info("      Teletext mode? {}", data & 0x02 ? "Yes" : "No");
-      spdlog::get("vULA")->info("      {} characters per line", ((0x01 << ((data >> 2) & 0x03)) * 10));
+      spdlog::get("vULA")->info("      {} characters per line", chars_per_line);
       spdlog::get("vULA")->info("      CRTC clk freq {}MHz", crtc_clk_ ? 2 : 1);
       spdlog::get("vULA")->info("      Cursor width in bytes {}", cursor_width_);
       spdlog::get("vULA")->info("      Master cursor width {}", (data & 0x80) ? "large" : "small");
-
-      // Shift clock is set  baed on number of characters on screen
-      shift_clk_ = 0x01 << (((data >> 2) & 0x03) + 1);
+      spdlog::get("vULA")->info("      Shift clock {}MHz", shift_clk_);
       break;
     }
 
@@ -111,7 +118,9 @@ void VideoUla::process_data() {
     grn_ = 255 - grn_;
     blu_ = 255 - blu_;
   }
-  spdlog::get("vULA")->info("{:02}| Logical colour {}, actual {}", tick_count_, logical_colour, actual_colour);
+  spdlog::get("vULA")->debug("Logical colour {}, actual {}, RGB:{:02x} {:02x} {:02x}",
+                             logical_colour, actual_colour,
+                             red_, grn_, blu_);
 }
 
 void VideoUla::reset_shift_clk() {
@@ -133,23 +142,6 @@ void VideoUla::reset_shift_clk() {
 
 void VideoUla::maybe_drive_crtc(const std::shared_ptr<Bus> &main_bus, const std::shared_ptr<Bus> &dram_bus) {
   if (crtc_) {
-    /*
-     * Clocks
-     * Tick Cnt
-     *              1111111111222222222233
-     *    12346567890123456789012345678901
-     *    --------------------------------
-     * 16 01010101010101010101010101010101
-     *  8 00110011001100110011001100110011
-     *  4 00001111000011110000111100001111
-     *  2 00000000111111110000000011111111
-     *  1 00000000000000001111111111111111
-     *                                   ^ CRTC goes active here
-     *    ^^^^^^^^        ^^^^^^^^         CRTC has address bus here
-     *           ^               ^         Should latch here
-     */
-
-
     // Address generation on two cycles or one depending on clock frequency
     if (clock_->went_low(CLK_1_MHZ) ||
         ((crtc_clk_ == 1) && clock_->went_low(CLK_2_MHZ))) {
@@ -159,40 +151,29 @@ void VideoUla::maybe_drive_crtc(const std::shared_ptr<Bus> &main_bus, const std:
 }
 
 void VideoUla::maybe_latch_new_data(const std::shared_ptr<Bus> &dram_bus) {
-  if (dram_bus->get_address() == 0x596e) {
-    spdlog::get("DebugCRTC")->debug("VUL {:02}: 0x596e is on DRAM bus. RW:{}, D:{:02x}",
-                                    tick_count_,
-                                    dram_bus->tst_RW() ? "R" : "W",
-                                    dram_bus->get_data());
-    spdlog::get("DebugCRTC")->debug("      : clks: 16MHz {}, 8 MHz {}, 4Mhz {}, 2MHz {}, 2MHzE {}, 1Mhz {}",
-                                    clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                                    clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                                    clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                                    clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                                    clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                                    clock_->is_high(CLK_1_MHZ) ? "H" : "L");
-  }
+  if (((crtc_clk_ == 0) && clock_->went_high(CLK_1_MHZ)) ||
+      ((crtc_clk_ == 1) && clock_->went_high(CLK_2_MHZ))) {
 
-  if (clock_->went_high(CLK_1_MHZ) ||
-      ((crtc_clk_ == 1) && clock_->went_high(CLK_E_2_MHZ))) {
-
+    spdlog::get("BusDance")->debug("VULA: Latching data from CRTC from DRAM bus {:04x} {:02x} {} {}",
+                                   dram_bus->get_address(),
+                                   dram_bus->get_data(),
+                                   dram_bus->tst_RW() ? "R" : "W",
+                                   dram_bus->tst_SYNC() ? "SYN" : "   ",
+                                   dram_bus->tst_RST() ? "RST" : "");
     curr_data_ = dram_bus->get_data();
 
-    spdlog::get("vULA")->info("{:02}| Latched new data {:02x} from DRAM {:04x}", tick_count_, curr_data_,
-                              dram_bus->get_address());
+    spdlog::get("vULA")->debug("Latched new data {:02x} from DRAM {:04x}", curr_data_,
+                               dram_bus->get_address());
 
-    spdlog::get("DebugCRTC")->debug("VUL {:02}:  Latched new data {:02x} from DRAM {:04x}",
-                                    tick_count_,
-                                    curr_data_,
-                                    dram_bus->get_address());
+    spdlog::get("vULA")->debug("Clks: 4Mhz {}, 2MHz {}, 2MHzE {}, 1Mhz {}",
+                               clock_->is_high(CLK_4_MHZ) ? "H" : "L",
+                               clock_->is_high(CLK_2_MHZ) ? "H" : "L",
+                               clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
+                               clock_->is_high(CLK_1_MHZ) ? "H" : "L");
 
-
-    spdlog::get("vULA")->info("{:02}| Clks: 4Mhz {}, 2MHz {}, 2MHzE {}, 1Mhz {}",
-                              tick_count_,
-                              clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                              clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                              clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                              clock_->is_high(CLK_1_MHZ) ? "H" : "L");
+    if( crtc_->last_generated_address() != dram_bus->get_address()) {
+      spdlog::warn( "VULA: Latched address does not match last generated address");
+    }
     reset_shift_clk();
   }
 }
@@ -203,35 +184,25 @@ void VideoUla::set_crtc(Crtc *crtc) {
 
 void VideoUla::tick(const std::shared_ptr<Bus> &main_bus,
                     const std::shared_ptr<Bus> &dram_bus) {
-  if (clock_->went_low(CLK_16_MHZ)) {
-    spdlog::get("DebugCRTC")->debug("VUL   : 16MHz clck went low. 4MHz Clk : {}{}",
-                                    (clock_->went_high(CLK_4_MHZ) ? "^" :
-                                     (clock_->went_low(CLK_4_MHZ) ? "V" : "")),
-                                    clock_->is_high(CLK_4_MHZ) ? "H" : "L");
-
-    auto addr = main_bus->get_address();
-    if (addr == base_addr_ || addr == base_addr_ + 1) {
-      if (main_bus->tst_RW()) {
-        spdlog::error("vULA: Unsupported attempt to read Video ULA read from {:04x}", addr);
-      } else {
-        spdlog::info("Read VULA {:04x}", addr);
-        mmio_write(addr, main_bus);
-      }
-      tick_count_ = (tick_count_ + 1) % 32;
-      return;
+  auto addr = main_bus->get_address();
+  if (addr == base_addr_ || addr == base_addr_ + 1) {
+    if (main_bus->tst_RW()) {
+      spdlog::error("vULA: Unsupported attempt to read Video ULA read from {:04x}", addr);
+    } else {
+      mmio_write(addr, main_bus);
     }
+    return;
+  }
 
-    maybe_drive_crtc(main_bus, dram_bus);
+  maybe_drive_crtc(main_bus, dram_bus);
 
-    maybe_latch_new_data(dram_bus);
+  maybe_latch_new_data(dram_bus);
 
-    process_data();
+  process_data();
 
-    if (time_to_shift()) {
-      curr_data_ = ((curr_data_ << 1) & 0xfe) | 0x01;
-      reset_shift_clk();
-      spdlog::get("vULA")->info("{:02}| shift", tick_count_);
-    }
-    tick_count_ = (tick_count_ + 1) % 32;
+  if (time_to_shift()) {
+    curr_data_ = ((curr_data_ << 1) & 0xfe) | 0x01;
+    reset_shift_clk();
+    spdlog::get("vULA")->debug("shift");
   }
 }

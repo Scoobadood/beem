@@ -2,9 +2,7 @@
 #include "rom.h"
 #include "clock.h"
 
-#include  <fstream>
-#include  <iostream>
-
+#include <fstream>
 #include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
@@ -15,7 +13,6 @@ const uint16_t DRAM_SIZE = DRAM_LAST - DRAM_BASE + 1;
 
 const uint16_t BASIC_ROM_BASE = 0x8000;
 const uint16_t BASIC_ROM_LAST = 0xBfff;
-const uint16_t BASIC_ROM_SIZE = BASIC_ROM_LAST - BASIC_ROM_BASE + 1;
 const uint16_t MOS_ROM_BASE = 0xC000;
 
 /* MMIO addresses */
@@ -38,16 +35,16 @@ const uint16_t MMIO_FRED_END = 0xfcff;
 const uint16_t MMIO_JIM_START = 0xfd00;
 const uint16_t MMIO_JIM_END = 0xfdff;
 
-Beeb::Beeb() {
+Beeb::Beeb(uint8_t boot_mode) //
+: cached_dram_bus_{0} //
+{
   using namespace std;
 
   try {
-    auto logger = spdlog::basic_logger_mt("BusDance", "logs/bus-dance-log.txt", true);
+    auto logger = spdlog::basic_logger_mt("CRT", "logs/crt-log.txt", true);
     logger->flush_on(spdlog::level::debug);
-
-    logger = spdlog::basic_logger_mt("DebugCRTC", "logs/beeb-crtc-log.txt", true);
+    logger = spdlog::basic_logger_mt("BusDance", "logs/bus-log.txt", true);
     logger->flush_on(spdlog::level::debug);
-
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
@@ -77,7 +74,7 @@ Beeb::Beeb() {
   system_via_->subscribe_port_a(sound_chip_->data_src());
 
   // Attach keyboard
-  keyboard_ = new Keyboard(0x01 /* Boot into mode 6 */);
+  keyboard_ = new Keyboard(0x07 - (boot_mode & 0x07));
   latch_->subscribe(keyboard_->we_src());
   latch_->subscribe(keyboard_->cl_led_src());
   latch_->subscribe(keyboard_->sl_led_src());
@@ -99,9 +96,6 @@ Beeb::Beeb() {
   crtc_ = new Crtc(0xfe00, clock_);
   latch_->subscribe(crtc_->hw_scroll_addr());
   v_ula_->set_crtc(crtc_);
-
-  screen_Data_ = new uint8_t[640 * 256 * 3];
-  pixel_x_ = pixel_y_ = 0;
 }
 
 void Beeb::reset() {
@@ -118,41 +112,10 @@ void Beeb::reset() {
 }
 
 /*
- *               --o~~~~~~o-                            +------+       _______
- *               d3|      |c3                           |      o<----- VIDPROC
- *               --o IC14 o-                         +--o IC21 |
- *               d2|      |c2                        |  | NAND o<----- A15 (ie address 8000+)
- *               --o      o-                     (5) |  +------+
- *               d1|      |c1                        |
- *               --o      o-              +------+   |
- *               d0|      |c0             |      o<--+
- *               --o      o-              |      |
- *              t/r|      |enable    (3)  |      o<-- +5V
- * 6502 R/w ------>o      o<--------------o IC25 |
- *                 +------+               | NAND o<-- phi in (2MHz with stretching for 1Mhz as needed)
- *                                        |      |
- *                                        |      o<-- ~phi1  (phi1 is inverted phi0, so this *  is basically
- *                                        +------+            a slightly phase shifted phi.)
- *
- * Truth table:
- * +-----+-----+-----+---------------+-----------+
- * |  V  |  ~V | A15 | NAND(A15, ~V) | phi | 0=en|
- * +-----+-----+-----+---------------+-----+-----+
- * |  0  |  1  |  0  |       1       |  0  |  1  |
- * |  0  |  1  |  0  |       1       |  1  |  0  |
- * |  0  |  1  |  1  |       0       |  0  |  1  |
- * |  0  |  1  |  1  |       0       |  1  |  1  |
- * |  1  |  0  |  0* |       1       |  0  |  1  |
- * |  1  |  0  |  0* |       1       |  1  |  0  |
- * |  1  |  0  |  1  |       1       |  0  |  1  |
- * |  1  |  0  |  1  |       1       |  1  |  0  |
- * +-----+-----+-----+---------------+-----+-----+
- *
- * Enable when phi is high and the write address is ULA or DRAM
  */
 bool Beeb::data_bus_isolated() {
   // Isolated when phi is low
-  if (clock_->is_low(CLK_E_2_MHZ)) return true;
+  if (clock_->is_low(CLK_2_MHZ)) return true;
 
   // Isolated unless writing to vULA regs or DRAM
   auto addr = bus_->get_address();
@@ -163,8 +126,13 @@ bool Beeb::data_bus_isolated() {
   return false;
 }
 
+/*
+ * Service manual:
+ * "Every 250 nanoseconds, control of the RAM address lines is switched between the microprocessor and the CRTC.
+ * Thus, in each one microsecond period, the microprocessor has two RAM accesses and the CRTC has two RAM accesses."
+ */
 bool Beeb::cpu_has_address_bus() {
-  return clock_->is_high(CLK_E_2_MHZ);
+  return clock_->is_high(CLK_2_MHZ);
 }
 
 /*
@@ -201,162 +169,111 @@ bool Beeb::is_1mhz_device_address(const std::shared_ptr<Bus> &bus) {
 
 /* Determine whether we should copy address and data from main bus or not*/
 void Beeb::pre_dram_checks() {
-  if (cpu_has_address_bus()) {
-
-    spdlog::get("BusDance")->debug("Beeb PreD: CPU has address bus");
-    spdlog::get("BusDance")->debug("         : 16:{}, 8:{}, 4:{}, 2E:{}, 2:{}, 1:{}",
-                                   clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_1_MHZ) ? "H" : "L"
-    );
-    auto addr = bus_->get_address();
-    if (addr >= DRAM_BASE && addr <= DRAM_LAST) {
-      spdlog::get("BusDance")->debug("        : Addressing DRAM");
-      spdlog::get("BusDance")->debug("         : Setting addr: {:04x}", addr);
-      spdlog::get("BusDance")->debug("         : RW is {}", bus_->tst_RW() ? "R" : "W");
-      dram_bus_->set_address(addr);
-      if (bus_->tst_RW()) {
-        spdlog::get("BusDance")->debug("         : Attempting read");
-        dram_bus_->set_RW();
-      } else {
-        dram_bus_->clr_RW();
-        spdlog::get("BusDance")->debug("         : Attempting write");
-        if (data_bus_isolated()) {
-          spdlog::get("BusDance")->debug("         : Data bus is isolated. No further action.");
-        } else {
-          spdlog::get("BusDance")->debug("         : Setting DRAM bus to {:02x}", bus_->get_data());
-          dram_bus_->set_data(bus_->get_data());
-        }
-      } // else (writing)
-    } else {
-      spdlog::get("BusDance")->debug("         : Address {:04x} not in DRAM", addr);
-    } // Adress not in DRAM
-  } else {
-    spdlog::get("BusDance")->debug("Beeb PreD:CPU does not have address bus");
-    spdlog::get("BusDance")->debug("         : 16:{}, 8:{}, 4:{}, 2E:{}, 2:{}, 1:{}",
-                                   clock_->
-                                           is_high(CLK_16_MHZ)
-                                   ? "H" : "L",
-                                   clock_->
-                                           is_high(CLK_8_MHZ)
-                                   ? "H" : "L",
-                                   clock_->
-                                           is_high(CLK_4_MHZ)
-                                   ? "H" : "L",
-                                   clock_->
-                                           is_high(CLK_E_2_MHZ)
-                                   ? "H" : "L",
-                                   clock_->
-                                           is_high(CLK_2_MHZ)
-                                   ? "H" : "L",
-                                   clock_->
-                                           is_high(CLK_1_MHZ)
-                                   ? "H" : "L"
-    );
+  if (!cpu_has_address_bus()) {
+    spdlog::get("BusDance")->debug("PRE : CPU doesn't have control.");
+    return;
   }
+
+  auto addr = bus_->get_address();
+  if (addr < DRAM_BASE || addr > DRAM_LAST) {
+    spdlog::get("BusDance")->debug("PRE : CPU not accessing DRAM.");
+    return;
+  }
+
+  dram_bus_->set_address(addr);
+  if (bus_->tst_RW()) {
+    dram_bus_->set_RW();
+  } else {
+    dram_bus_->clr_RW();
+    dram_bus_->set_data(bus_->get_data());
+  }
+  spdlog::get("BusDance")->debug("PRE : CPU addressing DRAM. Copied Bus to DRAM bus {:04x} {:02x} {} {}",
+                                 dram_bus_->get_address(),
+                                 dram_bus_->get_data(),
+                                 dram_bus_->tst_RW() ? "R" : "W",
+                                 dram_bus_->tst_SYNC() ? "SYN" : "   ",
+                                 dram_bus_->tst_RST() ? "RST" : "");
 }
 
 void Beeb::post_dram_checks() {
-  if (cpu_has_address_bus()) {
-    spdlog::get("BusDance")->debug("Beeb PstD: CPU has address bus");
-    spdlog::get("BusDance")->debug("         : 16:{}, 8:{}, 4:{}, 2E:{}, 2:{}, 1:{}",
-                                   clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_1_MHZ) ? "H" : "L"
-    );
-    auto addr = bus_->get_address();
-    if (addr >= DRAM_BASE && addr <= DRAM_LAST) {
-      spdlog::get("BusDance")->debug("        : Addressing DRAM");
-      spdlog::get("BusDance")->debug("         : RW is {}", bus_->tst_RW() ? "R" : "W");
-      if (bus_->tst_RW()) {
-        spdlog::get("BusDance")->debug("         : Attempting read");
-        if (data_bus_isolated()) {
-          spdlog::get("BusDance")->debug("         : Data bus isolated.");
-          bus_->set_data(0);
-        } else {
-          spdlog::get("BusDance")->debug("         : Read {:02x} from DRAM", dram_bus_->get_data());
-          bus_->set_data(dram_bus_->get_data());
-        }
-      } else {
-        spdlog::get("BusDance")->debug("         : Write happened");
-      }
-    } else {
-      spdlog::get("BusDance")->debug("         : Address {:04x} not in DRAM", addr);
-    }
-  } else {
-    spdlog::get("BusDance")->debug("Beeb PstD:CPU does not have address bus");
-    spdlog::get("BusDance")->debug("         : 16:{}, 8:{}, 4:{}, 2E:{}, 2:{}, 1:{}",
-                                   clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                                   clock_->is_high(CLK_1_MHZ) ? "H" : "L"
-    );
+  if (!cpu_has_address_bus()) {
+    spdlog::get("BusDance")->debug("POST: CPU doesn't have control.");
+    return;
   }
+
+  auto addr = bus_->get_address();
+  if (addr < DRAM_BASE || addr > DRAM_LAST) {
+    spdlog::get("BusDance")->debug("POST: CPU didn't access DRAM.");
+    return;
+  }
+
+  if (bus_->tst_RW()) {
+    bus_->set_data(dram_bus_->get_data());
+  }
+  spdlog::get("BusDance")->debug("POST: CPU had DRAM control and {} {:02x} {} {:04x}. {}",
+                                 bus_->tst_RW() ? "read" : "wrote",
+                                 bus_->get_data(),
+                                 bus_->tst_RW() ? "from" : "to",
+                                 bus_->get_address(),
+                                 bus_->tst_RW() ? "Main bus updated" : ""
+  );
 }
 
 void Beeb::tick() {
-  static int scrid = 0;
-
   clock_->tick();
+
+  if (clock_->went_high(CLK_2_MHZ)) {
+    spdlog::get("BusDance")->debug("BEEB: 2MHz went high. Cached DRAM bus {:04x} {:02x} {} {}",
+                                   dram_bus_->get_address(),
+                                   dram_bus_->get_data(),
+                                   dram_bus_->tst_RW() ? "R" : "W",
+                                   dram_bus_->tst_SYNC() ? "SYN" : "   ",
+                                   dram_bus_->tst_RST() ? "RST" : "");
+    cached_dram_bus_ = dram_bus_->get_pins();
+  }
 
 // CPU normally does internal work in LOW phase and then
 // Bus RW in high phase. We're phaking it so we just go
 // Off the high phase which also makes the isolation code work.
   if (clock_->went_high(CLK_E_2_MHZ)) {
-    cached_dram_bus_ = dram_bus_->get_pins();
-    spdlog::get("DebugCRTC")->debug("CPU   : 2MHZE went high. Caching DRAM bus A:{:04x} RW:{} D:{:02x}",
-                                    dram_bus_->get_address(),
-                                    dram_bus_->tst_RW() ? "R" : "W",
-                                    bus_->get_data());
-    spdlog::get("DebugCRTC")->debug("      : Main Bus A:{:04x} RW:{} D:{:02x}",
-                                    bus_->get_address(),
-                                    bus_->tst_RW() ? "R" : "W",
-                                    bus_->get_data());
-
-    spdlog::get("BusDance")->debug("Beeb         : Caching current DRAM data {:02x}", dram_bus_->get_data());
+    spdlog::get("BusDance")->debug("BEEB: 2MHzE went high. CPU starting work.");
 
     cpu_->tick(bus_);
-
-    // TODO DEBUGGIN VULA remove me
-    spdlog::get("DebugCRTC")->debug("CPU   : Finished cycle with A:{:04x}, RnW:{}, {}",
-                                    bus_->get_address(),
-                                    bus_->tst_RW() ? "R" : "W",
-                                    bus_->tst_RW() ? "" : fmt::format("D:{:02x}", bus_->get_data()));
-    spdlog::get("DebugCRTC")->debug("      : DRAM Bus : A:{:04x}, RnW:{}, {}",
-                                    dram_bus_->get_address(),
-                                    dram_bus_->tst_RW() ? "R" : "W",
-                                    dram_bus_->tst_RW() ? "" : fmt::format("D:{:02x}", dram_bus_->get_data()));
-    // TODO End
+    spdlog::get("BusDance")->debug("CPU  : finished work. Main bus {:04x} {:02x} {} {}",
+                                   bus_->get_address(),
+                                   bus_->get_data(),
+                                   bus_->tst_RW() ? "R" : "W",
+                                   bus_->tst_SYNC() ? "SYN" : "   ",
+                                   bus_->tst_RST() ? "RST" : "");
 
     if (is_1mhz_device_address(bus_)) {
       clock_->begin_time_stretch();
     }
+
+  }
+  // Allow for DRAM Access
+  if (clock_->went_high(CLK_4_MHZ)) {
+    spdlog::get("BusDance")->debug("BEEB: 4MHz went high. {} should have control",
+                                   clock_->is_high(CLK_2_MHZ) ? " CPU" : "CRTC");
+    pre_dram_checks();
+    dram_->tick(dram_bus_);
+    post_dram_checks();
+
+    // Don't tick MOS for MMIO devices.
+    if (bus_->get_address() <= 0xfc00 || bus_->get_address() >= 0xff00)
+      mos_->tick(bus_);
+
+    basic_rom_->tick(bus_);
   }
 
-  if (clock_->went_low(CLK_E_2_MHZ)) {
-    spdlog::get("DebugCRTC")->debug("CPU   : 2MHZE went low. DRAM bus before restore A:{:04x} RW:{} D:{:02x}",
-                                    dram_bus_->get_address(),
-                                    dram_bus_->tst_RW() ? "R" : "W",
-                                    dram_bus_->get_data());
-    spdlog::get("DebugCRTC")->debug("      : Main bus A:{:04x}, RnW:{}, {:02x}",
-                                    bus_->get_address(),
-                                    bus_->tst_RW() ? "R" : "W",
-                                    bus_->get_data());
-
+  if (clock_->went_low(CLK_2_MHZ)) {
     dram_bus_->set_pins(cached_dram_bus_);
-    spdlog::get("DebugCRTC")->debug("      : DRAM bus after restore A:{:04x} RW:{} D:{:02x}",
-                                    dram_bus_->get_address(),
-                                    dram_bus_->tst_RW() ? "R" : "W",
-                                    dram_bus_->get_data());
-    spdlog::get("BusDance")->debug("Beeb         : Restoring DRAM data from cache {:02x}", dram_bus_->get_data());
+    spdlog::get("BusDance")->debug("BEEB: 2MHz went low. DRAM bus restored {:04x} {:02x} {} {}",
+                                   dram_bus_->get_address(),
+                                   dram_bus_->get_data(),
+                                   dram_bus_->tst_RW() ? "R" : "W",
+                                   dram_bus_->tst_SYNC() ? "SYN" : "   ",
+                                   dram_bus_->tst_RST() ? "RST" : "");
   }
 
 /* Tick the 1MHz stuff */
@@ -384,37 +301,81 @@ void Beeb::tick() {
 //    adc_->tick(bus_);
   }
 
-  if (clock_->went_low(CLK_4_MHZ)) {
-    pre_dram_checks();
-    dram_->tick(dram_bus_);
-    post_dram_checks();
-    mos_->tick(bus_);
-  }
 
+
+  static uint8_t last_hsync = 0;
+  static uint8_t last_vsync = 0;
+  static const uint32_t max_w = 1008;
+  static const uint32_t max_h = 263;
+  static const uint32_t scr_size = max_w * max_h * 3;
+  static bool last_de = false;
+  static int px = 0;
+  static int py = 0;
+  static uint8_t scr_data[scr_size];
+  static bool wait_vsync_high = true;
+  static bool wait_vsync_low = false;
+  static bool draw_enabled = false;
   if (clock_->went_low(CLK_16_MHZ)) {
     v_ula_->tick(bus_, dram_bus_);
 
-    if (crtc_->display_enable()) {
-      auto rgb = v_ula_->rgb();
 
-      if( rgb != 0 ) {
-        auto px = (pixel_addr_/3) % 640;
-        auto py = (pixel_addr_/3) / 640;
-        spdlog::info( "Set pixel at {},{}", px, py);
-      }
-      screen_Data_[pixel_addr_++] = (rgb >> 16) & 0xff;
-      screen_Data_[pixel_addr_++] = (rgb >> 8) & 0xff;
-      screen_Data_[pixel_addr_++] = rgb & 0xff;
-      if (pixel_addr_ == 640 * 256 * 3) {
-        pixel_addr_ = 0;
-        auto scr_file_name = fmt::format("/Users/dave/Desktop/screen_{:02}.data", scrid);
-        std::ofstream d{scr_file_name, std::ios::binary};
-        d.write( (const char *)screen_Data_, 640 * 256 * 3);
-        d.close();
-        memset(screen_Data_, 0, 640 * 256 * 3);
-        scrid = (scrid + 1) % 100;
-      }
+    auto hs = crtc_->hsync();
+    auto vs = crtc_->vsync();
+    auto de = crtc_->display_enable();
+    auto rgb = v_ula_->rgb();
+    auto base = (py * max_w + px) * 3;
+
+    uint8_t cr = 0, cg = 0, cb = 0;
+    if (de) {
+      cr = ((rgb >> 16) & 0xff) >> 1;
+      cg = ((rgb >> 8) & 0xff) >> 1;
+      cb = ((rgb >> 0) & 0xff) >> 1;
+    } else {
+      cr = cg = cb = 0x3f;
     }
+    if (hs) {
+      cg += 0x3f;
+    }
+    if (vs) {
+      cr += 0x3f;
+    }
+    scr_data[base + 0] = cr;
+    scr_data[base + 1] = cg;
+    scr_data[base + 2] = cb;
+
+    if (wait_vsync_high && vs) {
+      wait_vsync_high = false;
+      wait_vsync_low = true;
+    }
+
+    if (wait_vsync_low && vs == 0) {
+      wait_vsync_low = false;
+      draw_enabled = true;
+    }
+
+    if (draw_enabled) {
+      px = px + 1;
+      if (px == max_w) {
+        px = 0;
+        py = py + 1;
+        if (py == max_h) {
+          py = 0;
+          std::ofstream ff{"/Users/dave/Desktop/scr.data", std::ios::binary};
+          ff.write((const char *) scr_data, scr_size);
+          draw_enabled = false;
+          wait_vsync_high = true;
+          memset(scr_data, 0, scr_size);
+        }
+      } // End pix plot
+    }
+
+//    if (de) {
+//      auto rgb = v_ula_->rgb();
+//      auto r = (rgb >> 16) & 0xff;
+//      auto g = (rgb >> 8) & 0xff;
+//      auto b = rgb & 0xff;
+//      if (fn_) fn_(r, g, b, false, false);
+//    }
   }
 }
 

@@ -157,7 +157,6 @@ void TestUla::run_test(uint8_t mode, const std::string &file_name) {
 
   pixel_buffer_idx_ = 0;
 
-  v_ula->reset_clk();
   uint data_idx = 0;
 
   auto ticks_required = pixels_per_byte_ * 16 / shift_clk_freq_;

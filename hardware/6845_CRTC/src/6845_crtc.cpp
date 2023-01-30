@@ -79,11 +79,7 @@ Crtc::Crtc(uint16_t base_addr, const std::shared_ptr<Clock> &clk) //
   hw_scroll_addr_ = std::make_shared<data_subscriber_8_bit>(0x30);
   try {
     auto logger = spdlog::basic_logger_mt("CRTC", "logs/crtc-log.txt", true);
-    logger->
-            flush_on(spdlog::level::debug);
-    logger = spdlog::basic_logger_mt("CRTC-counter", "logs/crtc-counter-log.txt", true);
-    logger->
-            flush_on(spdlog::level::debug);
+    logger->flush_on(spdlog::level::debug);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
@@ -155,12 +151,15 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to hsync_pos", data);
       break;
 
-    case REG_SYNCS:
-      hsync_pulse_width_ = data & 0xf;
-      vsync_pulse_time_ = (data >> 4) & 0xf;
+    case REG_SYNCS: {
+      auto hw = data & 0xf;
+      auto vw = (data >> 4) & 0xf;
+      vsync_pulse_time_ = (vw == 0) ? 16 : vw;
+      if (hw != 0) hsync_pulse_width_ = hw;
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to reg_syncs.", data);
-      spdlog::get("CRTC")->info("      hsync_pulse is {:02x}", hsync_pulse_width_);
+      spdlog::get("CRTC")->info("      hsync_pulse is {:02x} {}", hsync_pulse_width_, (hw == 0) ? "[ignored 0]" : "");
       spdlog::get("CRTC")->info("      vsync_time_ is {:02x}", vsync_pulse_time_);
+    }
       break;
 
     case REG_VERT_TOTAL:
@@ -301,28 +300,9 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
  */
 void Crtc::tick(const std::shared_ptr<Bus> &bus) {
   auto addr = bus->get_address();
-  spdlog::get("DebugCRTC")->debug("CRTC  : Polling bus");
-  spdlog::get("DebugCRTC")->debug("      : Addr {:04x}", addr);
-  spdlog::get("DebugCRTC")->debug("      :   RW {}  {}",
-                                  bus->tst_RW() ? "R" : "W",
-                                  bus->tst_RW() ? "" : fmt::format("D {:02x}", bus->get_data())
-  );
-  spdlog::get("DebugCRTC")->debug("      : Clk 16:{}, 8:{}, 4:{}, 2E:{}, 2:{}, 1:{}",
-                                  clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                                  clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                                  clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                                  clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                                  clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                                  clock_->is_high(CLK_1_MHZ) ? "H" : "L"
-  );
-
-
   if (addr < base_addr_ || addr > (base_addr_ + CRTC_READ_WRITE)) {
-    spdlog::get("DebugCRTC")->debug("      : Ignored");
     return;
   }
-  spdlog::get("DebugCRTC")->debug("      : Applied this. See CRTC log.");
-
   spdlog::get("CRTC")->info("CRTC: CS Addr: {:04x}, RW:{}, {}.",
                             addr,
                             (bus->tst_RW() ? "R" : "W"),
@@ -337,8 +317,6 @@ void Crtc::tick(const std::shared_ptr<Bus> &bus) {
 }
 
 void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
-  // Zero any wrapped registers
-
   if (char_cnt_ == horz_total_) {
     char_cnt_ = 0;
     if (raster_cnt_ == char_scan_lines_) {
@@ -414,35 +392,43 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
 // TODO: Fix wraparound per description here: https://beebwiki.mdfs.net/Address_translation
 
   uint16_t output_addr = (raster_cnt_ & 0x07) | (memory_addr_ << 3);
-  if (output_addr == 0x8000) {
+  if (output_addr & 0x8000) {
 // Decode latch_ bits.
     uint8_t c0c1 = hw_scroll_addr_->data();
     switch (c0c1) {
-      case 0:
-        output_addr -= 0x5000;
+      case 0x00:
+        output_addr -= 0x4000;
         break;
-      case 1:
+      case 0x10:
         output_addr -= 0x2000;
         break;
-      case 2:
+      case 0x20:
         output_addr -= 0x5000;
         break;
-      case 3:
+      case 0x30:
         output_addr -= 0x2800;
         break;
+      default:
+        spdlog::get("CRTC")->error("Latch bits for base addr have crazy value ({:02x})", c0c1);
+        spdlog::error("Latch bits for base addr have crazy value ({:02x})", c0c1);
+        break;
     }
+  }
+  if (output_addr >= 0x8000) {
+    spdlog::get("CRTC")->error("About to output an uncorrected video address:  ({:04x})", output_addr);
+    spdlog::error("About to output an uncorrected video address:  ({:04x})", output_addr);
   }
 
   spdlog::get("CRTC")->debug("Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
   dram_bus->set_address(output_addr);
-// Set to R so that DRAM will write the contents of video RAM to DRAM data bus.
   dram_bus->set_RW();
-
-  if (output_addr == 0x596e) {
-    spdlog::get("DebugCRTC")->debug("CRTC  : Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
-  }
-
-
+  last_generated_address_ = output_addr;
+  spdlog::get("BusDance")->debug("CRTC: Writing vram address, expects to own bus. DRAM bus {:04x} {:02x} {} {}",
+                                 dram_bus->get_address(),
+                                 dram_bus->get_data(),
+                                 dram_bus->tst_RW() ? "R" : "W",
+                                 dram_bus->tst_SYNC() ? "SYN" : "   ",
+                                 dram_bus->tst_RST() ? "RST" : "");
 }
 
 /* Force screen paint from top of screen */
