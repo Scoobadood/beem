@@ -18,7 +18,7 @@
 #include "6845_crtc.h"
 #include "clock.h"
 
-using PixelFunction = std::function<void(uint8_t r, uint8_t g, uint8_t b, bool hb, bool vb)>;
+using PixelFunction = std::function<void(uint8_t * scr_data, uint32_t sz)>;
 
 class Beeb {
 public:
@@ -41,8 +41,6 @@ public:
   [[nodiscard]] std::vector<uint8_t> get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const;
 
 private:
-  bool data_bus_isolated();
-
   bool cpu_has_address_bus();
 
   void pre_dram_checks();
@@ -73,6 +71,12 @@ private:
   PixelFunction fn_;
 
   uint64_t cached_dram_bus_;
+
+  const uint32_t SCR_WIDTH = 640;
+  const uint32_t SCR_HEIGHT = 224;
+  uint8_t *screen_data_;
+  uint16_t pixel_x_;
+  uint16_t pixel_y_;
 };
 
 #endif //M6502_SRC_BEEB_H_

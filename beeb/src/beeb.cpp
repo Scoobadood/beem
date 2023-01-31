@@ -36,7 +36,7 @@ const uint16_t MMIO_JIM_START = 0xfd00;
 const uint16_t MMIO_JIM_END = 0xfdff;
 
 Beeb::Beeb(uint8_t boot_mode) //
-: cached_dram_bus_{0} //
+        : cached_dram_bus_{0} //
 {
   using namespace std;
 
@@ -96,6 +96,9 @@ Beeb::Beeb(uint8_t boot_mode) //
   crtc_ = new Crtc(0xfe00, clock_);
   latch_->subscribe(crtc_->hw_scroll_addr());
   v_ula_->set_crtc(crtc_);
+
+  // Screen Data
+  screen_data_ = new uint8_t[SCR_WIDTH * SCR_HEIGHT * 3];
 }
 
 void Beeb::reset() {
@@ -109,21 +112,6 @@ void Beeb::reset() {
     dram_->tick(bus_);
     mos_->tick(bus_);
   } while (!bus_->tst_SYNC());
-}
-
-/*
- */
-bool Beeb::data_bus_isolated() {
-  // Isolated when phi is low
-  if (clock_->is_low(CLK_2_MHZ)) return true;
-
-  // Isolated unless writing to vULA regs or DRAM
-  auto addr = bus_->get_address();
-  if ((addr > DRAM_LAST) &&
-      addr != MMIO_VULA_REG_SEL &&
-      addr == MMIO_VULA_PLT)
-    return true;
-  return false;
 }
 
 /*
@@ -302,46 +290,15 @@ void Beeb::tick() {
   }
 
 
-
-  static uint8_t last_hsync = 0;
-  static uint8_t last_vsync = 0;
-  static const uint32_t max_w = 1008;
-  static const uint32_t max_h = 263;
-  static const uint32_t scr_size = max_w * max_h * 3;
-  static bool last_de = false;
-  static int px = 0;
-  static int py = 0;
-  static uint8_t scr_data[scr_size];
   static bool wait_vsync_high = true;
   static bool wait_vsync_low = false;
-  static bool draw_enabled = false;
   if (clock_->went_low(CLK_16_MHZ)) {
     v_ula_->tick(bus_, dram_bus_);
 
 
-    auto hs = crtc_->hsync();
+    // FIXME: FUCK WITH imge generation
     auto vs = crtc_->vsync();
     auto de = crtc_->display_enable();
-    auto rgb = v_ula_->rgb();
-    auto base = (py * max_w + px) * 3;
-
-    uint8_t cr = 0, cg = 0, cb = 0;
-    if (de) {
-      cr = ((rgb >> 16) & 0xff) >> 1;
-      cg = ((rgb >> 8) & 0xff) >> 1;
-      cb = ((rgb >> 0) & 0xff) >> 1;
-    } else {
-      cr = cg = cb = 0x3f;
-    }
-    if (hs) {
-      cg += 0x3f;
-    }
-    if (vs) {
-      cr += 0x3f;
-    }
-    scr_data[base + 0] = cr;
-    scr_data[base + 1] = cg;
-    scr_data[base + 2] = cb;
 
     if (wait_vsync_high && vs) {
       wait_vsync_high = false;
@@ -349,33 +306,26 @@ void Beeb::tick() {
     }
 
     if (wait_vsync_low && vs == 0) {
+      wait_vsync_high = true;
       wait_vsync_low = false;
-      draw_enabled = true;
+      pixel_x_=pixel_y_=0;
+      fn_(screen_data_, SCR_WIDTH * SCR_HEIGHT * 3);
     }
 
-    if (draw_enabled) {
-      px = px + 1;
-      if (px == max_w) {
-        px = 0;
-        py = py + 1;
-        if (py == max_h) {
-          py = 0;
-          std::ofstream ff{"/Users/dave/Desktop/scr.data", std::ios::binary};
-          ff.write((const char *) scr_data, scr_size);
-          draw_enabled = false;
-          wait_vsync_high = true;
-          memset(scr_data, 0, scr_size);
+    if (de) {
+      auto rgb = v_ula_->rgb();
+      auto base = (pixel_y_ * SCR_WIDTH + pixel_x_) * 3;
+      screen_data_[base + 0] = (rgb >> 16) & 0xff;
+      screen_data_[base + 1] = (rgb >> 8) & 0xff;
+      screen_data_[base + 2] = (rgb >> 0) & 0xff;
+
+      if( ++pixel_x_ == SCR_WIDTH) {
+        pixel_x_ = 0;
+        if( ++pixel_y_ == SCR_HEIGHT) {
+          pixel_y_ = 0;
         }
-      } // End pix plot
+      }
     }
-
-//    if (de) {
-//      auto rgb = v_ula_->rgb();
-//      auto r = (rgb >> 16) & 0xff;
-//      auto g = (rgb >> 8) & 0xff;
-//      auto b = rgb & 0xff;
-//      if (fn_) fn_(r, g, b, false, false);
-//    }
   }
 }
 

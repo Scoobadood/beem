@@ -2,6 +2,7 @@
 #include "breakpoint_dlg.h"
 #include "ui_deeb_window.h"
 #include "ui_breakpoint_dlg.h"
+#include "vdu_view.h"
 
 #include <fstream>
 
@@ -26,7 +27,6 @@ DeebWindow::DeebWindow(QWidget *parent) //
   connect(this, &DeebWindow::flags_changed, ui->reg_view, &RegisterView::set_flags);
   connect(this, &DeebWindow::registers_changed, ui->reg_view, &RegisterView::set_registers);
   connect(this, &DeebWindow::pc_changed, ui->disassembly_view, &DisassemblyView::set_pc);
-  connect(this, &DeebWindow::bus_changed, ui->bus_view, &BusView::set_bus);
 
   connect(ui->disassembly_view, &DisassemblyView::breakpoint_set, this, &DeebWindow::breakpoint_set);
   connect(ui->disassembly_view, &DisassemblyView::breakpoint_cleared, this, &DeebWindow::breakpoint_cleared);
@@ -35,29 +35,18 @@ DeebWindow::DeebWindow(QWidget *parent) //
 
   connect(ui->act_load_symbols, &QAction::triggered, this, &DeebWindow::load_symbols);
 
-  connect(this, &DeebWindow::pixel_received, ui->crt_view, &CrtView::set_next_pixel);
-  connect(this, &DeebWindow::hblank_received, ui->crt_view, &CrtView::hblank);
-  connect(this, &DeebWindow::vblank_received, ui->crt_view, &CrtView::vblank);
+  connect(this, &DeebWindow::screen_changed, ui->crt_view, &VduView::screen_changed);
 
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
-
 
   uint8_t mode = 7;
   if(qApp->arguments().count() == 2 ) {
     mode = qApp->arguments().at(1).toInt() & 0x07;
   }
   beeb_ = new Beeb(mode);
-  beeb_->set_pixel_function([this](uint8_t r, uint8_t g, uint8_t b, bool hblank, bool vblank) {
-    if (hblank) {
-      emit hblank_received();
-      return;
-    }
-    if (vblank) {
-      emit vblank_received();
-      return;
-    }
-    emit pixel_received(r, g, b);
+  beeb_->set_pixel_function([=](uint8_t *scr_data, uint32_t sz) {
+    emit screen_changed(scr_data, sz);
   });
 
   reset_cpu();

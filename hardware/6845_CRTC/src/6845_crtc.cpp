@@ -325,6 +325,8 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
     if (line_cnt_ == vert_total_ && adj_cnt_ == vert_total_adj_) {
       line_cnt_ = 0;
       adj_cnt_ = 0;
+      h_disp_enable_ = 1;
+      v_disp_enable_ = 1;
     }
     memory_addr_ = line_cnt_ * horz_displayed_ + screen_start_;
   } else {
@@ -380,10 +382,7 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   }
 
   if ((line_cnt_ == vert_total_) && raster_ended) {
-    if (adj_cnt_ == vert_total_adj_) {
-      h_disp_enable_ = 1;
-      v_disp_enable_ = 1;
-    } else {
+    if (adj_cnt_ != vert_total_adj_) {
       ++adj_cnt_;
     }
   }

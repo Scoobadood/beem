@@ -37,9 +37,8 @@ DisassemblyView::DisassemblyView(QWidget *parent) //
   auto fm = ui->te_disassembly->fontMetrics();
   row_height_ = fm.size(Qt::TextSingleLine, "0000").height();
 
-  ui->te_disassembly->setFixedWidth(48 * fm.maxWidth());
-  ui->te_disassembly->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-  ui->te_disassembly->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
+  ui->te_disassembly->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+  ui->te_disassembly->setMinimumWidth(48 * fm.maxWidth());
 }
 
 DisassemblyView::~DisassemblyView() {
@@ -76,17 +75,26 @@ bool DisassemblyView::eventFilter(QObject *obj, QEvent *event) {
 }
 
 
-void DisassemblyView::resize(const QSize &size) {
-  // Keep text edit a fixed size
-  ui->te_disassembly->setFixedWidth(700);
-}
 
+void DisassemblyView::resize(const QSize &size) {
+  spdlog::info( "disasm resize() {}x{}   TE is {}x{}",
+                size.width(), size.height(),
+                ui->te_disassembly->size().width(),
+                ui->te_disassembly->size().height()
+  );
+  QWidget::resize(size);
+}
 /**
  * Capture some key attributes about the view and then
  * populate it.
  * @param event
  */
 void DisassemblyView::resizeEvent(QResizeEvent *event) {
+  spdlog::info( "disasm resizeEvent()  {}x{}   TE is {}x{}",
+                event->size().width(), event->size().height(),
+                ui->te_disassembly->size().width(),
+                ui->te_disassembly->size().height()
+                );
   auto pt_size = event->size();
   displayed_rows_ = std::max(1, (pt_size.height() / row_height_));
 

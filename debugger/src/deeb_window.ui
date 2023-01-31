@@ -6,87 +6,124 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>662</width>
-    <height>518</height>
+    <width>899</width>
+    <height>740</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="windowTitle">
    <string>DeebWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="1">
-     <widget class="QWidget" name="widget" native="true">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+     <horstretch>1</horstretch>
+     <verstretch>1</verstretch>
+    </sizepolicy>
+   </property>
+   <layout class="QHBoxLayout" name="horizontalLayout_2">
+    <item>
+     <widget class="VduView" name="crt_view" native="true">
       <property name="sizePolicy">
-       <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
-        <horstretch>1</horstretch>
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>2</horstretch>
         <verstretch>1</verstretch>
        </sizepolicy>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <item>
-        <widget class="RegisterView" name="reg_view" native="true">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
-           <horstretch>0</horstretch>
-           <verstretch>1</verstretch>
-          </sizepolicy>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="BusView" name="bus_view" native="true">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
-           <horstretch>0</horstretch>
-           <verstretch>1</verstretch>
-          </sizepolicy>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="MemoryView" name="mem_view" native="true">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
-           <horstretch>0</horstretch>
-           <verstretch>2</verstretch>
-          </sizepolicy>
-         </property>
-        </widget>
-       </item>
-      </layout>
      </widget>
     </item>
-    <item row="0" column="0">
-     <widget class="QWidget" name="ctr" native="true">
-      <property name="minimumSize">
-       <size>
-        <width>100</width>
-        <height>0</height>
-       </size>
+    <item>
+     <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetMinimumSize</enum>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <widget class="CrtView" name="crt_view" native="true"/>
-       </item>
-       <item>
-        <widget class="DisassemblyView" name="disassembly_view" native="true">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="minimumSize">
-          <size>
-           <width>0</width>
-           <height>0</height>
-          </size>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
+      <property name="leftMargin">
+       <number>5</number>
+      </property>
+      <property name="rightMargin">
+       <number>5</number>
+      </property>
+      <item>
+       <widget class="DisassemblyView" name="disassembly_view" native="true">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>8</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>420</width>
+          <height>200</height>
+         </size>
+        </property>
+        <property name="baseSize">
+         <size>
+          <width>1</width>
+          <height>1</height>
+         </size>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true"/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="MemoryView" name="mem_view" native="true">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>1</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>420</width>
+          <height>100</height>
+         </size>
+        </property>
+        <property name="styleSheet">
+         <string notr="true"/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="RegisterView" name="reg_view" native="true">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>420</width>
+          <height>102</height>
+         </size>
+        </property>
+        <property name="baseSize">
+         <size>
+          <width>308</width>
+          <height>170</height>
+         </size>
+        </property>
+        <property name="autoFillBackground">
+         <bool>false</bool>
+        </property>
+        <property name="styleSheet">
+         <string notr="true"/>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
@@ -95,8 +132,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>662</width>
-     <height>37</height>
+     <width>899</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnu_file">
@@ -131,6 +168,9 @@
   <widget class="QToolBar" name="toolBar">
    <property name="windowTitle">
     <string>toolBar</string>
+   </property>
+   <property name="styleSheet">
+    <string notr="true"/>
    </property>
    <property name="iconSize">
     <size>
@@ -257,12 +297,6 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>BusView</class>
-   <extends>QWidget</extends>
-   <header>bus_view.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>MemoryView</class>
    <extends>QWidget</extends>
    <header>memory_view.h</header>
@@ -275,9 +309,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>CrtView</class>
+   <class>VduView</class>
    <extends>QWidget</extends>
-   <header>crt_view.h</header>
+   <header location="global">vdu_view.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

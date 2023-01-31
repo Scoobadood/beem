@@ -37,11 +37,7 @@ signals:
 
   void bus_changed(const std::shared_ptr<Bus> &bus);
 
-  void pixel_received(uint8_t r, uint8_t g, uint8_t b);
-
-  void hblank_received();
-
-  void vblank_received();
+  void screen_changed(uint8_t * scr_datar, uint32_t sz);
 
 private slots:
 
