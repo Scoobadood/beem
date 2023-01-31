@@ -19,6 +19,11 @@ public:
 
   ~DeebWindow() override;
 
+  void keyPressEvent(QKeyEvent *event) override;
+
+  void keyReleaseEvent(QKeyEvent *event) override;
+
+
 public slots:
 
   void breakpoint_set(uint16_t brk_addr);
@@ -26,6 +31,8 @@ public slots:
   void breakpoint_cleared(uint16_t brk_addr);
 
   void load_symbols();
+
+
 
 signals:
 
@@ -37,7 +44,7 @@ signals:
 
   void bus_changed(const std::shared_ptr<Bus> &bus);
 
-  void screen_changed(uint8_t * scr_datar, uint32_t sz);
+  void screen_changed(uint8_t *scr_datar, uint32_t sz);
 
 private slots:
 

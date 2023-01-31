@@ -18,6 +18,7 @@ class Via {
   void subscribe_port_b(const data_subscriber_8_bit_ptr &subscriber);
   void unsubscribe_port_b(const data_subscriber_8_bit_ptr &subscriber);
   void provide_port_a(data_provider_8_bit_ptr provider);
+  void provide_ca2(data_provider_8_bit_ptr provider);
 
   void set_ca1(uint8_t state);
   void set_cb1(uint8_t state);
@@ -29,6 +30,7 @@ class Via {
   void mmio_write(const std::shared_ptr<Bus>& bus, uint8_t reg);
   void check_irq();
   void check_timers();
+  void check_ca2();
   void check_mmio(const std::shared_ptr<Bus>& bus);
   void write_irq_enable(uint8_t data);
   void write_pcr(uint8_t data);
@@ -81,6 +83,7 @@ class Via {
   // Providers to ports
   std::set<data_provider_8_bit_ptr> port_a_providers_;
   std::set<data_provider_8_bit_ptr> port_b_providers_;
+  std::set<data_provider_8_bit_ptr> ca2_providers_;
 };
 
 #endif //BEEB_HARDWARE_6522_VIA_INCLUDE_H_

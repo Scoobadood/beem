@@ -44,9 +44,9 @@ private:
 
 class data_provider_8_bit {
 public:
-  data_provider_8_bit() : data_{0}, has_data_{false} {}
+  explicit data_provider_8_bit(uint8_t initial_data = 0) : data_{initial_data}, has_data_{false} {}
 
-  inline bool has_data() const { return has_data_; }
+  [[nodiscard]] inline bool has_data() const { return has_data_; }
 
   inline uint8_t data() {
     has_data_ = false;

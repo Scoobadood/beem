@@ -36,6 +36,10 @@ public:
 
   std::shared_ptr<Bus> bus() { return bus_; }
 
+  void press_key(uint8_t key_code);
+
+  void release_key(uint8_t key_code);
+
   void set_pixel_function(const PixelFunction &fn) {fn_ = fn;}
 
   [[nodiscard]] std::vector<uint8_t> get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const;

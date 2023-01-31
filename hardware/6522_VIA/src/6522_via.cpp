@@ -461,6 +461,16 @@ void Via::check_irq() {
   if (TST_FLG(ifr_, IRQ_IRQ)) {
     // TODO: Pull IRQ line low to alert CPU.
     // TODO: Implement IRQ line
+    spdlog::info("VIA@{:04x}: IRQ {}{}{}{}{}{}{}",
+                 base_address_,
+                 (ifr_ & IRQ_T2) ? "T2" : "",
+                 (ifr_ & IRQ_T1) ? "T1" : "",
+                 (ifr_ & IRQ_CA2) ? "CA2" : "",
+                 (ifr_ & IRQ_CA1) ? "CA1" : "",
+                 (ifr_ & IRQ_CB2) ? "CB2" : "",
+                 (ifr_ & IRQ_CB1) ? "CB1" : "",
+                 (ifr_ & IRQ_SR) ? "SR" : ""
+                 );
   }
 }
 
@@ -498,8 +508,23 @@ void Via::check_timers() {
   }
 }
 
+
+void Via::check_ca2() {
+  for( const auto & provider : ca2_providers_) {
+    if (provider->has_data()) {
+      auto data = provider->data();
+      if( data == 0x00) {
+        raise_irq(IRQ_CA2);
+      }
+      return;
+    }
+  }
+}
+
 void Via::tick(const std::shared_ptr<Bus>& bus) {
   check_timers();
+
+  check_ca2();
 
   check_irq();
 
@@ -508,6 +533,10 @@ void Via::tick(const std::shared_ptr<Bus>& bus) {
 
 void Via::provide_port_a(data_provider_8_bit_ptr provider) {
   port_a_providers_.emplace(provider);
+}
+
+void Via::provide_ca2(data_provider_8_bit_ptr provider) {
+  ca2_providers_.emplace(provider);
 }
 
 void Via::subscribe_port_b(const data_subscriber_8_bit_ptr &subscriber) {

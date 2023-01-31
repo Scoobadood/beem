@@ -147,39 +147,65 @@ const uint8_t KEY_SHIFT_LOCK = 0x50;
 const uint8_t KEY_CAPS_LOCK = 0x40;
 
 class Keyboard {
- public:
+public:
   Keyboard(uint8_t dips = 0);
 
   void tick();
 
-   inline bool caps_lock_led() const { return caps_lock_led_; }
-   inline bool shift_lock_led() const { return shift_lock_led_; }
-   inline bool auto_scan_enabled() const { return auto_scan_enabled_; }
+  inline bool caps_lock_led() const { return caps_lock_led_; }
 
-   inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
-   inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
-   inline data_provider_8_bit_ptr provider() const { return provider_; }
-   inline data_subscriber_8_bit_ptr cl_led_src() const { return cl_led_src_; }
-   inline data_subscriber_8_bit_ptr sl_led_src() const { return sl_led_src_; }
+  inline bool shift_lock_led() const { return shift_lock_led_; }
 
- private:
+  inline bool auto_scan_enabled() const { return auto_scan_enabled_; }
+
+  void press_key(uint8_t key);
+
+  void release_key(uint8_t key);
+
+  inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
+
+  inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
+
+  inline data_provider_8_bit_ptr provider() const { return provider_; }
+
+  inline data_provider_8_bit_ptr irq_provider() const { return irq_provider_; }
+
+  inline data_subscriber_8_bit_ptr cl_led_src() const { return cl_led_src_; }
+
+  inline data_subscriber_8_bit_ptr sl_led_src() const { return sl_led_src_; }
+
+private:
   void check_we();
+
   void check_leds();
+
+  bool is_key_pressed(uint8_t key_code) const;
+
   void handle_command(uint8_t key_code) const;
+  void handle_auto_scan();
 
   data_subscriber_8_bit_ptr we_src_;
   data_subscriber_8_bit_ptr data_src_;
   data_subscriber_8_bit_ptr cl_led_src_;
   data_subscriber_8_bit_ptr sl_led_src_;
   data_provider_8_bit_ptr provider_;
+  data_provider_8_bit_ptr irq_provider_;
 
   // DIP switches. Default open (0)
   uint8_t dips_;
   bool auto_scan_enabled_;
 
+  // Auto scan
+  uint8_t scan_col_;
   // LEDs
   bool caps_lock_led_;
   bool shift_lock_led_;
+
+  // Keys down
+  uint8_t key_1_;
+  uint8_t key_2_;
+  bool shift_pressed_;
+  bool ctrl_pressed_;
 };
 
 #endif // BEEB_HW_KEYBOARD_H_

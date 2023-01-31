@@ -80,6 +80,7 @@ Beeb::Beeb(uint8_t boot_mode) //
   latch_->subscribe(keyboard_->sl_led_src());
   system_via_->subscribe_port_a(keyboard_->data_src());
   system_via_->provide_port_a(keyboard_->provider());
+  system_via_->provide_ca2(keyboard_->irq_provider());
 
   // ACIA
   acia_ = new Acia();
@@ -376,4 +377,11 @@ std::vector<uint8_t> Beeb::get_memory_contents(uint16_t start_addr, uint32_t num
   }
 
   return return_data;
+}
+
+void Beeb::press_key(uint8_t key_code) {
+  keyboard_->press_key(key_code);
+}
+void Beeb::release_key(uint8_t key_code) {
+  keyboard_->release_key(key_code);
 }
