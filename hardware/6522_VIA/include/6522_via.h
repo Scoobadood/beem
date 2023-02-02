@@ -8,36 +8,58 @@
 #include <set>
 
 class Via {
- public:
+public:
   explicit Via(uint16_t base_address);
 
-  void tick(const std::shared_ptr<Bus>& bus);
+  void tick(const std::shared_ptr<Bus> &bus);
 
   void subscribe_port_a(const data_subscriber_8_bit_ptr &subscriber);
+
   void unsubscribe_port_a(const data_subscriber_8_bit_ptr &subscriber);
+
   void subscribe_port_b(const data_subscriber_8_bit_ptr &subscriber);
+
   void unsubscribe_port_b(const data_subscriber_8_bit_ptr &subscriber);
+
   void provide_port_a(data_provider_8_bit_ptr provider);
+
   void provide_ca2(data_provider_8_bit_ptr provider);
 
   void set_ca1(uint8_t state);
+
   void set_cb1(uint8_t state);
 
- private:
+  [[nodiscard]] inline bool has_irq() const { return ifr_ & 0x80; }
+
+private:
   void raise_irq(uint8_t irq);
+
   void clear_irq(uint8_t irq);
-  void mmio_read(const std::shared_ptr<Bus>& bus, uint8_t reg);
-  void mmio_write(const std::shared_ptr<Bus>& bus, uint8_t reg);
+
+  void mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg);
+
+  void mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg);
+
   void check_irq();
+
   void check_timers();
+
   void check_ca2();
-  void check_mmio(const std::shared_ptr<Bus>& bus);
+
+  void check_mmio(const std::shared_ptr<Bus> &bus);
+
   void write_irq_enable(uint8_t data);
+
   void write_pcr(uint8_t data);
+
   void write_acr(uint8_t data);
+
   void write_port_a(uint8_t data);
+
   void write_port_b(uint8_t data);
+
   uint8_t read_port_a();
+
   uint8_t read_port_b();
 
   uint16_t base_address_;

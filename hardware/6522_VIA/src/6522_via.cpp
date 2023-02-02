@@ -459,8 +459,6 @@ void Via::clear_irq(uint8_t irq) {
 
 void Via::check_irq() {
   if (TST_FLG(ifr_, IRQ_IRQ)) {
-    // TODO: Pull IRQ line low to alert CPU.
-    // TODO: Implement IRQ line
     spdlog::info("VIA@{:04x}: IRQ {}{}{}{}{}{}{}",
                  base_address_,
                  (ifr_ & IRQ_T2) ? "T2" : "",
