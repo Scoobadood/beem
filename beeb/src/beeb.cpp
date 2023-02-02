@@ -227,6 +227,8 @@ void Beeb::tick() {
   if (clock_->went_high(CLK_E_2_MHZ)) {
     spdlog::get("BusDance")->debug("BEEB: 2MHzE went high. CPU starting work.");
 
+    if( system_via_->has_irq()) cpu_->raise_irq();
+
     cpu_->tick(bus_);
     spdlog::get("BusDance")->debug("CPU  : finished work. Main bus {:04x} {:02x} {} {}",
                                    bus_->get_address(),
