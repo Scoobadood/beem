@@ -1,21 +1,23 @@
 #include "m6502.h"
 #include "cycle_handler.h"
+#include "opcodes.h"
 
 #include <spdlog/spdlog-inl.h>
 
+
 M6502::M6502() //
-    : brk_flags_{0} //
-    , pc_{0} //
-    , flags_{0} //
-    , stack_pointer_{0} //
-    , accumulator_{0} //
-    , x_reg_{0} //
-    , y_reg_{0} //
-    , temp_addr_{0} //
-    , ir_{0} //
-    , reset_in_process_{false} //
-    , reset_cycle_{0} //
-    , next_history_buffer_entry_{0} //
+        : brk_flags_{0} //
+        , pc_{0} //
+        , flags_{0} //
+        , stack_pointer_{0} //
+        , accumulator_{0} //
+        , x_reg_{0} //
+        , y_reg_{0} //
+        , temp_addr_{0} //
+        , ir_{0} //
+        , reset_in_process_{false} //
+        , reset_cycle_{0} //
+        , next_history_buffer_entry_{0} //
 {
   opcode_history_buffer_.resize(history_size_, 0xff);
   pc_history_buffer_.resize(history_size_, 0xffff);
@@ -35,27 +37,34 @@ bool M6502::maybe_handle_reset(const std::shared_ptr<Bus> &bus) {
   }
   ++reset_cycle_;
   switch (reset_cycle_) {
-    case 1:stack_pointer_ = 0;
+    case 1:
+      stack_pointer_ = 0;
       break;
 
-    case 2:bus->set_address(0x100 + stack_pointer_);
+    case 2:
+      bus->set_address(0x100 + stack_pointer_);
       break;
 
-    case 3:bus->set_address(0x100 + stack_pointer_ - 1);
+    case 3:
+      bus->set_address(0x100 + stack_pointer_ - 1);
       break;
 
-    case 4:bus->set_address(0x100 + stack_pointer_ - 2);
+    case 4:
+      bus->set_address(0x100 + stack_pointer_ - 2);
       break;
 
-    case 5:stack_pointer_ = 0xfd;
+    case 5:
+      stack_pointer_ = 0xfd;
       bus->set_address(0xfffc);
       break;
 
-    case 6:temp_addr_ = bus->get_data();
+    case 6:
+      temp_addr_ = bus->get_data();
       bus->set_address(0xfffd);
       break;
 
-    case 7:reset_in_process_ = false;
+    case 7:
+      reset_in_process_ = false;
       reset_cycle_ = 0;
       pc_ = (bus->get_data() << 8) | temp_addr_;
       bus->set_address(pc_);
@@ -83,9 +92,13 @@ void M6502::maybe_handle_sync(const std::shared_ptr<Bus> &bus) {
 }
 
 void M6502::do_cycle(const std::shared_ptr<Bus> &bus) {
+  if ((ir_ & 0xf) == 0 && is_irq()) {
+    ir_ = 0;
+  }
   auto handler = cycle_handler(ir_);
   if (handler == nullptr) {
-    auto msg = fmt::format("No cycle handler for opcode 0x{:02x} cycle {} at_bus PC: 0x{:04x}", ir_ >> 4, ir_ & 0xf, pc_);
+    auto msg = fmt::format("No cycle handler for opcode 0x{:02x} cycle {} at_bus PC: 0x{:04x}", ir_ >> 4, ir_ & 0xf,
+                           pc_);
     spdlog::critical(msg);
     for (auto i = 0; i < history_size_; ++i) {
       auto nn = (next_history_buffer_entry_ + i) % history_size_;
