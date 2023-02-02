@@ -42,7 +42,7 @@ DeebWindow::DeebWindow(QWidget *parent) //
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
   uint8_t mode = 7;
-  if(qApp->arguments().count() == 2 ) {
+  if (qApp->arguments().count() == 2) {
     mode = qApp->arguments().at(1).toInt() & 0x07;
   }
   beeb_ = new Beeb(mode);
@@ -141,7 +141,8 @@ DeebWindow::run() {
     emit pc_changed(cpu->PC());
     emit bus_changed(beeb_->bus());
 
-    set_debug_buttons_paused();
+    QMetaObject::invokeMethod(
+            this, [=]() { set_debug_buttons_paused(); }, Qt::QueuedConnection);
   });
 }
 
@@ -203,25 +204,26 @@ void DeebWindow::on_act_edit_breakpoints_triggered() {
 }
 
 void DeebWindow::keyPressEvent(QKeyEvent *event) {
-  spdlog::info( "DeebWindow saw keypress");
+  spdlog::info("DeebWindow saw keypress");
   // Map key to scan code
-  if( event->key() == Qt::Key_M) beeb_->press_key(KEY_M);
-  if( event->key() == Qt::Key_O) beeb_->press_key(KEY_O);
-  if( event->key() == Qt::Key_D) beeb_->press_key(KEY_D);
-  if( event->key() == Qt::Key_E) beeb_->press_key(KEY_E);
-  if( event->key() == Qt::Key_Space) beeb_->press_key(KEY_SPACE);
-  if( event->key() == Qt::Key_4) beeb_->press_key(KEY_4);
-  if( event->key() == Qt::Key_0) beeb_->press_key(KEY_0);
-  if( event->key() == Qt::Key_Return) beeb_->press_key(KEY_RETURN);
+  if (event->key() == Qt::Key_M) beeb_->press_key(KEY_M);
+  if (event->key() == Qt::Key_O) beeb_->press_key(KEY_O);
+  if (event->key() == Qt::Key_D) beeb_->press_key(KEY_D);
+  if (event->key() == Qt::Key_E) beeb_->press_key(KEY_E);
+  if (event->key() == Qt::Key_Space) beeb_->press_key(KEY_SPACE);
+  if (event->key() == Qt::Key_4) beeb_->press_key(KEY_4);
+  if (event->key() == Qt::Key_0) beeb_->press_key(KEY_0);
+  if (event->key() == Qt::Key_Return) beeb_->press_key(KEY_RETURN);
 }
+
 void DeebWindow::keyReleaseEvent(QKeyEvent *event) {
-  if( event->key() == Qt::Key_M) beeb_->release_key(KEY_M);
-  if( event->key() == Qt::Key_O) beeb_->release_key(KEY_O);
-  if( event->key() == Qt::Key_D) beeb_->release_key(KEY_D);
-  if( event->key() == Qt::Key_E) beeb_->release_key(KEY_E);
-  if( event->key() == Qt::Key_Space) beeb_->release_key(KEY_SPACE);
-  if( event->key() == Qt::Key_4) beeb_->release_key(KEY_4);
-  if( event->key() == Qt::Key_0) beeb_->release_key(KEY_0);
-  if( event->key() == Qt::Key_Return) beeb_->release_key(KEY_RETURN);
+  if (event->key() == Qt::Key_M) beeb_->release_key(KEY_M);
+  if (event->key() == Qt::Key_O) beeb_->release_key(KEY_O);
+  if (event->key() == Qt::Key_D) beeb_->release_key(KEY_D);
+  if (event->key() == Qt::Key_E) beeb_->release_key(KEY_E);
+  if (event->key() == Qt::Key_Space) beeb_->release_key(KEY_SPACE);
+  if (event->key() == Qt::Key_4) beeb_->release_key(KEY_4);
+  if (event->key() == Qt::Key_0) beeb_->release_key(KEY_0);
+  if (event->key() == Qt::Key_Return) beeb_->release_key(KEY_RETURN);
 }
 
