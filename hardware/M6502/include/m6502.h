@@ -169,6 +169,7 @@ private:
   // Internal utility
   bool maybe_handle_reset(const std::shared_ptr<Bus> &bus);
 
+
   void maybe_handle_sync(const std::shared_ptr<Bus> &bus);
 
   void do_cycle(const std::shared_ptr<Bus> &bus);
