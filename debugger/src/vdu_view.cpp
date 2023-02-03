@@ -21,10 +21,10 @@ VduView::VduView(QWidget *parent) //
   setAlignment(Qt::AlignCenter);
 }
 
-void VduView::screen_changed(uint8_t *scr_data, uint32_t sz) {
+void VduView::screen_changed(std::vector<uint8_t> scr_data) {
   // SHIT Qt support for images
   for (int y = 0; y < 224; y++) {
-    memcpy(image_->scanLine(y), &scr_data[y * 640 * 3], y * 640 * 3);
+    memcpy(image_->scanLine(y), scr_data.data()+(y * 640 * 3), 640 * 3);
   }
   // Make a scaled copy
   setUpdatesEnabled(false);

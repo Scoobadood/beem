@@ -13,7 +13,7 @@ Q_OBJECT
 public:
   explicit VduView(QWidget *parent = nullptr);
 
-  void screen_changed(uint8_t *scr_data, uint32_t sz);
+  void screen_changed(std::vector<uint8_t> scr_data);
 
 
 private:

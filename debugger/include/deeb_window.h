@@ -44,7 +44,7 @@ signals:
 
   void bus_changed(const std::shared_ptr<Bus> &bus);
 
-  void screen_changed(uint8_t *scr_datar, uint32_t sz);
+  void screen_changed(std::vector<uint8_t> scr_data);
 
 private slots:
 

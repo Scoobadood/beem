@@ -99,7 +99,9 @@ Beeb::Beeb(uint8_t boot_mode) //
   v_ula_->set_crtc(crtc_);
 
   // Screen Data
-  screen_data_ = new uint8_t[SCR_WIDTH * SCR_HEIGHT * 3];
+  screen_data_.resize(SCR_WIDTH * SCR_HEIGHT * 3);
+  pixel_x_ = 0;
+  pixel_y_ = 0;
 }
 
 void Beeb::reset() {
@@ -312,15 +314,15 @@ void Beeb::tick() {
       wait_vsync_high = true;
       wait_vsync_low = false;
       pixel_x_=pixel_y_=0;
-      fn_(screen_data_, SCR_WIDTH * SCR_HEIGHT * 3);
+      fn_(screen_data_);
     }
 
     if (de) {
       auto rgb = v_ula_->rgb();
       auto base = (pixel_y_ * SCR_WIDTH + pixel_x_) * 3;
-      screen_data_[base + 0] = (rgb >> 16) & 0xff;
-      screen_data_[base + 1] = (rgb >> 8) & 0xff;
-      screen_data_[base + 2] = (rgb >> 0) & 0xff;
+      screen_data_.at(base + 0) = (rgb >> 16) & 0xff;
+      screen_data_.at(base + 1) = (rgb >> 8) & 0xff;
+      screen_data_.at(base + 2) = (rgb >> 0) & 0xff;
 
       if( ++pixel_x_ == SCR_WIDTH) {
         pixel_x_ = 0;

@@ -18,7 +18,7 @@
 #include "6845_crtc.h"
 #include "clock.h"
 
-using PixelFunction = std::function<void(uint8_t * scr_data, uint32_t sz)>;
+using PixelFunction = std::function<void(std::vector<uint8_t> scr_data)>;
 
 class Beeb {
 public:
@@ -78,7 +78,7 @@ private:
 
   const uint32_t SCR_WIDTH = 640;
   const uint32_t SCR_HEIGHT = 224;
-  uint8_t *screen_data_;
+  std::vector<uint8_t> screen_data_;
   uint16_t pixel_x_;
   uint16_t pixel_y_;
 };

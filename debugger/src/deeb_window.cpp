@@ -46,8 +46,8 @@ DeebWindow::DeebWindow(QWidget *parent) //
     mode = qApp->arguments().at(1).toInt() & 0x07;
   }
   beeb_ = new Beeb(mode);
-  beeb_->set_pixel_function([=](uint8_t *scr_data, uint32_t sz) {
-    emit screen_changed(scr_data, sz);
+  beeb_->set_pixel_function([=](std::vector<uint8_t> scr_data) {
+    emit screen_changed(scr_data);
   });
 
   reset_cpu();
