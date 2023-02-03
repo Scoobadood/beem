@@ -4,6 +4,8 @@
 
 #include <QResizeEvent>
 #include <QTextBlock>
+#include <QTextEdit>
+#include <QThread>
 #include <QTextDocumentFragment>
 
 struct DisassemblyView::FormattedOperation {
@@ -75,26 +77,26 @@ bool DisassemblyView::eventFilter(QObject *obj, QEvent *event) {
 }
 
 
-
 void DisassemblyView::resize(const QSize &size) {
-  spdlog::info( "disasm resize() {}x{}   TE is {}x{}",
-                size.width(), size.height(),
-                ui->te_disassembly->size().width(),
-                ui->te_disassembly->size().height()
+  spdlog::info("disasm resize() {}x{}   TE is {}x{}",
+               size.width(), size.height(),
+               ui->te_disassembly->size().width(),
+               ui->te_disassembly->size().height()
   );
   QWidget::resize(size);
 }
+
 /**
  * Capture some key attributes about the view and then
  * populate it.
  * @param event
  */
 void DisassemblyView::resizeEvent(QResizeEvent *event) {
-  spdlog::info( "disasm resizeEvent()  {}x{}   TE is {}x{}",
-                event->size().width(), event->size().height(),
-                ui->te_disassembly->size().width(),
-                ui->te_disassembly->size().height()
-                );
+  spdlog::info("disasm resizeEvent()  {}x{}   TE is {}x{}",
+               event->size().width(), event->size().height(),
+               ui->te_disassembly->size().width(),
+               ui->te_disassembly->size().height()
+  );
   auto pt_size = event->size();
   displayed_rows_ = std::max(1, (pt_size.height() / row_height_));
 
@@ -215,10 +217,6 @@ DisassemblyView::FormattedOperation DisassemblyView::format_for_display(const Op
           .arg(op.address, 4, 16, QChar('0'));
 
   QString label = QString::fromStdString("");
-  auto iter = symbols_.find(op.address);
-  if (iter != symbols_.end()) {
-    label = iter->second;
-  }
 
   QString opc = QString::fromStdString(op.opcode.name);
   QString arg;
@@ -290,7 +288,7 @@ void DisassemblyView::redraw(QTextCursor cursor, bool is_pc) {
   cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 1);
 
   QTextCharFormat fmt{};
-  fmt.setBackground(QBrush{is_pc ? pc_colour_: QColorConstants::White});
+  fmt.setBackground(QBrush{is_pc ? pc_colour_ : QColorConstants::White});
   cursor.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
   cursor.mergeCharFormat(fmt);
 }
@@ -329,9 +327,14 @@ void DisassemblyView::disassemble_data(const std::vector<uint8_t> &data) {
     auto dis = disassembler_.disassemble_one(data, offset, err);
     if (err != 0) break;
     disassembly_.emplace_back(dis);
-    addr_to_row_.emplace(dis.address, rows);
-    row_to_addr_.emplace(rows, dis.address);
-    rows++;
+    // If there's a label, skip a line in our lookup table
+    auto iter = symbols_.find(dis.address);
+    if (iter != symbols_.end()) {
+      ++rows;
+      addr_to_row_.emplace(dis.address, rows);
+      row_to_addr_.emplace(rows, dis.address);
+    }
+    ++rows;
   }
 }
 
@@ -353,6 +356,15 @@ void DisassemblyView::layout_disassembly() {
   auto bytes_colour = QColorConstants::LightGray;
 
   for (const auto &op: disassembly_) {
+    /* Insert label if relevant */
+    auto iter = symbols_.find(op.address);
+    if (iter != symbols_.end()) {
+      auto label = QString("%1").arg(iter->second, -12, ' ');
+      ui->te_disassembly->setTextColor(label_colour);
+      ui->te_disassembly->insertPlainText(label);// For BP Marker
+      ui->te_disassembly->insertPlainText("\n");
+    }
+
     auto formatted_op = format_for_display(op);
 
     ui->te_disassembly->moveCursor(QTextCursor::End, QTextCursor::MoveAnchor);
