@@ -290,7 +290,7 @@ void Beeb::tick() {
 
 
 //    sound_chip_->tick();
-//    acia_->tick(bus_);
+    acia_->tick(bus_);
 //    adc_->tick(bus_);
   }
 

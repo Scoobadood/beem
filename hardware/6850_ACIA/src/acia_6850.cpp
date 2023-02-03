@@ -26,7 +26,7 @@ Acia::Acia() //
 void mmio_read(uint16_t addr, const std::shared_ptr<Bus>& bus) {
   spdlog::info("ACIA: Read from 0x{:04x}", addr);
   // FIXME: Temp hack to allow IRQ processing on other devices.
-  if( addr == 0xfe08) bus->set_data(0x80);
+  if( addr == 0xfe08) bus->set_data(0x00);
 }
 
 void Acia::master_reset() {
