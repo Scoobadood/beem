@@ -77,6 +77,13 @@ bool M6502::maybe_handle_reset(const std::shared_ptr<Bus> &bus) {
 
 void M6502::maybe_handle_sync(const std::shared_ptr<Bus> &bus) {
   if (bus->tst_SYNC()) {
+    if (is_irq()) {
+      ir_ = 0;
+      bus->clr_SYNC();
+      return;
+    }
+
+
     // load IR register with opcode from data bus, and make room
     // for the 4 bit cycle counter (we only need three but this makes opcodes easier to see)
     // for humans.
@@ -92,9 +99,6 @@ void M6502::maybe_handle_sync(const std::shared_ptr<Bus> &bus) {
 }
 
 void M6502::do_cycle(const std::shared_ptr<Bus> &bus) {
-  if ((ir_ & 0xf) == 0 && is_irq()) {
-    ir_ = 0;
-  }
   auto handler = cycle_handler(ir_);
   if (handler == nullptr) {
     auto msg = fmt::format("No cycle handler for opcode 0x{:02x} cycle {} at_bus PC: 0x{:04x}", ir_ >> 4, ir_ & 0xf,
