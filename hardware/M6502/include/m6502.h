@@ -6,14 +6,15 @@
 #define BEEB_CPU_6502_H
 
 #include "bus.h"
+#include "spdlog/spdlog.h"
 
 #include <vector>
 #include <bitset>
 
 // internal BRK flags - what sort of BRK is being services
-const uint8_t BRK_IRQ = 1 << 0;   /* IRQ was triggered */
-const uint8_t BRK_NMI = 1 << 1;  /* NMI was triggered */
-const uint8_t BRK_RST = 1 << 2;  /* RES was triggered */
+const uint8_t BRK_IRQ = 1 << 0;  /* IRQ in progress */
+const uint8_t BRK_NMI = 1 << 1;  /* NMI in progress */
+const uint8_t BRK_RST = 1 << 2;  /* RES in progress */
 
 // Status Register flags
 const uint8_t FLAG_N = 1 << 7;
@@ -138,29 +139,17 @@ public:
   inline void skip_cycle() { ir_++; };
 
   inline void raise_irq() {
-    if (!tstI())
-      brk_flags_ |= BRK_IRQ;
+    spdlog::info("CPU   : VIA raised IRQ" );
+
+    interrupt_requested_ = true;
+  }
+
+  inline void clear_irq() {
+    spdlog::info("CPU   : Clearing IRQ line" );
+    interrupt_requested_ = false;
   }
 
   inline void raise_nmi() {
-    brk_flags_ |= BRK_NMI;
-  }
-
-  inline bool is_irq() const {
-    return (brk_flags_ & (BRK_IRQ | BRK_NMI)) != 0;
-
-  }
-
-  inline bool is_nmi() const {
-    return (brk_flags_ & BRK_NMI);
-  }
-
-  inline bool is_rst() const {
-    return (brk_flags_ & BRK_RST);
-  }
-
-  inline void clr_irq() {
-    brk_flags_ = 0;
   }
 
   uint8_t brk_flags_;
@@ -181,6 +170,7 @@ private:
   uint8_t accumulator_;
   uint8_t x_reg_;
   uint8_t y_reg_;
+  bool interrupt_requested_;
 
   // Temp address data
   uint16_t temp_addr_;

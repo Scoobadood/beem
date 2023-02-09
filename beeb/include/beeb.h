@@ -60,6 +60,7 @@ private:
   std::shared_ptr<Bus> dram_bus_;
   std::shared_ptr<Rom> basic_rom_;
   std::shared_ptr<Rom> mos_;
+  std::shared_ptr<data_provider_8_bit> dummy_speech_provider_;
 
   Via *system_via_;
   Via *user_via_;

@@ -82,6 +82,16 @@ Beeb::Beeb(uint8_t boot_mode) //
   system_via_->provide_port_a(keyboard_->provider());
   system_via_->provide_ca2(keyboard_->irq_provider());
 
+
+  class dsp : public data_provider_8_bit {
+  public:
+    virtual ~dsp() = default;
+    inline bool has_data() const override { return true; }
+    inline uint8_t data() override { return 0x80; }
+  };
+  dummy_speech_provider_ = make_shared<dsp>();
+  system_via_->provide_port_b(dummy_speech_provider_);
+
   // ACIA
   acia_ = new Acia();
 
@@ -229,7 +239,7 @@ void Beeb::tick() {
   if (clock_->went_high(CLK_E_2_MHZ)) {
     spdlog::get("BusDance")->debug("BEEB: 2MHzE went high. CPU starting work.");
 
-    if( system_via_->has_irq()) cpu_->raise_irq();
+    if( system_via_->has_irq()) cpu_->raise_irq(); else cpu_->clear_irq();
 
     cpu_->tick(bus_);
     spdlog::get("BusDance")->debug("CPU  : finished work. Main bus {:04x} {:02x} {} {}",
@@ -271,10 +281,11 @@ void Beeb::tick() {
 
 /* Tick the 1MHz stuff */
   if (clock_->went_low(CLK_1_MHZ)) {
+    keyboard_->tick();
+
     system_via_->tick(bus_);
     user_via_->tick(bus_);
 
-    keyboard_->tick();
     latch_->tick();
 
     /*

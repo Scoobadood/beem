@@ -12,6 +12,8 @@ namespace Ui {
   class DisassemblyView;
 }
 
+struct ColourScheme;
+
 class DisassemblyView : public QWidget {
 Q_OBJECT
 
@@ -24,7 +26,7 @@ public:
 
   void set_data(const std::vector<uint8_t> &data);
 
-  void set_symbols(const std::map<uint16_t, std::string>& symbols);
+  void set_symbols(const std::map<uint16_t, std::string> &symbols);
 
   void resizeEvent(QResizeEvent *event) override;
 
@@ -32,7 +34,7 @@ public:
 
   void mousePressEvent(QMouseEvent *e) override;
 
-  void resize(const QSize & size);
+  void resize(const QSize &size);
 
   void scroll_to(uint16_t address);
 
@@ -54,11 +56,13 @@ private:
 
   struct FormattedOperation;
 
-  FormattedOperation format_for_display(const Operation &op);
+  static FormattedOperation format_for_display(const Operation &op);
 
   void disassemble_data(const std::vector<uint8_t> &data);
 
   void layout_disassembly();
+
+  bool is_labelled(uint16_t address, QString &label);
 
   bool address_on_screen(uint16_t addr, uint32_t *row = nullptr, float *proportion = nullptr);
 
@@ -93,7 +97,8 @@ private:
   /** A map of adress to symbol lookup */
   std::map<uint16_t, QString> symbols_;
 
-  const QColor pc_colour_;
+  /** The colour scheme for this window */
+  std::unique_ptr<ColourScheme> colour_scheme_;
 
   std::vector<Operation> disassembly_;
 };

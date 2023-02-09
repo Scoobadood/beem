@@ -16,6 +16,21 @@ struct DisassemblyView::FormattedOperation {
   QString bytes;
 };
 
+struct ColourScheme {
+  QColor address_colour = QColorConstants::DarkGreen;
+  QColor label_colour = QColorConstants::DarkGreen;
+  QColor op_colour = QColorConstants::DarkBlue;
+  QColor oper_colour = QColorConstants::DarkMagenta;
+  QColor bytes_colour = QColorConstants::LightGray;
+  QColor bp_marker_colour = QColorConstants::Red;
+  QColor bg_colour = QColorConstants::White;
+  QColor pc_colour = QColor{186, 231, 255};
+};
+
+const int32_t LS_LABEL = 0x20000;
+const int32_t LS_OPCOD = 0x10000;
+const int32_t LS_BRKPT = 0x40000;
+
 DisassemblyView::DisassemblyView(QWidget *parent) //
         : QWidget(parent) //
         , ui(new Ui::DisassemblyView) //
@@ -24,7 +39,6 @@ DisassemblyView::DisassemblyView(QWidget *parent) //
         , row_height_{0} //
         , displayed_rows_{0} //
         , first_displayed_byte_offset_{0} //
-        , pc_colour_{186, 231, 255} //
 {
   ui->setupUi(this);
   ui->te_disassembly->viewport()->installEventFilter(this);
@@ -41,6 +55,8 @@ DisassemblyView::DisassemblyView(QWidget *parent) //
 
   ui->te_disassembly->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
   ui->te_disassembly->setMinimumWidth(48 * fm.maxWidth());
+
+  colour_scheme_ = std::make_unique<ColourScheme>();
 }
 
 DisassemblyView::~DisassemblyView() {
@@ -186,7 +202,12 @@ void DisassemblyView::set_pc(uint16_t pc) {
   // Just scroll to it
   if (prop > 0.8) {
     current_pc_ = pc;
-    auto next_addr = row_to_addr_.at(1);
+
+    // Get the second entry in the screen rows which has an address
+    // We can't do a look up using row directly because we may have
+    // a label at index [1] in te screen and tat won't have a
+    // corresponding address.
+    auto next_addr = (row_to_addr_.begin()++)->second;
     scroll_to(next_addr);
     return;
   }
@@ -288,7 +309,7 @@ void DisassemblyView::redraw(QTextCursor cursor, bool is_pc) {
   cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 1);
 
   QTextCharFormat fmt{};
-  fmt.setBackground(QBrush{is_pc ? pc_colour_ : QColorConstants::White});
+  fmt.setBackground(QBrush{is_pc ? colour_scheme_->pc_colour : QColorConstants::White});
   cursor.movePosition(QTextCursor::EndOfLine, QTextCursor::KeepAnchor);
   cursor.mergeCharFormat(fmt);
 }
@@ -298,6 +319,11 @@ void DisassemblyView::clear_brkpt_formatting(QTextCursor cursor) {
   cursor.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, 1);
   cursor.insertText(" ");
   cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+
+  auto state = cursor.block().userState();
+  state &= ~LS_BRKPT;
+  cursor.block().setUserState(state);
+
   update();
 }
 
@@ -305,10 +331,12 @@ void DisassemblyView::set_brkpt_formatting(QTextCursor cursor) {
   cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
   cursor.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, 1);
   QTextCharFormat fmt{};
-  fmt.setForeground(QBrush{QColorConstants::Red});
-  cursor.setCharFormat(fmt);
-  cursor.insertText("*");
+  fmt.setForeground(QBrush{colour_scheme_->bp_marker_colour});
+  cursor.insertText("*", fmt);
   cursor.movePosition(QTextCursor::StartOfBlock, QTextCursor::MoveAnchor);
+  auto state = cursor.block().userState();
+  state |= LS_BRKPT;
+  cursor.block().setUserState(state);
   update();
 }
 
@@ -325,15 +353,17 @@ void DisassemblyView::disassemble_data(const std::vector<uint8_t> &data) {
   auto rows = 0;
   while (rows < displayed_rows_) {
     auto dis = disassembler_.disassemble_one(data, offset, err);
-    if (err != 0) break;
+    if (err != 0) {
+      break;
+    }
     disassembly_.emplace_back(dis);
-    // If there's a label, skip a line in our lookup table
     auto iter = symbols_.find(dis.address);
+    // If there's a label, skip a line in our lookup table
     if (iter != symbols_.end()) {
       ++rows;
-      addr_to_row_.emplace(dis.address, rows);
-      row_to_addr_.emplace(rows, dis.address);
     }
+    addr_to_row_.emplace(dis.address, rows);
+    row_to_addr_.emplace(rows, dis.address);
     ++rows;
   }
 }
@@ -343,62 +373,76 @@ bool DisassemblyView::has_breakpoint(uint16_t addr) const {
   return breakpoint_addresses_.find(addr) != breakpoint_addresses_.end();
 }
 
+bool DisassemblyView::is_labelled(uint16_t address, QString &label) {
+  if (symbols_.empty()) return false;
+  auto iter = symbols_.find(address);
+  if (iter == symbols_.end()) return false;
+  label = iter->second;
+  return true;
+}
+
 /**
- *
+ * Layout the disassembled opcodes to the screen.
+ * This method simply takes the disassembled data and constructs blocks of text
+ * which it adds to the UI.
+ * We also set flags to determine the type of the block
+ * 1: 0x10000 | 16 bit opcode index
+ * 2: 0x20000 | 16 bit addr (label only)
+ * 4: 0x40000 | 16 bit opcode idx
+ * These are used to help handle mouse clicks
  */
 void DisassemblyView::layout_disassembly() {
   ui->te_disassembly->clear();
 
-  auto address_colour = QColorConstants::DarkGreen;
-  auto label_colour = QColorConstants::DarkGreen;
-  auto op_colour = QColorConstants::DarkBlue;
-  auto oper_colour = QColorConstants::DarkMagenta;
-  auto bytes_colour = QColorConstants::LightGray;
-
+  auto op_idx = 0;
   for (const auto &op: disassembly_) {
-    /* Insert label if relevant */
-    auto iter = symbols_.find(op.address);
-    if (iter != symbols_.end()) {
-      auto label = QString("%1").arg(iter->second, -12, ' ');
-      ui->te_disassembly->setTextColor(label_colour);
+    QString label;
+    if (is_labelled(op.address, label)) {
+      label = QString("%1").arg(label, -12, ' ');
+      ui->te_disassembly->setTextColor(colour_scheme_->label_colour);
       ui->te_disassembly->insertPlainText(label);// For BP Marker
-      ui->te_disassembly->insertPlainText("\n");
+      ui->te_disassembly->textCursor().block().setUserState(LS_LABEL | op.address);
+      ui->te_disassembly->textCursor().insertBlock();
     }
 
     auto formatted_op = format_for_display(op);
-
+    auto line_state = LS_OPCOD;
     ui->te_disassembly->moveCursor(QTextCursor::End, QTextCursor::MoveAnchor);
     if (has_breakpoint(op.address)) {
-      ui->te_disassembly->setTextColor(QColorConstants::Red);
-      ui->te_disassembly->insertPlainText("*");// For BP Marker
+      ui->te_disassembly->setTextColor(colour_scheme_->bp_marker_colour);
+      ui->te_disassembly->insertPlainText("*");
+      line_state |= LS_BRKPT;
     } else {
-      ui->te_disassembly->insertPlainText(" ");// For BP Marker
+      ui->te_disassembly->insertPlainText(" ");
     }
 
     if (op.address == current_pc_) {
-      ui->te_disassembly->setTextBackgroundColor(pc_colour_);
+      ui->te_disassembly->setTextBackgroundColor(colour_scheme_->pc_colour);
     } else {
-      ui->te_disassembly->setTextBackgroundColor(QColorConstants::White);
+      ui->te_disassembly->setTextBackgroundColor(colour_scheme_->bg_colour);
     }
 
-    ui->te_disassembly->setTextColor(address_colour);
+    ui->te_disassembly->setTextColor(colour_scheme_->address_colour);
     ui->te_disassembly->insertPlainText(formatted_op.address);
 
-    ui->te_disassembly->setTextColor(label_colour);
+    ui->te_disassembly->setTextColor(colour_scheme_->label_colour);
     ui->te_disassembly->insertPlainText(formatted_op.label);
 
-    ui->te_disassembly->setTextColor(op_colour);
+    ui->te_disassembly->setTextColor(colour_scheme_->op_colour);
     ui->te_disassembly->insertPlainText(formatted_op.operation);
 
-    ui->te_disassembly->setTextColor(oper_colour);
+    ui->te_disassembly->setTextColor(colour_scheme_->oper_colour);
     ui->te_disassembly->insertPlainText(formatted_op.operand);
 
-    ui->te_disassembly->setTextColor(bytes_colour);
+    ui->te_disassembly->setTextColor(colour_scheme_->bytes_colour);
     ui->te_disassembly->insertPlainText(formatted_op.bytes);
 
-    ui->te_disassembly->setTextBackgroundColor(QColorConstants::White);
+    ui->te_disassembly->setTextBackgroundColor(colour_scheme_->bg_colour);
+
+    ui->te_disassembly->textCursor().block().setUserState(line_state | op_idx);
 
     ui->te_disassembly->insertPlainText("\n");
+    ++op_idx;
   }
   ui->te_disassembly->moveCursor(QTextCursor::Start, QTextCursor::MoveAnchor);
 }
@@ -414,18 +458,48 @@ void DisassemblyView::set_data(const std::vector<uint8_t> &data) {
 
 void DisassemblyView::mousePressEvent(QMouseEvent *e) {
   auto cursor = ui->te_disassembly->cursorForPosition(e->pos());
-  auto line = cursor.blockNumber();
-  auto it = row_to_addr_.find(line);
-  if (it == row_to_addr_.end()) return;
 
-  if (has_breakpoint(it->second)) {
-    clear_brkpt_formatting(cursor);
-    breakpoint_addresses_.erase(it->second);
-    emit breakpoint_cleared(it->second);
-  } else {
-    set_brkpt_formatting(cursor);
-    breakpoint_addresses_.emplace(it->second);
-    emit breakpoint_set(it->second);
+  /* Read user state of line */
+  auto line_state = cursor.block().userState();
+  if (line_state & LS_LABEL) {
+    // label
+    spdlog::info("The label for address {:04x} {}", (line_state & 0xffff),
+                 symbols_.at(line_state & 0xffff).toStdString());
+  } else if (line_state & LS_OPCOD) {
+    auto op_idx = line_state & 0xffff;
+    auto op = disassembly_.at(op_idx);
+    spdlog::info("The address {:04x} with operation {} {}", op.address, op.opcode.name,
+                 (line_state & LS_BRKPT) ? "with a breakpoint." : "");
+  }
+
+  switch (line_state >> 16) {
+    // Label, do nothing
+    case 2:
+      break;
+
+    case 1: {
+      auto op_idx = line_state & 0xffff;
+      auto op = disassembly_.at(op_idx);
+      auto addr = op.address;
+      set_brkpt_formatting(cursor);
+      breakpoint_addresses_.emplace(addr);
+      emit breakpoint_set(addr);
+    }
+      break;
+
+    case 5: {
+      auto op_idx = line_state & 0xffff;
+      auto op = disassembly_.at(op_idx);
+      auto addr = op.address;
+      clear_brkpt_formatting(cursor);
+      breakpoint_addresses_.erase(addr);
+      emit breakpoint_cleared(addr);
+    }
+      break;
+    default:
+      spdlog::info("That's odd. line state shouldn't be  {:07x}", line_state);
+      break;
+
   }
 }
 

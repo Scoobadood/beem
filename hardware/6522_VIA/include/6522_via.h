@@ -23,13 +23,15 @@ public:
 
   void provide_port_a(data_provider_8_bit_ptr provider);
 
+  void provide_port_b(data_provider_8_bit_ptr provider);
+
   void provide_ca2(data_provider_8_bit_ptr provider);
 
   void set_ca1(uint8_t state);
 
   void set_cb1(uint8_t state);
 
-  [[nodiscard]] inline bool has_irq() const { return ifr_ & 0x80; }
+  [[nodiscard]] bool has_irq() const;
 
 private:
   void raise_irq(uint8_t irq);
@@ -39,8 +41,6 @@ private:
   void mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg);
 
   void mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg);
-
-  void check_irq();
 
   void check_timers();
 

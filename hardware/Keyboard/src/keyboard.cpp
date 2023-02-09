@@ -1,10 +1,3 @@
-//
-// Created by Dave Durbin on 2/1/2023.
-//
-
-#include "keyboard.h"
-#include <spdlog/spdlog-inl.h>
-
 /* Auto scan scans one column at a time, ignoring
  * The first row (DIPS SHIFT and CTRL)
  *                                                                        <-- Master only ->
@@ -18,6 +11,11 @@
  * 0x60  Tab       Z     SPC   V    B    M    <,   >.   /?   Copy       KP 0   KP 1   KP 3
  * 0x70  ESC       f1    f2    f3   f5   f6   f8   f9   \    Right      KP 4   KP 5   KP 2
 */
+
+#include "keyboard.h"
+#include <spdlog/spdlog-inl.h>
+#include "spdlog/sinks/basic_file_sink.h"
+
 Keyboard::Keyboard(uint8_t dips) //
         : dips_{dips} //
         , auto_scan_enabled_{true} //
@@ -26,125 +24,159 @@ Keyboard::Keyboard(uint8_t dips) //
         , shift_lock_led_{false} //
         , key_1_{0xff} //
         , key_2_{0xff} //
+        , shift_pressed_{false} //
+        , ctrl_pressed_{false} //
 {
   we_src_ = std::make_shared<data_subscriber_8_bit>(0x08);
   data_src_ = std::make_shared<data_subscriber_8_bit>(0x7f);
   provider_ = std::make_shared<data_provider_8_bit>();
-  // CA2 is high until a key is pressed.
   irq_provider_ = std::make_shared<data_provider_8_bit>(0x01);
   cl_led_src_ = std::make_shared<data_subscriber_8_bit>(0x40);
   sl_led_src_ = std::make_shared<data_subscriber_8_bit>(0x80);
-}
 
-
-void Keyboard::handle_auto_scan() {
-  // TODO: If auto_scan_enabled_ poll keyb and generate interrupt
-  // Needs a CA1 provider
-  if (auto_scan_enabled_) {
-    bool key_pressed = false;
-    for (auto row = 0x10; row != 0x70; row += 0x10) {
-      auto test = row | scan_col_;
-      if (key_1_ == test || key_2_ == test) {
-        spdlog::info("KEYB  : Autoscan detected keypress {:02x} in col {}, raised interrupt",
-                     test, scan_col_);
-        key_pressed = true;
-        break;
-      }
-    }
-    if (key_pressed) {
-      // Raise interrupt on CA2
-      irq_provider_->provide_data(0x00);
-    } else {
-      // Or raise IRQ line, not interrupt, nothing to see.
-      irq_provider_->provide_data(0x01);
-    }
+  try {
+    auto logger = spdlog::basic_logger_mt("KEYB", "logs/keyboard.txt", true);
+    logger->flush_on(spdlog::level::debug);
   }
-  scan_col_ = (scan_col_+1) % 10;
+  catch (const spdlog::spdlog_ex &ex) {
+    spdlog::error("Log init failed: {}", ex.what());
+  }
+
 }
 
+/*
+ * IFF autoscan, we do not latch any new value from data and we cycle the scan column from 0- 9. PA7 is disabled
+ * IFF not autoscan we DO latch PA0-PA3 into row and POA4-PA6 into column and enable PA7 output AS WELL AS NAND
+ * BUT ROW 0 is not scanned.
+ */
 void Keyboard::tick() {
+  spdlog::get("KEYB")->debug("tick (AS:{})",
+                             auto_scan_enabled_
+                             ? fmt::format("Y {}", scan_col_)
+                             : "N");
   check_leds();
   check_we();
-  if (data_src_->data_changed()) {
-    handle_command(data_src_->data());
-  }
-  handle_auto_scan();
-}
 
-void Keyboard::check_we() {
-  if (!we_src_->data_changed()) return;
-  auto enable = we_src_->data();
-  if (enable) {
-    auto_scan_enabled_ = true;
-    spdlog::info("Keyboard auto scan enabled");
-  } else {
-    auto_scan_enabled_ = false;
-    spdlog::info("Keyboard auto scan disabled");
+  if (!auto_scan_enabled_) {
+    if (data_src_->data_changed()) {
+      auto data = data_src_->data();
+      spdlog::get("KEYB")->debug("Rx data {:02x}", data);
+      scan_col_ = (data & 0x0f);
+      check_pa7(data);
+    }
   }
-}
+  check_irq();
 
-void log_state(const std::string &led_name, bool old_state, bool new_state) {
-  std::string action = (old_state == new_state) ? "still" : "turned";
-  std::string state = new_state ? "on" : "off";
-  spdlog::info("Keyboard: {} LED {} {}", led_name, action, state);
-}
-
-void Keyboard::check_leds() {
-  if (cl_led_src_->data_changed()) {
-    auto on = (cl_led_src_->data() == 0x40);
-    log_state("CAPS Lock", caps_lock_led_, on);
-    caps_lock_led_ = on;
-  }
-  if (sl_led_src_->data_changed()) {
-    auto on = (sl_led_src_->data() == 0x80);
-    log_state("SHIFT Lock", shift_lock_led_, on);
-    shift_lock_led_ = on;
+  if (auto_scan_enabled_) {
+    // The LS163 counts up to 16 in binary but the 7445 only passes on columns 0-9
+    scan_col_ = (scan_col_ + 1) % 15;
   }
 }
 
-bool Keyboard::is_key_pressed(uint8_t key_code) const {
+/**
+ * If a key is being pressed, we raise an IRQ for it by pulling the line low.
+ */
+void Keyboard::check_irq() {
+  if ((key_1_ != 0xff) && ((key_1_ & 0x0f) == scan_col_)) {
+    spdlog::info("IRQ triggered for key {:02x}", key_1_);
+    irq_provider_->provide_data(0x00);
+    return;
+  }
+  if ((key_2_ != 0xff) && ((key_2_ & 0x0f) == scan_col_)) {
+    spdlog::info("IRQ triggered for key {:02x}", key_2_);
+    irq_provider_->provide_data(0x00);
+  }
+}
+
+/**
+ * If auto scan is not enabled, set the scan column and set PA7 if
+ * a key that is pressed matches the provided key code
+ */
+void Keyboard::check_pa7(uint8_t key_code) const {
+  assert(!auto_scan_enabled_);
+  // Do nothing for scan columns from 9 - 15
   key_code &= 0x7f;
+
+  if (scan_col_ > 9) return;
 
   // DIP switches
   if (key_code >= KEY_DIP_7 && key_code <= KEY_DIP_0) {
     auto s = 9 - key_code;
     auto tst = 0x01 << s;
-    if (dips_ & tst) {
-      return true;
-    }
-    return false;
+    provider()->provide_data((dips_ & tst) ? 0x80 | key_code : 0);
+    return;
   }
 
   // SHIFT and CTL
-  if (key_code == KEY_SHIFT) return shift_pressed_;
-
-  if (key_code == KEY_CTL) return ctrl_pressed_;
-
-
-  // Check for other keys
-  if (key_1_ == key_code || key_2_ == key_code) {
-    spdlog::info("KEYB  : Checked for keycode {:02x} which was pressed.", key_code);
-    return true;
-  } else {
-    spdlog::info("KEYB  : Checked for keycode {:02x} which was NOT pressed.", key_code);
+  if (key_code == KEY_SHIFT) {
+    provider()->provide_data(shift_pressed_ ? (0x80 | key_code) : 0);
+    return;
   }
-  return false;
+
+  if (key_code == KEY_CTL) {
+    provider()->provide_data(ctrl_pressed_ ? (0x80 | key_code) : 0);
+    return;
+  }
+
+  /* Check against any pressed keys
+   * We already masked off the top bit so it won't match empty keys
+   */
+  if (key_1_ == key_code) {
+    provider()->provide_data(0x80 | key_code);
+    return;
+  }
+  if (key_2_ == key_code) {
+    provider()->provide_data(0x80 | key_code);
+  }
+
+  provider()->provide_data(0x00);
 }
 
-void Keyboard::handle_command(uint8_t key_code) const {
-  auto scan_result = key_code & 0x7f;
-  scan_result |= is_key_pressed(key_code) ? 0x80 : 0x00;
-  provider()->provide_data(scan_result);
+/**
+ * Check for write enable which toggles autoscan
+ */
+void Keyboard::check_we() {
+  if (!we_src_->data_changed()) return;
+  auto enable = we_src_->data();
+  if (enable == auto_scan_enabled_) return;
+
+  auto_scan_enabled_ = enable;
+  spdlog::get("KEYB")->debug("Autoscan {}", auto_scan_enabled_ ? "enabled" : "disabled");
 }
+
+void log_state(const std::string &led_name, bool old_state, bool new_state) {
+  std::string action = (old_state == new_state) ? "still" : "turned";
+  std::string state = new_state ? "on" : "off";
+  spdlog::info("{} LED {} {}", led_name, action, state);
+}
+
+/*
+ *
+ */
+void Keyboard::check_leds() {
+  if (cl_led_src_->data_changed()) {
+    auto on = (cl_led_src_->data() == 0x40);
+    log_state("Check leds, CAPS Lock", caps_lock_led_, on);
+    caps_lock_led_ = on;
+  }
+  if (sl_led_src_->data_changed()) {
+    auto on = (sl_led_src_->data() == 0x80);
+    log_state("Check leds, SHIFT Lock", shift_lock_led_, on);
+    shift_lock_led_ = on;
+  }
+}
+
 
 // Store the last two keypresses until they are released
 void Keyboard::press_key(uint8_t key) {
-  if( key_1_ == key || key_2_ == key) return;
+  if (key_1_ == key || key_2_ == key) return;
   if (key_1_ == 0xff) {
+    spdlog::get("KEYB")->debug("Key {:02x} pressed");
     key_1_ = key;
     return;
   }
   if (key_2_ == 0xff) {
+    spdlog::get("KEYB")->debug("Key {:02x} pressed");
     key_2_ = key;
     return;
   }
@@ -152,11 +184,14 @@ void Keyboard::press_key(uint8_t key) {
 
 void Keyboard::release_key(uint8_t key) {
   if (key_1_ == key) {
-    key_1_ = 0xff;
+    key_1_ = key_2_;
+    key_2_ = 0xff;
+    spdlog::get("KEYB")->debug("Key {:02x} released");
     return;
   }
   if (key_2_ == key) {
     key_2_ = 0xff;
+    spdlog::get("KEYB")->debug("Key {:02x} released");
     return;
   }
 }

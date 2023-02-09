@@ -9,58 +9,6 @@
 
 #include <vector>
 
-/*
- * The BBC Micro has 74 keys, and 8 DIP switches. All keys can be read as separate values
- * except that the two SHIFT keys cannot be distinguished from each other, and the BREAK key
- * is hardwired to RESET the machine.
- *
- * Internal keyboard numbers:
- *                                       column
- *        | 0           1      2       3       4       5       6       7       8       9
- *    ----+----------------------------------------------------------------------------------
- *    $00 | SHIFT       CTRL   bit 7   bit 6   bit 5   bit 4   bit 3   bit 2   bit 1   bit 0
- *    $10 | Q           3      4       5       f4      8       f7      -       ^       LEFT
- * r  $20 | f0          W      E       T       7       I       9       0       _       DOWN
- * o  $30 | 1           2      D       R       6       U       O       P       [       UP
- * w  $40 | CAPS LOCK   A      X       F       Y       J       K       @       :       RETURN
- *    $50 | SHIFT LOCK  S      C       G       H       N       L       ;       ]       DELETE
- *    $60 | TAB         Z      SPACE   V       B       M       ,       .       /       COPY
- *    $70 | ESCAPE      f1     f2      f3      f5      f6      f8      f9      \       RIGHT
- *
- * 'bit n' refers to the row of eight hardware DIP switches inside the case at_bus the bottom
- * right of the keyboard:
- *
- * See dips.png
- *
- *  dip   bit      Internal Key Number   Description
- *  ----------------------------------------------------------------------------------
- *  8-6   bit 0-2        9,8,7           Together these bits determine the startup MODE
- *  5     bit 3            6             Set if the SHIFT-BREAK action is reversed with BREAK
- *  4-3   bit 4-5         5,4            Sets disc drive timings (depends on make of drive)
- *  2-1   bit 6-7         3,2            unused
- *
- * The keyboard is scanned by first looping through the columns (see .loopKeyboardColumns
- * below). Each time around the loop we check to see if *any* key in that column is pressed.
- * If not we skip to the next column. If we find a column with a key pressed, then we must
- * check each row in that column to check which specific key is pressed
- * (see .loopKeyboardRows).
- *
- * When scanning the entire keyboard, the first row (including SHIFT and CTRL) are not
- * reported since these keys do not generate interrupts. They can instead be tested
- * individually (X negative on entry).
- *
- * For the keyboard circuit diagram, See Chapter 25.
- *
- * On Entry:
- *       X is the first key to scan from (if positive)
- *       X is the specific key to check (if negative)
- *
- *       Carry set if entry is via an OSBYTE
- *        or clear if via .clearCarryKeyboardScan
- *
- * ***************************************************************************************
- */
-
 const uint8_t KEY_F0 = 0x20;
 const uint8_t KEY_F1 = 0x71;
 const uint8_t KEY_F2 = 0x72;
@@ -148,42 +96,42 @@ const uint8_t KEY_CAPS_LOCK = 0x40;
 
 class Keyboard {
 public:
-  Keyboard(uint8_t dips = 0);
+  explicit Keyboard(uint8_t dips = 0);
 
   void tick();
 
-  inline bool caps_lock_led() const { return caps_lock_led_; }
+  [[nodiscard]] inline bool caps_lock_led() const { return caps_lock_led_; }
 
-  inline bool shift_lock_led() const { return shift_lock_led_; }
+  [[nodiscard]] inline bool shift_lock_led() const { return shift_lock_led_; }
 
-  inline bool auto_scan_enabled() const { return auto_scan_enabled_; }
+  [[nodiscard]] inline bool auto_scan_enabled() const { return auto_scan_enabled_; }
 
   void press_key(uint8_t key);
 
   void release_key(uint8_t key);
 
-  inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
+  [[nodiscard]] inline data_subscriber_8_bit_ptr we_src() const { return we_src_; }
 
-  inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
+  [[nodiscard]] inline data_subscriber_8_bit_ptr data_src() const { return data_src_; }
 
-  inline data_provider_8_bit_ptr provider() const { return provider_; }
+  [[nodiscard]] inline data_provider_8_bit_ptr provider() const { return provider_; }
 
-  inline data_provider_8_bit_ptr irq_provider() const { return irq_provider_; }
+  [[nodiscard]] inline data_provider_8_bit_ptr irq_provider() const { return irq_provider_; }
 
-  inline data_subscriber_8_bit_ptr cl_led_src() const { return cl_led_src_; }
+  [[nodiscard]] inline data_subscriber_8_bit_ptr cl_led_src() const { return cl_led_src_; }
 
-  inline data_subscriber_8_bit_ptr sl_led_src() const { return sl_led_src_; }
+  [[nodiscard]] inline data_subscriber_8_bit_ptr sl_led_src() const { return sl_led_src_; }
 
 private:
   void check_we();
 
   void check_leds();
 
-  bool is_key_pressed(uint8_t key_code) const;
+  void check_irq();
 
-  void handle_command(uint8_t key_code) const;
-  void handle_auto_scan();
+  void check_pa7(uint8_t key_code) const;
 
+  // Data connections
   data_subscriber_8_bit_ptr we_src_;
   data_subscriber_8_bit_ptr data_src_;
   data_subscriber_8_bit_ptr cl_led_src_;
@@ -193,10 +141,11 @@ private:
 
   // DIP switches. Default open (0)
   uint8_t dips_;
-  bool auto_scan_enabled_;
 
   // Auto scan
+  bool auto_scan_enabled_;
   uint8_t scan_col_;
+
   // LEDs
   bool caps_lock_led_;
   bool shift_lock_led_;

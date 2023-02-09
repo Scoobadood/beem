@@ -13,6 +13,7 @@ M6502::M6502() //
         , accumulator_{0} //
         , x_reg_{0} //
         , y_reg_{0} //
+        , interrupt_requested_{false} //
         , temp_addr_{0} //
         , ir_{0} //
         , reset_in_process_{false} //
@@ -77,7 +78,9 @@ bool M6502::maybe_handle_reset(const std::shared_ptr<Bus> &bus) {
 
 void M6502::maybe_handle_sync(const std::shared_ptr<Bus> &bus) {
   if (bus->tst_SYNC()) {
-    if (is_irq()) {
+    if (interrupt_requested_ && !tstI()) {
+      brk_flags_ |= BRK_IRQ;
+      clrB();
       ir_ = 0;
       bus->clr_SYNC();
       return;

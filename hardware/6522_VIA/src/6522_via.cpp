@@ -33,6 +33,7 @@ const uint8_t IRQ_IRQ = (0x01 << 7);
 /* PCR */
 const uint8_t PCR_CA1_IRQ_CTL = 0x01;
 const uint8_t PCR_CB1_IRQ_CTL = 0x10;
+#define PCR_CA2_CLR_RW_A(pcr) (((pcr & 0x0e) != 0x02) && ((pcr & 0x0e) != 0x06))
 
 /* ACR */
 const uint8_t ACR_PA_LATCH = (0x01 << 0);
@@ -107,7 +108,7 @@ void Via::mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg) {
       if (PB_LATCHED(acr_)) {
         data = pb_latch_;
       } else {
-        data = irb_ & ~ddrb_;
+        data = read_port_b();
       }
       spdlog::info("VIA@{:04X}: Read ({:02x}) from {} IRB",
                    base_address_, data,
@@ -184,6 +185,16 @@ void Via::mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg) {
        */
       data = (ier_ | 0x80);
       spdlog::info("VIA@{:04X}: Read ({:02x}) from IER", base_address_, data);
+      spdlog::info("VIA@{:04X}: {} {} {} {} {} {} {}",
+                   base_address_,
+                   TST_T1(ier_) ? "T1 enabled" : "T1 disabled",
+                   TST_T2(ier_) ? "T2 enabled" : "T2 disabled",
+                   TST_CB1(ier_) ? "CB1 enabled" : "CB1 disabled",
+                   TST_CB2(ier_) ? "CB2 enabled" : "CB2 disabled",
+                   TST_SR(ier_) ? "SR enabled" : "SR disabled",
+                   TST_CA1(ier_) ? "CA1 enabled" : "CA1 disabled",
+                   TST_CA2(ier_) ? "CA2 enabled" : "CA2 disabled"
+      );
       break;
 
     default:
@@ -212,6 +223,7 @@ uint8_t Via::read_port_a() {
   if (data_fetched > 1) {
     spdlog::error("Via6522: Multiple data providers read from PortA");
   }
+
   return out;
 }
 
@@ -227,6 +239,11 @@ void Via::write_port_a(uint8_t data) {
       // TODO: Pulsed output, pull CA2 low for a cycle
     } else if (ca2_ctl_ == 0x04) {
       // TODO: Handshake. Pull CA2 low until data taken (CA1)
+    }
+
+    /* If CA2 is not "Independent" the write clears CA2 IRQ */
+    if (PCR_CA2_CLR_RW_A(pcr_)) {
+      clear_irq(IRQ_CA2);
     }
 
     notify_subscribers(port_a_subscribers_, pa, ddra_);
@@ -278,20 +295,17 @@ void Via::write_port_b(uint8_t data) {
 
 void Via::write_irq_enable(uint8_t data) {
   spdlog::info("VIA@{:04X}: Writing ({:02x}) to IER", base_address_, data);
+  auto old_ier = ier_;
   if (data & 0x80) {
     ier_ |= data;
   } else {
     ier_ &= ~(data | 0x80);
   }
-  spdlog::info("VIA@{:04X}: T1:{} T2:{} CB1:{} CB2:{} SR:{} CA1:{} CA2:{}",
+
+  // FIXME: Only report CA2 for debug purposes
+  spdlog::info("VIA@{:04X}: write to IER. {}",
                base_address_,
-               TST_T1(ier_) ? "1" : "0",
-               TST_T2(ier_) ? "1" : "0",
-               TST_CB1(ier_) ? "1" : "0",
-               TST_CB2(ier_) ? "1" : "0",
-               TST_SR(ier_) ? "1" : "0",
-               TST_CA1(ier_) ? "1" : "0",
-               TST_CA2(ier_) ? "1" : "0"
+               ((ier_ ^ old_ier) & IRQ_CA2) ? (TST_CA2(ier_) ? "CA2 enabled" : "CA2 disabled") : "CA2 unchanged"
   );
 }
 
@@ -441,15 +455,15 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
         uint8_t mask = 0x01;
         for (auto bit = 0; bit < 7; ++bit, mask <<= 1) {
           if (data & mask)
-            ifr_ &= ~mask;
+            clear_irq(mask);
         }
-        if( (ifr_ & 0x7f) == 0) ifr_ &= 0x7f;
       }
       break;
 
     case IER:
       write_irq_enable(data);
       break;
+
     default:
       spdlog::error("Wrote ({:02x}) to unknown register ({:02x})", data, reg);
       break;
@@ -500,33 +514,60 @@ void Via::set_cb1(uint8_t state) {
 }
 
 void Via::raise_irq(uint8_t irq) {
-  if (!TST_FLG(ier_, irq)) return;
   if (TST_FLG(ifr_, irq)) return;
-  spdlog::info("VIA@{:04x}: IRQ {:02x} raised", base_address_, irq);
+  std::string irq_name;
+  switch (irq) {
+    case 0x01:
+      irq_name = "CA2";
+      break;
+    case 0x02:
+      irq_name = "CA1";
+      break;
+    case 0x04:
+      irq_name = "SR";
+      break;
+    case 0x08:
+      irq_name = "CB2";
+      break;
+    case 0x10:
+      irq_name = "CB1";
+      break;
+    case 0x20:
+      irq_name = "T2";
+      break;
+    case 0x40:
+      irq_name = "T1";
+      break;
+    default:
+      irq_name = fmt::format("?? ({})", irq);
+      break;
+  }
+  // FIXME: Remove this debugging for CA2 keyboard handling
+  if (irq == IRQ_CA2) {
+    spdlog::info("VIA@{:04x}: IRQ_CA2 was raised", base_address_, irq_name);
+  }
   ifr_ |= (irq | IRQ_IRQ);
 }
 
-void Via::clear_irq(uint8_t irq) {
-  if (!TST_FLG(ifr_, irq)) return;
-  spdlog::info("VIA@{:04x}: IRQ {:02x} cleared", base_address_, irq);
-  ifr_ &= ~irq;
-  if (ifr_ == IRQ_IRQ) ifr_ = 0;
+bool Via::has_irq() const {
+  bool has = ((ifr_ & ier_ & 0x7f) != 0);
+  spdlog::info("VIA@{:04x}: CPU polled to check for IRQs. {} {} (ifr: {:02x}) (ier: {:02x})",
+               base_address_,
+               (ifr_ != 0) ? "Interrupts present" : "No interrupts",
+               has ? "and enabled" : "but disabled",
+               ifr_, ier_);
+
+  return has;
 }
 
-
-void Via::check_irq() {
-  if (TST_FLG(ifr_, IRQ_IRQ)) {
-    spdlog::info("VIA@{:04x}: IRQ {}|{}|{}|{}|{}|{}|{}",
-                 base_address_,
-                 (ifr_ & IRQ_T2) ? "T2" : "",
-                 (ifr_ & IRQ_T1) ? "T1" : "",
-                 (ifr_ & IRQ_CA2) ? "CA2" : "",
-                 (ifr_ & IRQ_CA1) ? "CA1" : "",
-                 (ifr_ & IRQ_CB2) ? "CB2" : "",
-                 (ifr_ & IRQ_CB1) ? "CB1" : "",
-                 (ifr_ & IRQ_SR) ? "SR" : ""
-    );
+void Via::clear_irq(uint8_t irq) {
+  // FIXME: Debugging added for keyboard interrupt handling. To remove
+  if (irq == IRQ_CA2) {
+    spdlog::info("VIA@{:04x}: IRQ_CA2 was cleared", base_address_);
   }
+  if (!TST_FLG(ifr_, irq)) return;
+  ifr_ &= ~irq;
+  if (ifr_ == IRQ_IRQ) ifr_ = 0;
 }
 
 /**
@@ -538,7 +579,6 @@ void Via::check_timers() {
   if (timer1_count_ != 0) {
     --timer1_count_;
     if (timer1_count_ == 0) {
-      spdlog::info("VIA@{:04x}: T1 timed out", base_address_);
       if (ACR_T1_CTL(acr_)) {
         if (ACR_T1_PB7(acr_)) {
           pb7_ = 1 - pb7_;
@@ -556,7 +596,6 @@ void Via::check_timers() {
     --timer2_count_;
     if (timer2_count_ == 0) {
       if (!TST_T2(ifr_)) {
-        spdlog::info("VIA@{:04x}: T2 timed out", base_address_);
         raise_irq(IRQ_T2);
       }
     }
@@ -565,14 +604,23 @@ void Via::check_timers() {
 
 
 void Via::check_ca2() {
+  bool ca2_changed = false;
+  bool ca2_low = false;
   for (const auto &provider: ca2_providers_) {
     if (provider->has_data()) {
+      ca2_changed = true;
       auto data = provider->data();
       if (data == 0x00) {
+        ca2_low = true;
         raise_irq(IRQ_CA2);
       }
       return;
     }
+  }
+  // Filter out System VIA
+  if (base_address_ == 0xfe40) {
+    spdlog::info("VIA@{:04x}: Checking CA2 from keyb", base_address_);
+    spdlog::info("        : CA2 {} {}", ca2_changed ? "went" : "is still", ca2_low ? "low" : "high");
   }
 }
 
@@ -581,13 +629,15 @@ void Via::tick(const std::shared_ptr<Bus> &bus) {
 
   check_ca2();
 
-  check_irq();
-
   check_mmio(bus);
 }
 
 void Via::provide_port_a(data_provider_8_bit_ptr provider) {
   port_a_providers_.emplace(provider);
+}
+
+void Via::provide_port_b(data_provider_8_bit_ptr provider) {
+  port_b_providers_.emplace(provider);
 }
 
 void Via::provide_ca2(data_provider_8_bit_ptr provider) {

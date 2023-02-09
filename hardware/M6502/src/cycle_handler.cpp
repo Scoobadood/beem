@@ -269,7 +269,7 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
         }},
         {0x001, [](M6502 *cpu, Bus &bus) {
           // If breaks are disabled
-          if (!(cpu->brk_flags_ & (BRK_IRQ | BRK_NMI))) {
+          if ((cpu->brk_flags_ & (BRK_IRQ | BRK_NMI))==0) {
             cpu->incPC();
           }
 
@@ -291,11 +291,6 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
         }},
         {0x003, [](M6502 *cpu, Bus &bus) {
           bus.set_address(0x100 | cpu->decSP());
-          if (cpu->brk_flags_ | (BRK_IRQ | BRK_NMI)) {
-            cpu->clrB();
-          } else {
-            cpu->setB();
-          }
           bus.set_data(cpu->flags() | FLAG_X);
 
           // If this is a reset, read the RST vector to populate PC
