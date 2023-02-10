@@ -575,16 +575,17 @@ void Via::clear_irq(uint8_t irq) {
  * IRQs, relatching etc.
  */
 void Via::check_timers() {
-  // T1
   if (timer1_count_ != 0) {
     --timer1_count_;
     if (timer1_count_ == 0) {
+      /* If continuous interrupts */
       if (ACR_T1_CTL(acr_)) {
         if (ACR_T1_PB7(acr_)) {
           pb7_ = 1 - pb7_;
-          timer1_count_ = timer1_latch_;
         }
+        timer1_count_ = timer1_latch_;
       } else {
+        /* One shot */
         if (ACR_T1_PB7(acr_)) pb7_ = 1;
       }
       raise_irq(IRQ_T1);
