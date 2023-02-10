@@ -513,58 +513,26 @@ void Via::set_cb1(uint8_t state) {
   }
 }
 
+/* Private convenience method to centralise raising IRQs in IFR
+ * from 6522 activities.
+ * */
 void Via::raise_irq(uint8_t irq) {
+  // Ignore if it's already raised
   if (TST_FLG(ifr_, irq)) return;
-  std::string irq_name;
-  switch (irq) {
-    case 0x01:
-      irq_name = "CA2";
-      break;
-    case 0x02:
-      irq_name = "CA1";
-      break;
-    case 0x04:
-      irq_name = "SR";
-      break;
-    case 0x08:
-      irq_name = "CB2";
-      break;
-    case 0x10:
-      irq_name = "CB1";
-      break;
-    case 0x20:
-      irq_name = "T2";
-      break;
-    case 0x40:
-      irq_name = "T1";
-      break;
-    default:
-      irq_name = fmt::format("?? ({})", irq);
-      break;
-  }
-  // FIXME: Remove this debugging for CA2 keyboard handling
-  if (irq == IRQ_CA2) {
-    spdlog::info("VIA@{:04x}: IRQ_CA2 was raised", base_address_, irq_name);
-  }
   ifr_ |= (irq | IRQ_IRQ);
 }
 
 bool Via::has_irq() const {
   bool has = ((ifr_ & ier_ & 0x7f) != 0);
-  spdlog::info("VIA@{:04x}: CPU polled to check for IRQs. {} {} (ifr: {:02x}) (ier: {:02x})",
-               base_address_,
-               (ifr_ != 0) ? "Interrupts present" : "No interrupts",
-               has ? "and enabled" : "but disabled",
-               ifr_, ier_);
-
+//  spdlog::info("VIA@{:04x}: CPU polled to check for IRQs. {} {} (ifr: {:02x}) (ier: {:02x})",
+//               base_address_,
+//               (ifr_ != 0) ? "Interrupts present" : "No interrupts",
+//               has ? "and enabled" : "but disabled",
+//               ifr_, ier_);
   return has;
 }
 
 void Via::clear_irq(uint8_t irq) {
-  // FIXME: Debugging added for keyboard interrupt handling. To remove
-  if (irq == IRQ_CA2) {
-    spdlog::info("VIA@{:04x}: IRQ_CA2 was cleared", base_address_);
-  }
   if (!TST_FLG(ifr_, irq)) return;
   ifr_ &= ~irq;
   if (ifr_ == IRQ_IRQ) ifr_ = 0;
@@ -605,23 +573,14 @@ void Via::check_timers() {
 
 
 void Via::check_ca2() {
-  bool ca2_changed = false;
-  bool ca2_low = false;
   for (const auto &provider: ca2_providers_) {
     if (provider->has_data()) {
-      ca2_changed = true;
       auto data = provider->data();
       if (data == 0x00) {
-        ca2_low = true;
         raise_irq(IRQ_CA2);
       }
       return;
     }
-  }
-  // Filter out System VIA
-  if (base_address_ == 0xfe40) {
-    spdlog::info("VIA@{:04x}: Checking CA2 from keyb", base_address_);
-    spdlog::info("        : CA2 {} {}", ca2_changed ? "went" : "is still", ca2_low ? "low" : "high");
   }
 }
 
