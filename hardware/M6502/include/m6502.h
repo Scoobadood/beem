@@ -139,13 +139,10 @@ public:
   inline void skip_cycle() { ir_++; };
 
   inline void raise_irq() {
-    spdlog::info("CPU   : VIA raised IRQ" );
-
     interrupt_requested_ = true;
   }
 
   inline void clear_irq() {
-    spdlog::info("CPU   : Clearing IRQ line" );
     interrupt_requested_ = false;
   }
 
