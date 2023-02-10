@@ -229,6 +229,16 @@ void DisassemblyView::set_pc(uint16_t pc) {
   ui->te_disassembly->update();
 }
 
+QString DisassemblyView::address_or_label(uint16_t addr, bool zp) {
+  QString label;
+  if (is_labelled(addr, label)) {
+    return label;
+  } else {
+    return QString("$%1").arg(addr, zp ? 2 : 4, 16, QChar('0'));
+  }
+}
+
+
 /**
  * Format an operation for rendering in the view.
  * This takes care only of building the individual text strings. It doe not apply any styling.
@@ -249,37 +259,37 @@ DisassemblyView::FormattedOperation DisassemblyView::format_for_display(const Op
       arg = QString("#$%1").arg(op.data, 2, 16, QChar('0'));
       break;
     case OpCode::Absolute:
-      arg = QString("$%1").arg(op.data, 4, 16, QChar('0'));
+      arg = address_or_label(op.data);
       break;
     case OpCode::IndirectIndexedX:
-      arg = QString("($%1,X)").arg(op.data, 2, 16, QChar('0'));
+      arg = QString("(%1,X)").arg(address_or_label(op.data));
       break;
     case OpCode::IndirectIndexedY:
-      arg = QString("($%1),Y").arg(op.data, 2, 16, QChar('0'));
+      arg = QString("(%1),Y").arg(address_or_label(op.data));
       break;
     case OpCode::Indirect:
-      arg = QString("($%1)").arg(op.data, 4, 16, QChar('0'));
+      arg = QString("(%1)").arg(address_or_label(op.data));
       break;
     case OpCode::AbsoluteIndexedX:
-      arg = QString("$%1,X").arg(op.data, 4, 16, QChar('0'));
+      arg = QString("%1,X").arg(address_or_label(op.data));
       break;
     case OpCode::AbsoluteIndexedY:
-      arg = QString("$%1,Y").arg(op.data, 4, 16, QChar('0'));
+      arg = QString("%1,Y").arg(address_or_label(op.data));
       break;
     case OpCode::Accumulator:
       arg = QString("A");
       break;
     case OpCode::ZeroPage:
-      arg = QString("$%1").arg(op.data, 2, 16);
+      arg = QString("%1").arg(address_or_label(op.data, true));
       break;
     case OpCode::ZeroPageIndexedY:
-      arg = QString("$%1,Y").arg(op.data, 2, 16);
+      arg = QString("%1,Y").arg(address_or_label(op.data, true));
       break;
     case OpCode::ZeroPageIndexedX:
-      arg = QString("$%1,X").arg(op.data, 2, 16);
+      arg = QString("%1,X").arg(address_or_label(op.data, true));
       break;
     case OpCode::Relative:
-      arg = QString("$%1").arg(op.address + 2 + (int8_t) op.data, 4, 16, QChar('0'));
+      arg = QString("%1").arg(address_or_label(op.address + 2 + (int8_t) op.data));
       break;
   }
 
@@ -425,17 +435,14 @@ void DisassemblyView::layout_disassembly() {
     ui->te_disassembly->setTextColor(colour_scheme_->address_colour);
     ui->te_disassembly->insertPlainText(formatted_op.address);
 
-    ui->te_disassembly->setTextColor(colour_scheme_->label_colour);
-    ui->te_disassembly->insertPlainText(formatted_op.label);
+    ui->te_disassembly->setTextColor(colour_scheme_->bytes_colour);
+    ui->te_disassembly->insertPlainText(formatted_op.bytes);
 
     ui->te_disassembly->setTextColor(colour_scheme_->op_colour);
     ui->te_disassembly->insertPlainText(formatted_op.operation);
 
     ui->te_disassembly->setTextColor(colour_scheme_->oper_colour);
     ui->te_disassembly->insertPlainText(formatted_op.operand);
-
-    ui->te_disassembly->setTextColor(colour_scheme_->bytes_colour);
-    ui->te_disassembly->insertPlainText(formatted_op.bytes);
 
     ui->te_disassembly->setTextBackgroundColor(colour_scheme_->bg_colour);
 

@@ -56,13 +56,15 @@ private:
 
   struct FormattedOperation;
 
-  static FormattedOperation format_for_display(const Operation &op);
+  FormattedOperation format_for_display(const Operation &op);
 
   void disassemble_data(const std::vector<uint8_t> &data);
 
   void layout_disassembly();
 
   bool is_labelled(uint16_t address, QString &label);
+
+  QString address_or_label(uint16_t addr, bool zp = false);
 
   bool address_on_screen(uint16_t addr, uint32_t *row = nullptr, float *proportion = nullptr);
 
