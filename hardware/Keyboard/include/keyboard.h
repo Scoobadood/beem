@@ -57,13 +57,23 @@ const uint8_t KEY_Y = 0x44;
 const uint8_t KEY_Z = 0x61;
 
 const uint8_t KEY_ESC = 0x70;
-const uint8_t KEY_SPACE = 0x62;
+const uint8_t KEY_MINUS = 0x17;
+const uint8_t KEY_CARET = 0x18;
+const uint8_t KEY_BACK_SLASH = 0x78;
+const uint8_t KEY_LT_ARROW = 0x19;
+const uint8_t KEY_RT_ARROW = 0x79;
+
 const uint8_t KEY_TAB = 0x60;
-const uint8_t KEY_PLUS = 0x57;
-const uint8_t KEY_RT_BRACE = 0x58;
 const uint8_t KEY_AT = 0x47;
-const uint8_t KEY_COLON = 0x48;
 const uint8_t KEY_LT_BRACE = 0x38;
+const uint8_t KEY_UNDERSCORE = 0x28;
+const uint8_t KEY_UP_ARROW = 0x39;
+const uint8_t KEY_DN_ARROW = 0x29;
+
+const uint8_t KEY_SPACE = 0x62;
+const uint8_t KEY_SEMI_COLON = 0x57;
+const uint8_t KEY_RT_BRACE = 0x58;
+const uint8_t KEY_COLON = 0x48;
 const uint8_t KEY_1 = 0x30;
 const uint8_t KEY_2 = 0x31;
 const uint8_t KEY_3 = 0x11;
@@ -75,24 +85,17 @@ const uint8_t KEY_8 = 0x15;
 const uint8_t KEY_9 = 0x26;
 const uint8_t KEY_0 = 0x27;
 
-const uint8_t KEY_POUND = 0x28;
-const uint8_t KEY_EQUALS = 0x17;
-const uint8_t KEY_TILDE = 0x18;
 const uint8_t KEY_SHIFT = 0x00;
 const uint8_t KEY_CTL = 0x01;
 const uint8_t KEY_COMMA = 0x66;
 const uint8_t KEY_PERIOD = 0x67;
 const uint8_t KEY_SLASH = 0x68;
-const uint8_t KEY_BACK_SLASH = 0x78;
 const uint8_t KEY_COPY = 0x69;
 const uint8_t KEY_DELETE = 0x59;
 const uint8_t KEY_RETURN = 0x49;
-const uint8_t KEY_LT_ARROW = 0x19;
-const uint8_t KEY_RT_ARROW = 0x79;
-const uint8_t KEY_UP_ARROW = 0x39;
-const uint8_t KEY_DN_ARROW = 0x29;
 const uint8_t KEY_SHIFT_LOCK = 0x50;
 const uint8_t KEY_CAPS_LOCK = 0x40;
+
 
 class Keyboard {
 public:

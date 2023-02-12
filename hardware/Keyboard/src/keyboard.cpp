@@ -78,12 +78,10 @@ void Keyboard::tick() {
  */
 void Keyboard::check_irq() {
   if ((key_1_ != 0xff) && ((key_1_ & 0x0f) == scan_col_)) {
-    spdlog::info("IRQ triggered for key {:02x}", key_1_);
     irq_provider_->provide_data(0x00);
     return;
   }
   if ((key_2_ != 0xff) && ((key_2_ & 0x0f) == scan_col_)) {
-    spdlog::info("IRQ triggered for key {:02x}", key_2_);
     irq_provider_->provide_data(0x00);
   }
 }
@@ -169,6 +167,8 @@ void Keyboard::check_leds() {
 
 // Store the last two keypresses until they are released
 void Keyboard::press_key(uint8_t key) {
+  if( key == KEY_SHIFT) {shift_pressed_ = true;return;}
+  if( key == KEY_CTL) {ctrl_pressed_ = true;return;}
   if (key_1_ == key || key_2_ == key) return;
   if (key_1_ == 0xff) {
     spdlog::get("KEYB")->debug("Key {:02x} pressed");
