@@ -163,18 +163,15 @@ void Via::mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg) {
 
     case ACR:
       data = acr_;
-      spdlog::info("VIA@{:04X}: Read ({:02x}) ACR", base_address_, acr_);
       break;
 
     case PCR:
       data = pcr_;
-      spdlog::info("VIA@{:04X}: Read ({:02x}) from PCR", base_address_, pcr_);
       break;
 
     case IFR:
       if (ifr_ & 0x7f) data = ifr_ | 0x80;
       else data = 0;
-      spdlog::info("VIA@{:04X}: Read ({:02x}) from IFR", base_address_, data);
       break;
 
     case IER:
@@ -184,17 +181,6 @@ void Via::mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg) {
        * Bit 7 is always set when read.
        */
       data = (ier_ | 0x80);
-      spdlog::info("VIA@{:04X}: Read ({:02x}) from IER", base_address_, data);
-      spdlog::info("VIA@{:04X}: {} {} {} {} {} {} {}",
-                   base_address_,
-                   TST_T1(ier_) ? "T1 enabled" : "T1 disabled",
-                   TST_T2(ier_) ? "T2 enabled" : "T2 disabled",
-                   TST_CB1(ier_) ? "CB1 enabled" : "CB1 disabled",
-                   TST_CB2(ier_) ? "CB2 enabled" : "CB2 disabled",
-                   TST_SR(ier_) ? "SR enabled" : "SR disabled",
-                   TST_CA1(ier_) ? "CA1 enabled" : "CA1 disabled",
-                   TST_CA2(ier_) ? "CA2 enabled" : "CA2 disabled"
-      );
       break;
 
     default:
@@ -373,32 +359,27 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
   auto data = bus->get_data();
   switch (reg) {
     case IORB:
-      spdlog::info("Writing ({:02x}) to ORB", data);
       write_port_b(data);
       break;
 
     case IORA:
     case IORA_NOH:
-      spdlog::info("Writing ({:02x}) to ORA{}", data, (reg == IORA ? "" : "_NOH"));
       write_port_a(data);
       break;
 
     case DDRB:
-      spdlog::info("Writing ({:02x}) to DDRB", data);
       ddrb_ = data;
       break;
+
     case DDRA:
-      spdlog::info("Writing ({:02x}) to DDRA", data);
       ddra_ = data;
       break;
 
     case T1C_L:
-      spdlog::info("VIA@{:04X}: Writing ({:02x}) to T1C_L", base_address_, data);
       timer1_latch_ = (timer1_latch_ & 0xff00) | data;
       break;
 
     case T1C_H:
-      spdlog::info("VIA@{:04X}: Writing ({:02x}) to T1C_H", base_address_, data);
       timer1_latch_ = (timer1_latch_ & 0xff) | (data << 8);
       timer1_count_ = timer1_latch_;
       if (ACR_T1_PB7(acr_)) pb7_ = 0;
@@ -406,22 +387,18 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
       break;
 
     case T1L_L:
-      spdlog::info("VIA@{:04X}: Writing ({:02x}) to T1L_L", base_address_, data);
       timer1_latch_ = (timer1_latch_ & 0xff00) | data;
       break;
 
     case T1L_H:
-      spdlog::info("VIA@{:04X}: Writing ({:02x}) to T1L_H", base_address_, data);
       timer1_latch_ = (timer1_latch_ & 0xff) | (data << 8);
       break;
 
     case T2C_L:
-      spdlog::info("VIA@{:04X}: Writing ({:02x}) to T2C_L", base_address_, data);
       timer2_latch_ = data;
       break;
 
     case T2C_H:
-      spdlog::info("VIA@{:04X}: Writing ({:02x}) to T2C_H", base_address_, data);
       timer2_count_ = (data << 8) | timer2_latch_;
       clear_irq(IRQ_T2);
       break;
@@ -429,6 +406,7 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
     case SR:
       spdlog::info("Wrote ({:02x}) to SR", data);
       break;
+
     case ACR:
       write_acr(data);
       break;
@@ -450,7 +428,6 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
        * In addition, individual flag bits may be cleared by writing a "1" into the appropriate bit of the IFR.
        */
     case IFR:
-      spdlog::info("VIA@{:04X}: Writing ({:02x}) to IFR", base_address_, data);
       {
         uint8_t mask = 0x01;
         for (auto bit = 0; bit < 7; ++bit, mask <<= 1) {
