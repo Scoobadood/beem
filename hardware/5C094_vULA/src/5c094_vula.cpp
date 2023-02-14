@@ -118,6 +118,11 @@ void VideoUla::process_data() {
     grn_ = 255 - grn_;
     blu_ = 255 - blu_;
   }
+  if( crtc_->cursor_enabled()) {
+    red_ = 255 - red_;
+    grn_ = 255 - grn_;
+    blu_ = 255 - blu_;
+  }
   spdlog::get("vULA")->debug("Logical colour {}, actual {}, RGB:{:02x} {:02x} {:02x}",
                              logical_colour, actual_colour,
                              red_, grn_, blu_);

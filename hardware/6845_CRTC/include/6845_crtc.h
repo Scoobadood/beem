@@ -47,7 +47,7 @@ public:
     return (hsync_ == 1);
   }
 
-  [[nodiscard]] inline uint16_t last_generated_address() { return last_generated_address_; }
+  [[nodiscard]] inline uint16_t last_generated_address() const { return last_generated_address_; }
 
   [[nodiscard]] inline bool vsync() const {
     return (vsync_ == 1);
@@ -69,24 +69,24 @@ private:
   uint8_t reg_select_;
 
   /* Registers */
-  uint8_t horz_total_;
-  uint8_t horz_displayed_;
-  uint8_t hsync_pos_;
-  uint8_t vert_total_;
-  uint8_t vert_total_adj_;
-  uint8_t vert_total_disp_;
-  uint8_t hsync_pulse_width_;
-  uint8_t vsync_pulse_time_;
-  uint8_t vsync_pos_;
-  uint8_t ild_;
-  uint8_t char_scan_lines_;
-  uint8_t cursor_blink_;
-  uint8_t cursor_blink_rate_;
-  uint8_t cursor_start_line_;
-  uint8_t cursor_end_line_;
-  uint16_t screen_start_;
-  uint16_t cursor_pos_;
-  uint16_t light_pen_pos_;
+  uint8_t horz_total_;        //  R0
+  uint8_t horz_disp_;         //  R1
+  uint8_t horz_sync_pos_;     //  R2
+  uint8_t horz_sync_width_;   //  R3
+  uint8_t vert_total_;        //  R4
+  uint8_t vert_total_adj_;    //  R5
+  uint8_t vert_disp_;         //  R6
+  uint8_t vert_sync_pos_;     //  R7
+  uint8_t vert_sync_width_;   //  R3
+  uint8_t ilace_skew_;        //  R8
+  uint8_t max_raster_lines_;  //  R9
+  uint8_t curs_start_raster_; //  R10
+  uint8_t curs_end_raster_;   //  R11
+  uint16_t scr_start_addr_;   //  R12/R13
+  uint16_t curs_start_addr_;  //  R14/R15
+  uint8_t curs_blink_;
+  uint8_t curs_blink_rate_;
+  uint16_t light_pen_pos_;    //  R16
 
   /* Internal counters */
   uint8_t char_cnt_;
@@ -95,6 +95,7 @@ private:
   uint8_t adj_cnt_;
   uint8_t hsync_width_cnt_;
   uint8_t vsync_width_cnt_;
+  uint8_t frame_cnt_;
 
   /* Outputs */
   bool cursor_enabled_;
