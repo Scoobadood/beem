@@ -183,6 +183,9 @@ void Keyboard::press_key(uint8_t key) {
 }
 
 void Keyboard::release_key(uint8_t key) {
+  if( key == KEY_SHIFT) {shift_pressed_ = false;return;}
+  if( key == KEY_CTL) {ctrl_pressed_ = false;return;}
+
   if (key_1_ == key) {
     key_1_ = key_2_;
     key_2_ = 0xff;

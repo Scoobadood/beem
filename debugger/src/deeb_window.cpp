@@ -215,6 +215,8 @@ void DeebWindow::keyPressEvent(QKeyEvent *event) {
 
   if (shift_pressed)
     beeb_->press_key(KEY_SHIFT);
+  else
+    beeb_->release_key(KEY_SHIFT);
   beeb_->press_key(bbc_key);
 }
 
