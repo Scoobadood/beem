@@ -3,7 +3,6 @@
 #include "ui_deeb_window.h"
 #include "ui_breakpoint_dlg.h"
 #include "vdu_view.h"
-#include "key_mapper.h"
 
 #include <fstream>
 
@@ -11,7 +10,6 @@
 #include <QThread>
 #include <QStyle>
 #include <QtConcurrent/QtConcurrent>
-#include <QKeyEvent>
 
 DeebWindow::DeebWindow(QWidget *parent) //
         : QMainWindow(parent) //
@@ -41,15 +39,17 @@ DeebWindow::DeebWindow(QWidget *parent) //
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
   ui->act_run->setIcon(style()->standardIcon(QStyle::SP_MediaSeekForward));
 
+
   uint8_t mode = 7;
   if (qApp->arguments().count() == 2) {
     mode = qApp->arguments().at(1).toInt() & 0x07;
   }
-  beeb_ = new Beeb(mode);
-  beeb_->set_pixel_function([=](std::vector<uint8_t> scr_data) {
+  beeb_ = std::make_shared<Beeb>(mode);
+  beeb_->set_pixel_function([=](const std::vector<uint8_t> & scr_data) {
     emit screen_changed(scr_data);
   });
 
+  ui->crt_view->set_beeb(beeb_);
   reset_cpu();
 }
 
@@ -202,35 +202,3 @@ void DeebWindow::on_act_edit_breakpoints_triggered() {
   ui->disassembly_view->update_breakpoints(breakpoints_);
   d->deleteLater();
 }
-
-
-void DeebWindow::keyPressEvent(QKeyEvent *event) {
-  uint8_t bbc_key;
-  bool shift_pressed;
-
-  if (!map_key_combination(event->keyCombination(), bbc_key, shift_pressed)) {
-    spdlog::info("Untracked key : {}", event->key());
-    return;
-  }
-
-  if (shift_pressed)
-    beeb_->press_key(KEY_SHIFT);
-  else
-    beeb_->release_key(KEY_SHIFT);
-  beeb_->press_key(bbc_key);
-}
-
-void DeebWindow::keyReleaseEvent(QKeyEvent *event) {
-  uint8_t bbc_key;
-  bool shift_pressed;
-
-  if (!map_key_combination(event->keyCombination(), bbc_key, shift_pressed)) {
-    return;
-  }
-
-  beeb_->release_key(bbc_key);
-  if ((event->modifiers() & Qt::KeyboardModifier::ShiftModifier) == 0) {
-    beeb_->release_key(KEY_SHIFT);
-  }
-}
-

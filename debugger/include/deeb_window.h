@@ -19,11 +19,6 @@ public:
 
   ~DeebWindow() override;
 
-  void keyPressEvent(QKeyEvent *event) override;
-
-  void keyReleaseEvent(QKeyEvent *event) override;
-
-
 public slots:
 
   void breakpoint_set(uint16_t brk_addr);
@@ -74,7 +69,7 @@ private:
 
   std::set<uint16_t> breakpoints_;
 
-  Beeb *beeb_;
+  std::shared_ptr<Beeb> beeb_;
 };
 
 #endif // DEEBWINDOW_H

@@ -3,11 +3,16 @@
 //
 
 #include "vdu_view.h"
+#include "keyboard.h"
+#include "key_mapper.h"
 
 #include <QWidget>
 #include <QLabel>
+#include <QKeyEvent>
 
 #include <spdlog/spdlog-inl.h>
+#include <QCoreApplication>
+#include <QApplication>
 
 VduView::VduView(QWidget *parent) //
         : QLabel{parent} //
@@ -19,6 +24,7 @@ VduView::VduView(QWidget *parent) //
   setStyleSheet("background-color:#00a0a0");
   setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
   setAlignment(Qt::AlignCenter);
+  setAttribute(Qt::WA_Hover);
 }
 
 void VduView::screen_changed(std::vector<uint8_t> scr_data) {
@@ -39,4 +45,58 @@ void VduView::screen_changed(std::vector<uint8_t> scr_data) {
     setPixmap(pixmap_->scaled(aw, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
   }
   setUpdatesEnabled(true);
+}
+
+void VduView::keyPressEvent(QKeyEvent *event) {
+  uint8_t bbc_key;
+  bool shift_pressed;
+
+  if (!map_key_combination(event->keyCombination(), bbc_key, shift_pressed)) {
+    spdlog::info("Untracked key : {}", event->key());
+    return;
+  }
+
+  if (shift_pressed)
+    beeb_->press_key(KEY_SHIFT);
+  else
+    beeb_->release_key(KEY_SHIFT);
+  beeb_->press_key(bbc_key);
+}
+
+void VduView::keyReleaseEvent(QKeyEvent *event) {
+  uint8_t bbc_key;
+  bool shift_pressed;
+
+  if (!map_key_combination(event->keyCombination(), bbc_key, shift_pressed)) {
+    return;
+  }
+
+  beeb_->release_key(bbc_key);
+  if ((event->modifiers() & Qt::KeyboardModifier::ShiftModifier) == 0) {
+    beeb_->release_key(KEY_SHIFT);
+  }
+}
+
+void VduView::enterEvent(QEnterEvent * event) {
+  // Install key grabber
+  qApp->installEventFilter(this);
+  QWidget::enterEvent(event);
+}
+
+void VduView::leaveEvent(QEvent * event) {
+  qApp->removeEventFilter(this);
+  QLabel::leaveEvent(event);
+}
+
+bool VduView::eventFilter(QObject *object, QEvent *event) {
+  if (event->type() == QEvent::KeyPress) {
+    auto *keyEvent = dynamic_cast<QKeyEvent *>(event);
+    keyPressEvent(keyEvent);
+    return true;
+  } else if(event->type() == QEvent::KeyRelease) {
+    auto *keyEvent = dynamic_cast<QKeyEvent *>(event);
+    keyReleaseEvent(keyEvent);
+    return true;
+  }
+  return false;
 }
