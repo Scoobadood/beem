@@ -3,6 +3,7 @@
 #include "ui_deeb_window.h"
 #include "ui_breakpoint_dlg.h"
 #include "vdu_view.h"
+#include "key_mapper.h"
 
 #include <fstream>
 
@@ -203,107 +204,31 @@ void DeebWindow::on_act_edit_breakpoints_triggered() {
 }
 
 
-uint8_t map_key(Qt::Key key) {
-  std::map<Qt::Key, uint8_t> keymap{
-          {Qt::Key_A,                KEY_A},
-          {Qt::Key_B,                KEY_B},
-          {Qt::Key_C,                KEY_C},
-          {Qt::Key_D,                KEY_D},
-          {Qt::Key_E,                KEY_E},
-          {Qt::Key_F,                KEY_F},
-          {Qt::Key_G,                KEY_G},
-          {Qt::Key_H,                KEY_H},
-          {Qt::Key_I,                KEY_I},
-          {Qt::Key_J,                KEY_J},
-          {Qt::Key_K,                KEY_K},
-          {Qt::Key_L,                KEY_L},
-          {Qt::Key_M,                KEY_M},
-          {Qt::Key_N,                KEY_N},
-          {Qt::Key_O,                KEY_O},
-          {Qt::Key_P,                KEY_P},
-          {Qt::Key_Q,                KEY_Q},
-          {Qt::Key_R,                KEY_R},
-          {Qt::Key_S,                KEY_S},
-          {Qt::Key_T,                KEY_T},
-          {Qt::Key_U,                KEY_U},
-          {Qt::Key_V,                KEY_V},
-          {Qt::Key_W,                KEY_W},
-          {Qt::Key_X,                KEY_X},
-          {Qt::Key_Y,                KEY_Y},
-          {Qt::Key_Z,                KEY_Z},
-          {Qt::Key_0,                KEY_0},
-          {Qt::Key_1,                KEY_1},
-          {Qt::Key_2,                KEY_2},
-          {Qt::Key_At,               KEY_2},
-          {Qt::Key_3,                KEY_3},
-          {Qt::Key_4,                KEY_4},
-          {Qt::Key_5,                KEY_5},
-          {Qt::Key_6,                KEY_6},
-          {Qt::Key_7,                KEY_7},
-          {Qt::Key_8,                KEY_8},
-          {Qt::Key_9,                KEY_9},
-          {Qt::Key_Space,            KEY_SPACE},
-          {Qt::Key_Semicolon,        KEY_SEMI_COLON},
-          {Qt::Key_Return,           KEY_RETURN},
-
-          {Qt::Key_F10,              KEY_F0},
-          {Qt::Key_F1,               KEY_F1},
-          {Qt::Key_F2,               KEY_F2},
-          {Qt::Key_F3,               KEY_F3},
-          {Qt::Key_F4,               KEY_F4},
-          {Qt::Key_F5,               KEY_F5},
-          {Qt::Key_F6,               KEY_F6},
-          {Qt::Key_F7,               KEY_F7},
-          {Qt::Key_F8,               KEY_F8},
-          {Qt::Key_F9,               KEY_F9},
-          {Qt::Key_Minus,            KEY_MINUS},
-          {Qt::Key_QuoteLeft,        KEY_CARET},
-          {Qt::Key_AsciiTilde,       KEY_CARET},
-          {Qt::Key_Escape,           KEY_ESC},
-          {Qt::Key_Backslash,        KEY_BACK_SLASH},
-          {Qt::Key_Left,             KEY_LT_ARROW},
-          {Qt::Key_Right,            KEY_RT_ARROW},
-          {Qt::Key_Tab,              KEY_TAB},
-          {Qt::Key_BracketLeft,      KEY_LT_BRACE},
-          {Qt::Key_Underscore,       KEY_UNDERSCORE},
-          {Qt::Key_Up,               KEY_UP_ARROW},
-          {Qt::Key_Down,             KEY_DN_ARROW},
-          {Qt::Key_CapsLock,         KEY_CAPS_LOCK},
-          {Qt::Key_Semicolon,        KEY_SEMI_COLON},
-          {Qt::Key_Colon,            KEY_COLON},
-          {Qt::Key_BracketRight,     KEY_RT_BRACE},
-          {Qt::Key_Backspace,        KEY_DELETE},
-          {Qt::Key_F12,              KEY_COPY},
-          {Qt::Key_Tab,              KEY_TAB},
-          {Qt::Key_Comma,            KEY_COMMA},
-          {Qt::Key_Period,           KEY_PERIOD},
-          {Qt::Key_Slash,            KEY_SLASH},
-          {Qt::Key_ApplicationRight, KEY_SHIFT_LOCK},
-          {Qt::Key_Shift,            KEY_SHIFT},
-          {Qt::Key_Control,          KEY_CTL}
-  };
-
-  auto it = keymap.find(key);
-  if (it != keymap.end()) {
-    return it->second;
-  };
-  return 0x00;
-}
-
 void DeebWindow::keyPressEvent(QKeyEvent *event) {
-  // Map key to scan code
-  auto bbc_key = map_key((Qt::Key) event->key());
-  if (bbc_key != 0) {
-    beeb_->press_key(bbc_key);
-  } else {
+  uint8_t bbc_key;
+  bool shift_pressed;
+
+  if (!map_key_combination(event->keyCombination(), bbc_key, shift_pressed)) {
     spdlog::info("Untracked key : {}", event->key());
+    return;
   }
+
+  if (shift_pressed)
+    beeb_->press_key(KEY_SHIFT);
+  beeb_->press_key(bbc_key);
 }
 
 void DeebWindow::keyReleaseEvent(QKeyEvent *event) {
-  auto bbc_key = map_key((Qt::Key) event->key());
-  if (bbc_key != 0) {
-    beeb_->release_key(bbc_key);
+  uint8_t bbc_key;
+  bool shift_pressed;
+
+  if (!map_key_combination(event->keyCombination(), bbc_key, shift_pressed)) {
+    return;
+  }
+
+  beeb_->release_key(bbc_key);
+  if ((event->modifiers() & Qt::KeyboardModifier::ShiftModifier) == 0) {
+    beeb_->release_key(KEY_SHIFT);
   }
 }
 

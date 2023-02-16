@@ -17,7 +17,7 @@ add_executable(deeb
         src/memory_view.cpp src/memory_view.ui include/memory_view.h
         src/breakpoint_dlg.cpp src/breakpoint_dlg.ui include/breakpoint_dlg.h
         src/vdu_view.cpp include/vdu_view.h
-        src/vdu_view.cpp include/vdu_view.h)
+        src/vdu_view.cpp include/vdu_view.h include/key_mapper.h src/key_mapper.cpp)
 
 target_include_directories(deeb
         PUBLIC include)
