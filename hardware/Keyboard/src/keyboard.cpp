@@ -153,12 +153,12 @@ void log_state(const std::string &led_name, bool old_state, bool new_state) {
  */
 void Keyboard::check_leds() {
   if (cl_led_src_->data_changed()) {
-    auto on = (cl_led_src_->data() == 0x40);
+    auto on = (cl_led_src_->data() == 0x00);
     log_state("Check leds, CAPS Lock", caps_lock_led_, on);
     caps_lock_led_ = on;
   }
   if (sl_led_src_->data_changed()) {
-    auto on = (sl_led_src_->data() == 0x80);
+    auto on =  (sl_led_src_->data() == 0x00);
     log_state("Check leds, SHIFT Lock", shift_lock_led_, on);
     shift_lock_led_ = on;
   }

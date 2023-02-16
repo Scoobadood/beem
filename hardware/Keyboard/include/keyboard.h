@@ -65,14 +65,14 @@ const uint8_t KEY_RT_ARROW = 0x79;
 
 const uint8_t KEY_TAB = 0x60;
 const uint8_t KEY_AT = 0x47;
-const uint8_t KEY_LT_BRACE = 0x38;
+const uint8_t KEY_LT_BRACKET = 0x38;
 const uint8_t KEY_UNDERSCORE = 0x28;
 const uint8_t KEY_UP_ARROW = 0x39;
 const uint8_t KEY_DN_ARROW = 0x29;
 
 const uint8_t KEY_SPACE = 0x62;
 const uint8_t KEY_SEMI_COLON = 0x57;
-const uint8_t KEY_RT_BRACE = 0x58;
+const uint8_t KEY_RT_BRACKET = 0x58;
 const uint8_t KEY_COLON = 0x48;
 const uint8_t KEY_1 = 0x30;
 const uint8_t KEY_2 = 0x31;
