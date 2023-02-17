@@ -13,6 +13,8 @@
 #include <spdlog/spdlog-inl.h>
 #include <QCoreApplication>
 #include <QApplication>
+#include <QtConcurrent/QtConcurrent>
+#include <utility>
 
 VduView::VduView(QWidget *parent) //
         : QLabel{parent} //
@@ -30,7 +32,7 @@ VduView::VduView(QWidget *parent) //
 void VduView::screen_changed(std::vector<uint8_t> scr_data) {
   // SHIT Qt support for images
   for (int y = 0; y < 224; y++) {
-    memcpy(image_->scanLine(y), scr_data.data()+(y * 640 * 3), 640 * 3);
+    memcpy(image_->scanLine(y), scr_data.data() + (y * 640 * 3), 640 * 3);
   }
   // Make a scaled copy
   setUpdatesEnabled(false);
@@ -48,6 +50,11 @@ void VduView::screen_changed(std::vector<uint8_t> scr_data) {
 }
 
 void VduView::keyPressEvent(QKeyEvent *event) {
+  if (event->matches(QKeySequence::StandardKey::Paste)) {
+    paste_data("PRINT HELLO\n");
+    return;
+  }
+
   uint8_t bbc_key;
   bool shift_pressed;
 
@@ -77,13 +84,13 @@ void VduView::keyReleaseEvent(QKeyEvent *event) {
   }
 }
 
-void VduView::enterEvent(QEnterEvent * event) {
+void VduView::enterEvent(QEnterEvent *event) {
   // Install key grabber
   qApp->installEventFilter(this);
-  QWidget::enterEvent(event);
+  QLabel::enterEvent(event);
 }
 
-void VduView::leaveEvent(QEvent * event) {
+void VduView::leaveEvent(QEvent *event) {
   qApp->removeEventFilter(this);
   QLabel::leaveEvent(event);
 }
@@ -93,10 +100,47 @@ bool VduView::eventFilter(QObject *object, QEvent *event) {
     auto *keyEvent = dynamic_cast<QKeyEvent *>(event);
     keyPressEvent(keyEvent);
     return true;
-  } else if(event->type() == QEvent::KeyRelease) {
+  } else if (event->type() == QEvent::KeyRelease) {
     auto *keyEvent = dynamic_cast<QKeyEvent *>(event);
     keyReleaseEvent(keyEvent);
     return true;
   }
   return false;
+}
+
+void VduView::paste_data(const QString &text) {
+
+  class MyThread : public QThread {
+  public:
+    MyThread(std::shared_ptr<Beeb> beeb, QString text, QObject *parent = nullptr) //
+            : QThread(parent)//
+            , text_{std::move(text)} //
+            , beeb_{std::move(beeb)}//
+    {}
+
+  protected:
+    QString text_;
+    std::shared_ptr<Beeb> beeb_;
+
+    void run() override {
+      uint8_t buff[]{
+        KEY_1, KEY_0, KEY_SPACE, KEY_P, KEY_PERIOD,
+        KEY_SHIFT, KEY_2, KEY_H, KEY_E, KEY_L, KEY_L,KEY_O,
+        KEY_SHIFT, KEY_2, KEY_RETURN
+      };
+      for (auto i=0; i<15; ++i ) {
+        beeb_->press_key(buff[i]);
+        if( buff[i] == KEY_SHIFT)
+          beeb_->press_key(buff[++i]);
+
+        msleep(500);
+
+        beeb_->release_key(buff[i]);
+        if( buff[i-1] == KEY_SHIFT)
+          beeb_->release_key(buff[i-1]);
+      }
+    }
+  };
+
+  (new MyThread(beeb_, text))->start();
 }

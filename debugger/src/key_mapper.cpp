@@ -82,6 +82,7 @@ keymap() {
                   {Qt::Key_BracketLeft,      {KEY_LT_BRACKET, false}},
                   {Qt::Key_BraceLeft,        {KEY_LT_BRACKET, true}},
                   {Qt::Key_Underscore,       {KEY_UNDERSCORE, false}},
+                  {Qt::Key_sterling,       {KEY_UNDERSCORE, true}},
                   {Qt::Key_Up,               {KEY_UP_ARROW,   false}},
                   {Qt::Key_Down,             {KEY_DN_ARROW,   false}},
                   {Qt::Key_CapsLock,         {KEY_CAPS_LOCK,  false}},
@@ -98,6 +99,7 @@ keymap() {
                   {Qt::Key_Greater,          {KEY_PERIOD,     true}},
                   {Qt::Key_Slash,            {KEY_SLASH,      false}},
                   {Qt::Key_Question,         {KEY_SLASH,      true}},
+                  {Qt::Key_F12,         {KEY_COPY,      false}},
 //                  {Qt::Key_ApplicationRight, {KEY_SHIFT_LOCK, false}},
                   {Qt::Key_Shift,            {KEY_SHIFT,      false}},
                   {Qt::Key_Control,          {KEY_CTL,        false}}

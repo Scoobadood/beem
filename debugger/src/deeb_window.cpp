@@ -34,6 +34,8 @@ DeebWindow::DeebWindow(QWidget *parent) //
 
   connect(ui->act_load_symbols, &QAction::triggered, this, &DeebWindow::load_symbols);
 
+  connect(ui->act_load_rom, &QAction::triggered, [&](){ui->crt_view->paste_data("PRINT \"HELLO\"\n");});
+
   connect(this, &DeebWindow::screen_changed, ui->crt_view, &VduView::screen_changed);
 
   ui->act_step->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
