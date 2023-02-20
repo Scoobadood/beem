@@ -29,7 +29,7 @@ const uint8_t REG_CURSOR_POS_LO = 0x0f;
 const uint8_t REG_LPEN_POS_HI = 0x10;
 const uint8_t REG_LPEN_POS_LO = 0x11;
 
-Crtc::Crtc(uint16_t base_addr, const std::shared_ptr<Clock> &clk) //
+Crtc::Crtc(uint16_t base_addr) //
         : base_addr_{base_addr} //
         , reg_select_{0}//
         , horz_total_{0} //
@@ -62,7 +62,6 @@ Crtc::Crtc(uint16_t base_addr, const std::shared_ptr<Clock> &clk) //
         , v_disp_enable_{0} //
         , hsync_{0} //
         , vsync_{0} //
-        , clock_{clk} //
         , register_name_
                   {
                           "Horizontal total", "Horizontal displayed characters",
@@ -332,7 +331,7 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   } else {
     memory_addr_++;
   }
-  if( frame_cnt_ == 64) frame_cnt_ = 0;
+  if (frame_cnt_ == 64) frame_cnt_ = 0;
   uint16_t output_addr = ((raster_cnt_) & 0x07) | (memory_addr_ << 3);
 
 
@@ -419,7 +418,8 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
          * When bit 5=0, blink frequency = 16 times the field rate.
          * When bit 5=1, blink frequency = 32 times the field rate.
          */
-        cursor_enabled_ = (curs_blink_rate_ == 1 && (frame_cnt_ & 0x20)) || (curs_blink_rate_ == 0 && (frame_cnt_ & 0x10));
+        cursor_enabled_ =
+                (curs_blink_rate_ == 1 && (frame_cnt_ & 0x20)) || (curs_blink_rate_ == 0 && (frame_cnt_ & 0x10));
       }
     }
   }

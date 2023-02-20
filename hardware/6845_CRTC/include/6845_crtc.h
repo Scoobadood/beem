@@ -23,7 +23,7 @@
 
 class Crtc {
 public:
-  explicit Crtc(uint16_t base_addr, const std::shared_ptr<Clock> &clk);
+  explicit Crtc(uint16_t base_addr);
 
   ~Crtc() = default;
 
@@ -40,7 +40,7 @@ public:
   [[nodiscard]] inline uint16_t get_ra() const { return raster_cnt_; }
 
   [[nodiscard]] inline bool display_enable() const {
-    return (h_disp_enable_ & v_disp_enable_);
+    return (h_disp_enable_ & v_disp_enable_) /* && (( raster_cnt_ & 0x08) ==0)*/;
   }
 
   [[nodiscard]] inline bool hsync() const {
