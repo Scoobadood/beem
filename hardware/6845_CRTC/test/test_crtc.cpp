@@ -16,9 +16,8 @@ const uint16_t CRTC_READ_WRITE = 0xfe21;
  * @param actual
  * @return
  */
-testing::AssertionResult CmpHelperIntHex(const char* expected_expr, const char* actual_expr, int expected, int actual)
-{
-  if(actual == expected)
+testing::AssertionResult CmpHelperIntHex(const char *expected_expr, const char *actual_expr, int expected, int actual) {
+  if (actual == expected)
     return testing::AssertionSuccess();
 
   std::stringstream ss, msg;
@@ -33,15 +32,26 @@ testing::AssertionResult CmpHelperIntHex(const char* expected_expr, const char* 
   actual_str = ss.str();
 
   msg << "Value of: " << actual_expr;
-  if(actual_str != actual_expr) {
+  if (actual_str != actual_expr) {
     msg << "\n  Actual: " << std::showbase << std::hex << actual;
   }
   msg << "\nExpected: " << expected_expr;
-  if(expected_str != expected_expr) {
+  if (expected_str != expected_expr) {
     msg << "\nWhich is: " << std::showbase << std::hex << expected;
   }
 
   return testing::AssertionFailure() << msg.str();
+}
+
+
+testing::AssertionResult CmpHelperCharPos(const char *expected_expr, const char *actual_expr, const char *char_pos_expr, bool expected, bool actual, int charpos) {
+  if (actual == expected)
+    return testing::AssertionSuccess();
+
+  std::stringstream ss, msg;
+  msg << "Expected " <<  actual_expr << " at " << charpos << " to be " << ((expected) ? "true" : "false");
+  msg << "\n  Actual: " << ((actual) ? "true" : "false");
+return testing::AssertionFailure() << msg.str();
 }
 
 void TestCrtc::set_register(uint8_t reg, uint8_t value) const {
@@ -72,7 +82,7 @@ void TestCrtc::SetUp() {
   set_register(0, 0x3f);
   set_register(1, 0x28);
   set_register(2, 0x31);
-  set_register(3, 0x42);
+  set_register(3, 0x24);
   set_register(4, 0x26);
   set_register(5, 0x00);
   set_register(6, 0x20);
@@ -88,10 +98,25 @@ void TestCrtc::SetUp() {
 }
 
 TEST_F(TestCrtc, test_mode_4_sequence) {
-  for( auto expected : expected_addresses) {
+  for (auto expected: expected_addresses) {
     crtc_->generate_next_address(dram_bus_);
     auto actual = dram_bus_->get_address();
 
     EXPECT_PRED_FORMAT2(CmpHelperIntHex, expected, actual);
   }
 }
+
+TEST_F(TestCrtc, test_mode_4_hsync) {
+  for (auto scanline = 0; scanline < 320; ++scanline) {
+    for (auto charpos = 0; charpos < 64; ++charpos) {
+      crtc_->generate_next_address(dram_bus_);
+      auto hs = crtc_->hsync();
+      if (charpos < 49 || charpos > 52) {
+        EXPECT_PRED_FORMAT3(CmpHelperCharPos, false, hs, charpos);
+      } else {
+        EXPECT_PRED_FORMAT3(CmpHelperCharPos, true, hs, charpos);
+      }
+    }
+  }
+}
+

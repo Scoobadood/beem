@@ -429,17 +429,6 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
     }
   }
 
-  if (screen_ended_) {
-    adj_cnt_ = 0;
-    line_cnt_ = 0;
-    linear_addr_cnt_ = scr_start_addr_;
-    raster_start_addr_ = scr_start_addr_;
-    char_cnt_ = 0;
-    raster_cnt_ = 0;
-    v_disp_enable_ = 1;
-    h_disp_enable_ = 1;
-  }
-
   if (line_ended_) {
     raster_cnt_ = 0;
     line_ended_ = false;
@@ -467,6 +456,22 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
     }
   }
 
+  if (screen_ended_) {
+    screen_ended_ = false;
+    adj_cnt_ = 0;
+    line_cnt_ = 0;
+    linear_addr_cnt_ = scr_start_addr_;
+    raster_start_addr_ = scr_start_addr_;
+    char_cnt_ = 0;
+    raster_cnt_ = 0;
+    hsync_ = 0;
+    vsync_ = 0;
+    v_disp_enable_ = 1;
+    h_disp_enable_ = 1;
+  }
+
+
+
   if (frame_cnt_ == 64) frame_cnt_ = 0;
 }
 
@@ -480,8 +485,8 @@ void Crtc::sync() {
   raster_cnt_ = 0;
   line_cnt_ = 0;
   adj_cnt_ = 0;
-  vsync_ = 1;
-  hsync_ = 1;
+  vsync_ = 0;
+  hsync_ = 0;
   v_disp_enable_ = 1;
   h_disp_enable_ = 1;
 }

@@ -5,6 +5,7 @@
 #include "vdu_view.h"
 #include "keyboard.h"
 #include "key_mapper.h"
+#include "beeb.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -20,7 +21,7 @@ VduView::VduView(QWidget *parent) //
         : QLabel{parent} //
 {
   setScaledContents(false);
-  image_ = new QImage(640, 224, QImage::Format_RGB888);
+  image_ = new QImage(SCR_WIDTH, SCR_HEIGHT, QImage::Format_RGB888);
   pixmap_ = new QPixmap();
   setAutoFillBackground(true);
   setStyleSheet("background-color:#00a0a0");
@@ -31,30 +32,26 @@ VduView::VduView(QWidget *parent) //
 
 void VduView::screen_changed(std::vector<uint8_t> scr_data) {
   // SHIT Qt support for images
-  for (int y = 0; y < 224; y++) {
-    memcpy(image_->scanLine(y), scr_data.data() + (y * 640 * 3), 640 * 3);
+  for (int y = 0; y < SCR_HEIGHT; y++) {
+    memcpy(image_->scanLine(y), scr_data.data() + (y * SCR_WIDTH * 3), SCR_WIDTH * 3);
   }
   // Make a scaled copy
   setUpdatesEnabled(false);
   pixmap_->convertFromImage(*image_);
   int w = contentsRect().width();
   int h = contentsRect().height();
-  if (w < h) {
-    int ah = (w * 576.0 / 720.0);
-    setPixmap(pixmap_->scaled(w, ah, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-  } else {
-    int aw = (h * 720.0 / 576.0);
-    setPixmap(pixmap_->scaled(aw, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-  }
+  setPixmap(*pixmap_);
+//  if (w < h) {
+//    int ah = (w * 576.0 / 720.0);
+//    setPixmap(pixmap_->scaled(w, ah, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+//  } else {
+//    int aw = (h * 720.0 / 576.0);
+//    setPixmap(pixmap_->scaled(aw, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
+//  }
   setUpdatesEnabled(true);
 }
 
 void VduView::keyPressEvent(QKeyEvent *event) {
-  if (event->matches(QKeySequence::StandardKey::Paste)) {
-    paste_data("PRINT HELLO\n");
-    return;
-  }
-
   uint8_t bbc_key;
   bool shift_pressed;
 

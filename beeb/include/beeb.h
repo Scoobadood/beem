@@ -20,6 +20,9 @@
 
 using PixelFunction = std::function<void(std::vector<uint8_t> scr_data)>;
 
+const uint32_t SCR_WIDTH = 128 * 8;
+const uint32_t SCR_HEIGHT = 304;
+
 class Beeb {
 public:
   Beeb(uint8_t boot_mode = 7);
@@ -77,8 +80,6 @@ private:
 
   uint64_t cached_dram_bus_;
 
-  const uint32_t SCR_WIDTH = 640;
-  const uint32_t SCR_HEIGHT = 225;
   std::vector<uint8_t> screen_data_;
   uint16_t pixel_x_;
   uint16_t pixel_y_;
