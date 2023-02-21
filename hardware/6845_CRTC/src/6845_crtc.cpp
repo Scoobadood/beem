@@ -408,6 +408,27 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
     ++linear_addr_cnt_;
   }
 
+  if (raster_ended_) {
+    char_cnt_ = 0;
+    raster_ended_ = false;
+    h_disp_enable_ = 1;
+    linear_addr_cnt_ = raster_start_addr_;
+
+    if (raster_cnt_ == max_raster_lines_) {
+      line_ended_ = true;
+    } else {
+      ++raster_cnt_;
+    }
+
+    if (line_cnt_ == vert_total_) {
+      if (adj_cnt_ == vert_total_adj_) {
+        screen_ended_ = true;
+      } else {
+        ++adj_cnt_;
+      }
+    }
+  }
+
   if (screen_ended_) {
     adj_cnt_ = 0;
     line_cnt_ = 0;
@@ -445,29 +466,6 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
       screen_ended_ = true;
     }
   }
-
-  if (raster_ended_) {
-    char_cnt_ = 0;
-    raster_ended_ = false;
-    h_disp_enable_ = 1;
-    linear_addr_cnt_ = raster_start_addr_;
-
-    if (raster_cnt_ == max_raster_lines_) {
-      line_ended_ = true;
-    } else {
-      ++raster_cnt_;
-    }
-
-    if (line_cnt_ == vert_total_) {
-      if (adj_cnt_ == vert_total_adj_) {
-        screen_ended_ = true;
-      } else {
-        ++adj_cnt_;
-      }
-    }
-  }
-
-
 
   if (frame_cnt_ == 64) frame_cnt_ = 0;
 }
