@@ -6,6 +6,7 @@
 #include "keyboard.h"
 #include "key_mapper.h"
 #include "beeb.h"
+#include "string_to_keystrokes.h"
 
 #include <QWidget>
 #include <QLabel>
@@ -120,21 +121,19 @@ void VduView::paste_data(const QString &text) {
     std::shared_ptr<Beeb> beeb_;
 
     void run() override {
-      uint8_t buff[]{
-        KEY_1, KEY_0, KEY_SPACE, KEY_P, KEY_PERIOD,
-        KEY_SHIFT, KEY_2, KEY_H, KEY_E, KEY_L, KEY_L,KEY_O,
-        KEY_SHIFT, KEY_2, KEY_RETURN
-      };
-      for (auto i=0; i<15; ++i ) {
+      auto buff = string_to_keystrokes(text_.toStdString());
+      for (auto i=0; i<buff.size(); ++i ) {
         beeb_->press_key(buff[i]);
         if( buff[i] == KEY_SHIFT)
           beeb_->press_key(buff[++i]);
-
-        msleep(500);
-
+        msleep(50);
+        if( buff[i] == KEY_RETURN) {
+          msleep(500);
+        }
         beeb_->release_key(buff[i]);
         if( buff[i-1] == KEY_SHIFT)
           beeb_->release_key(buff[i-1]);
+        msleep(50);
       }
     }
   };
