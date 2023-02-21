@@ -11,6 +11,61 @@
 #include <QStyle>
 #include <QtConcurrent/QtConcurrent>
 
+
+
+QString crtc_test="REM Intro to CRTC Registers by Kieran Connell.\n"
+                      "REM CRTC Register explorer.\n"
+                      "REM Use cursor keys to change register values.\n"
+                      "REM Press R to reset to MODE 1 defaults.\n"
+                      "MODE 1\n"
+                      "VDU 19,0,4;0;\n"
+                      "*FX4,1\n"
+                      "ON ERROR REPORT:PRINT;\" at line \";ERL:END\n"
+                      "FOR Y%=0 TO 31:PRINT TAB(0,Y%);Y%;:NEXT\n"
+                      "FOR X%=0 TO 39:PRINT TAB(X%,0);X%MOD10;:NEXT\n"
+                      "PRINT TAB(10,21);\"Use cursor keys to\";TAB(10,22);\"change register values\";TAB(10,23);\"Press R to reset\"\n"
+                      "M%=11:DIM REGS(M%):DIM NAME$(M%)\n"
+                      "PROCresetregs\n"
+                      "A%=0\n"
+                      "REPEAT\n"
+                      "PRINT TAB(9,17);\"Total scanlines = \";(REGS(4)+1)*(REGS(9)+1)+REGS(5)\n"
+                      "PRINT TAB(11,18);\"Displayed RAM = \";(REGS(1)*8*REGS(6))/1024;\"K    \"\n"
+                      "PRINT TAB(4,4+A%);\"=>\";\n"
+                      "K=GET\n"
+                      "PRINT TAB(4,4+A%);\"  \";\n"
+                      "IF K=139 AND A%>0 THEN A%=A%-1\n"
+                      "IF K=138 AND A%<M% THEN A%=A%+1\n"
+                      "IF K=136 THEN PROCsetreg(A%,REGS(A%)-1)\n"
+                      "IF K=137 THEN PROCsetreg(A%,REGS(A%)+1)\n"
+                      "IF K=ASC(\"R\") THEN PROCresetregs\n"
+                      "UNTIL FALSE\n"
+                      "END\n"
+                      "DEF PROCresetregs\n"
+                      "RESTORE\n"
+                      "FOR I%=0 TO M%:READ NAME$(I%),REGS(I%):PROCsetreg(I%, REGS(I%)):NEXT\n"
+                      "ENDPROC\n"
+                      "DEF PROCprintreg(R%)\n"
+                      "PRINT TAB(7,4+R%);NAME$(R%);TAB(29,4+R%);\"R\";R%;\"=\";REGS(R%);\"  \"\n"
+                      "ENDPROC\n"
+                      "DEF PROCsetreg(R%, V%)\n"
+                      "REGS(R%)=V%\n"
+                      "?&FE00=R%:?&FE01=V%\n"
+                      "PROCprintreg(R%)\n"
+                      "ENDPROC\n"
+                      "REM CRTC Register defaults for MODE 1.\n"
+                      "DATA \"Horizontal total -1\", 127  : REM R0\n"
+                      "DATA \"Horizontal displayed\", 80  : REM R1\n"
+                      "DATA \"Horizontal sync pos\", 98   : REM R2\n"
+                      "DATA \"Horizontal sync width\", &28: REM R3\n"
+                      "DATA \"Vertical total -1\", 38     : REM R4       \n"
+                      "DATA \"Vertical total adjust\", 0  : REM R5\n"
+                      "DATA \"Vertical displayed\", 32    : REM R6\n"
+                      "DATA \"Vertical sync pos\", 35     : REM R7\n"
+                      "DATA \"Interlace control\", 0      : REM R8\n"
+                      "DATA \"Scanlines per row -1\", 7   : REM R9\n"
+                      "DATA \"Cursor start\", &67         : REM R10\n"
+                      "DATA \"Cursor end\", 8             : REM R11";
+
 DeebWindow::DeebWindow(QWidget *parent) //
         : QMainWindow(parent) //
         , ui(new Ui::DeebWindow) //
@@ -34,7 +89,7 @@ DeebWindow::DeebWindow(QWidget *parent) //
 
   connect(ui->act_load_symbols, &QAction::triggered, this, &DeebWindow::load_symbols);
 
-  connect(ui->act_load_rom, &QAction::triggered, [&](){ui->crt_view->paste_data("PRINT \"HELLO\"\n");});
+  connect(ui->act_load_rom, &QAction::triggered, [&](){ui->crt_view->paste_data(crtc_test);});
 
   connect(this, &DeebWindow::screen_changed, ui->crt_view, &VduView::screen_changed);
 
