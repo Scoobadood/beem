@@ -28,8 +28,6 @@ public:
 
   void set_beeb(const std::shared_ptr<Beeb> &beeb) {beeb_ = beeb;};
 
-  void paste_data(const QString& text);
-
 private:
   QPixmap *pixmap_;
   QImage *image_;

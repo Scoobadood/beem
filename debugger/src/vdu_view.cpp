@@ -6,17 +6,14 @@
 #include "keyboard.h"
 #include "key_mapper.h"
 #include "beeb.h"
-#include "string_to_keystrokes.h"
 
 #include <QWidget>
 #include <QLabel>
 #include <QKeyEvent>
 
-#include <spdlog/spdlog-inl.h>
 #include <QCoreApplication>
 #include <QApplication>
 #include <QtConcurrent/QtConcurrent>
-#include <utility>
 
 VduView::VduView(QWidget *parent) //
         : QLabel{parent} //
@@ -104,39 +101,4 @@ bool VduView::eventFilter(QObject *object, QEvent *event) {
     return true;
   }
   return false;
-}
-
-void VduView::paste_data(const QString &text) {
-
-  class MyThread : public QThread {
-  public:
-    MyThread(std::shared_ptr<Beeb> beeb, QString text, QObject *parent = nullptr) //
-            : QThread(parent)//
-            , text_{std::move(text)} //
-            , beeb_{std::move(beeb)}//
-    {}
-
-  protected:
-    QString text_;
-    std::shared_ptr<Beeb> beeb_;
-
-    void run() override {
-      auto buff = string_to_keystrokes(text_.toStdString());
-      for (auto i=0; i<buff.size(); ++i ) {
-        beeb_->press_key(buff[i]);
-        if( buff[i] == KEY_SHIFT)
-          beeb_->press_key(buff[++i]);
-        msleep(50);
-        if( buff[i] == KEY_RETURN) {
-          msleep(500);
-        }
-        beeb_->release_key(buff[i]);
-        if( buff[i-1] == KEY_SHIFT)
-          beeb_->release_key(buff[i-1]);
-        msleep(50);
-      }
-    }
-  };
-
-  (new MyThread(beeb_, text))->start();
 }

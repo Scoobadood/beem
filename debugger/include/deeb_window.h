@@ -63,6 +63,8 @@ private:
 
   void brk();
 
+  void paste_text();
+
   Ui::DeebWindow *ui;
 
   bool brk_requested_;
