@@ -104,7 +104,7 @@ Beeb::Beeb(uint8_t boot_mode) //
   v_ula_->set_clock(clock_);
 
   // CRTC
-  crtc_ = new Crtc(0xfe00, clock_);
+  crtc_ = new Crtc(0xfe00);
   latch_->subscribe(crtc_->hw_scroll_addr());
   v_ula_->set_crtc(crtc_);
 
@@ -324,8 +324,8 @@ void Beeb::tick() {
     if (wait_vsync_low && vs == 0) {
       wait_vsync_high = true;
       wait_vsync_low = false;
-      pixel_x_=pixel_y_=0;
       fn_(screen_data_);
+      pixel_x_=pixel_y_=0;
     }
 
     if (de) {

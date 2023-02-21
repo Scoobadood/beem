@@ -78,7 +78,7 @@ private:
   uint64_t cached_dram_bus_;
 
   const uint32_t SCR_WIDTH = 640;
-  const uint32_t SCR_HEIGHT = 224;
+  const uint32_t SCR_HEIGHT = 225;
   std::vector<uint8_t> screen_data_;
   uint16_t pixel_x_;
   uint16_t pixel_y_;
