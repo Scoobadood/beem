@@ -35,7 +35,7 @@ public:
     return hw_scroll_addr_;
   }
 
-  [[nodiscard]] inline uint16_t get_ma() const { return memory_addr_; }
+  [[nodiscard]] inline uint16_t get_ma() const { return linear_addr_cnt_; }
 
   [[nodiscard]] inline uint16_t get_ra() const { return raster_cnt_; }
 
@@ -61,6 +61,10 @@ public:
   void sync();
 
 private:
+  void latch_address(const std::shared_ptr<Bus> &dram_bus);
+
+  void handle_cursor();
+
   void mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus);
 
   void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
@@ -96,10 +100,15 @@ private:
   uint8_t hsync_width_cnt_;
   uint8_t vsync_width_cnt_;
   uint8_t frame_cnt_;
+  uint16_t raster_start_addr_;
+
+  bool raster_ended_;
+  bool line_ended_;
+  bool screen_ended_;
 
   /* Outputs */
   bool cursor_enabled_;
-  uint16_t memory_addr_;
+  uint16_t linear_addr_cnt_;
   uint8_t h_disp_enable_;
   uint8_t v_disp_enable_;
   uint8_t hsync_;

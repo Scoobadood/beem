@@ -57,7 +57,7 @@ Crtc::Crtc(uint16_t base_addr) //
         , hsync_width_cnt_{0} //
         , vsync_width_cnt_{0} //
         , cursor_enabled_{false} //
-        , memory_addr_{0} //
+        , linear_addr_cnt_{0} //
         , h_disp_enable_{0} //
         , v_disp_enable_{0} //
         , hsync_{0} //
@@ -315,102 +315,13 @@ void Crtc::tick(const std::shared_ptr<Bus> &bus) {
   }
 }
 
-void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
-  if (char_cnt_ == horz_total_) {
-    char_cnt_ = 0;
-    if (raster_cnt_ == max_raster_lines_) {
-      raster_cnt_ = 0;
-    }
-    if (line_cnt_ == vert_total_ && adj_cnt_ == vert_total_adj_) {
-      line_cnt_ = 0;
-      adj_cnt_ = 0;
-      h_disp_enable_ = 1;
-      v_disp_enable_ = 1;
-    }
-    memory_addr_ = line_cnt_ * horz_disp_ + scr_start_addr_;
-  } else {
-    memory_addr_++;
-  }
-  if (frame_cnt_ == 64) frame_cnt_ = 0;
-  uint16_t output_addr = ((raster_cnt_) & 0x07) | (memory_addr_ << 3);
-
-
-  char_cnt_++;
-  if (char_cnt_ == horz_disp_) {
-    h_disp_enable_ = 0;
-  }
-  if (hsync_) {
-    hsync_width_cnt_++;
-    if (hsync_width_cnt_ == horz_sync_width_) {
-      hsync_ = 0;
-    }
-  }
-  if (char_cnt_ == horz_sync_pos_) {
-    hsync_ = 1;
-    hsync_width_cnt_ = 0;
-  }
-  bool raster_ended = false;
-  if (char_cnt_ == horz_total_) {
-    raster_cnt_++;
-    raster_ended = true;
-    h_disp_enable_ = 1;
-  }
-
-  bool line_ended = false;
-  if (raster_ended) {
-    if (raster_cnt_ == max_raster_lines_) {
-      line_cnt_++;
-      line_ended = true;
-    }
-  }
-
-  if (line_ended) {
-    if (line_cnt_ == vert_disp_) {
-      v_disp_enable_ = 0;
-      ++frame_cnt_;
-    }
-
-    if (vsync_) {
-      vsync_width_cnt_++;
-      if (vsync_width_cnt_ == vert_sync_width_) {
-        vsync_ = 0;
-      }
-    }
-
-    if (line_cnt_ == vert_sync_pos_) {
-      vsync_ = 1;
-      vsync_width_cnt_ = 0;
-    }
-  }
-
-  if ((line_cnt_ == vert_total_) && raster_ended) {
-    if (adj_cnt_ != vert_total_adj_) {
-      ++adj_cnt_;
-    }
-  }
-
-
+void Crtc::handle_cursor() {
   /*
    * Cursor handling extrapolated from here:
    * https://www.cpcwiki.eu/index.php/VHDL_implementation_of_the_6845
-   * if RA >= CURST(4 downto 0) and RA <= CUREND and ACTIVE = '1' then
-		case CURST(6 downto 5) is
-			when "00" =>
-				CURSOR <= '1';
-			when "10" =>
-				CURSOR <= CTR_BLINK(3);
-			when "11" =>
-				CURSOR <= CTR_BLINK(4);
-			when others =>
-				CURSOR <= '0';
-		end case;		
-	else
-		CURSOR <= '0';
-	end if;
    */
-  // Active?
   cursor_enabled_ = false;
-  if (memory_addr_ == curs_start_addr_) {
+  if (linear_addr_cnt_ == curs_start_addr_) {
     if (raster_cnt_ >= curs_start_raster_ && raster_cnt_ <= curs_end_raster_) {
       if (!curs_blink_) cursor_enabled_ = true;
       else {
@@ -423,10 +334,12 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
       }
     }
   }
+}
 
-  // TODO: Fix wraparound per description here: https://beebwiki.mdfs.net/Address_translation
+void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
+  uint16_t output_addr = ((raster_cnt_) & 0x07) | (linear_addr_cnt_ << 3);
+  // TODO: Handle TTX
   if (output_addr & 0x8000) {
-// Decode latch_ bits.
     uint8_t c0c1 = hw_scroll_addr_->data();
     switch (c0c1) {
       case 0x00:
@@ -463,18 +376,114 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
                                  dram_bus->tst_SYNC() ? "SYN" : "   ",
                                  dram_bus->tst_RST() ? "RST" : "");
 
+  handle_cursor();
+}
 
+void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
+  latch_address(dram_bus);
+
+  if (char_cnt_ == horz_disp_) {
+    h_disp_enable_ = 0;
+    if (raster_cnt_ == max_raster_lines_) {
+      raster_start_addr_ = linear_addr_cnt_;
+    }
+  }
+
+  if (hsync_) {
+    hsync_width_cnt_++;
+    if (hsync_width_cnt_ == horz_sync_width_) {
+      hsync_ = 0;
+    }
+  }
+
+  if (char_cnt_ == horz_sync_pos_) {
+    hsync_ = 1;
+    hsync_width_cnt_ = 0;
+  }
+
+  if (char_cnt_ == horz_total_) {
+    raster_ended_ = true;
+  } else {
+    ++char_cnt_;
+    ++linear_addr_cnt_;
+  }
+
+  if (screen_ended_) {
+    adj_cnt_ = 0;
+    line_cnt_ = 0;
+    linear_addr_cnt_ = scr_start_addr_;
+    raster_start_addr_ = scr_start_addr_;
+    char_cnt_ = 0;
+    raster_cnt_ = 0;
+    v_disp_enable_ = 1;
+    h_disp_enable_ = 1;
+  }
+
+  if (line_ended_) {
+    raster_cnt_ = 0;
+    line_ended_ = false;
+
+    if (line_cnt_ == vert_disp_) {
+      v_disp_enable_ = 0;
+      ++frame_cnt_;
+    }
+
+    if (vsync_) {
+      vsync_width_cnt_++;
+      if (vsync_width_cnt_ == vert_sync_width_) {
+        vsync_ = 0;
+      }
+    }
+
+    if (line_cnt_ == vert_sync_pos_) {
+      vsync_ = 1;
+      vsync_width_cnt_ = 0;
+    }
+
+    ++line_cnt_;
+    if( line_cnt_ == vert_total_ && vert_total_adj_ == 0) {
+      screen_ended_ = true;
+    }
+  }
+
+  if (raster_ended_) {
+    char_cnt_ = 0;
+    raster_ended_ = false;
+    h_disp_enable_ = 1;
+    linear_addr_cnt_ = raster_start_addr_;
+
+    if (raster_cnt_ == max_raster_lines_) {
+      line_ended_ = true;
+    } else {
+      ++raster_cnt_;
+    }
+
+    if (line_cnt_ == vert_total_) {
+      if (adj_cnt_ == vert_total_adj_) {
+        screen_ended_ = true;
+      } else {
+        ++adj_cnt_;
+      }
+    }
+  }
+
+
+
+  if (frame_cnt_ == 64) frame_cnt_ = 0;
 }
 
 /* Force screen paint from top of screen */
+// TODO: Updates are not this simple. Once we have basic function working well
+// TODO: We need to examine specific behaviour to support screen tears etc.
 void Crtc::sync() {
-  memory_addr_ = scr_start_addr_;
-  char_cnt_ = horz_total_;
-  raster_cnt_ = vert_total_adj_;
-  line_cnt_ = vert_total_;
-  adj_cnt_ = vert_total_adj_;
-  vsync_ = 0;
-  hsync_ = 0;
+  linear_addr_cnt_ = scr_start_addr_;
+  raster_start_addr_ = scr_start_addr_;
+  char_cnt_ = 0;
+  raster_cnt_ = 0;
+  line_cnt_ = 0;
+  adj_cnt_ = 0;
+  vsync_ = 1;
+  hsync_ = 1;
   v_disp_enable_ = 1;
   h_disp_enable_ = 1;
 }

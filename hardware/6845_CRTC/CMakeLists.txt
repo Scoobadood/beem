@@ -13,7 +13,8 @@ target_link_libraries(6845_CRTC PUBLIC
 
 add_executable(test_crtc
         test/test_crtc.cpp
-        test/main.cpp)
+        test/main.cpp
+        test/mode_4_data.h)
 
 
 target_link_libraries(test_crtc
