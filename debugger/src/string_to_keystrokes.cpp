@@ -92,6 +92,12 @@ bool shift_and_key(char c, bool &shift, uint8_t &key) {
           {'?',{true, KEY_SLASH}},
           {'-',{false, KEY_MINUS}},
           {'&',{true, KEY_6}},
+          {'[',{false, KEY_LT_BRACKET}},
+          {']',{false, KEY_RT_BRACKET}},
+          {'{',{true, KEY_LT_BRACKET}},
+          {'}',{true, KEY_RT_BRACKET}},
+          {'_',{false, KEY_UNDERSCORE}},
+          {'\156',{true, KEY_UNDERSCORE}},
   };
 
   auto it = sk.find(c);
