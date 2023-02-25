@@ -31,34 +31,22 @@ public:
 
   void generate_next_address(const std::shared_ptr<Bus> &dram_bus);
 
-  inline data_subscriber_8_bit_ptr hw_scroll_addr() {
-    return hw_scroll_addr_;
-  }
-
-  [[nodiscard]] inline uint16_t get_ma() const { return linear_addr_cnt_; }
-
-  [[nodiscard]] inline uint16_t get_ra() const { return raster_cnt_; }
+  [[nodiscard]] inline data_subscriber_8_bit_ptr hw_scroll_addr() { return hw_scroll_addr_; }
 
   [[nodiscard]] inline data_provider_8_bit_ptr irq_provider() const { return irq_provider_; }
 
 
   [[nodiscard]] inline bool display_enable() const {
-    return (h_disp_enable_ & v_disp_enable_) /* && (( raster_cnt_ & 0x08) ==0)*/;
+    return (h_disp_enable_ == 1) && (v_disp_enable_ == 1) && ((raster_cnt_ & 0x08) == 0);
   }
 
-  [[nodiscard]] inline bool hsync() const {
-    return (hsync_ == 1);
-  }
+  [[nodiscard]] inline bool hsync() const { return (hsync_ == 1); }
 
   [[nodiscard]] inline uint16_t last_generated_address() const { return last_generated_address_; }
 
-  [[nodiscard]] inline bool vsync() const {
-    return (vsync_ == 1);
-  }
+  [[nodiscard]] inline bool vsync() const { return (vsync_ == 1); }
 
-  [[nodiscard]] inline bool cursor_enabled() const {
-    return (cursor_enabled_ == 1);
-  }
+  [[nodiscard]] inline bool cursor_enabled() const { return (cursor_enabled_ == 1) && display_enable(); }
 
   /* Force screen paint from top of screen */
   void sync();
@@ -104,7 +92,7 @@ private:
   uint8_t vsync_width_cnt_;
   uint8_t frame_cnt_;
   uint16_t raster_start_addr_;
-
+  uint16_t latched_scr_addr_;
   bool raster_ended_;
   bool line_ended_;
   bool screen_ended_;
