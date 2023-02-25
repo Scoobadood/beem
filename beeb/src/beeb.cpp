@@ -82,7 +82,6 @@ Beeb::Beeb(uint8_t boot_mode) //
   system_via_->provide_port_a(keyboard_->provider());
   system_via_->provide_ca2(keyboard_->irq_provider());
 
-
   class dsp : public data_provider_8_bit {
   public:
     virtual ~dsp() = default;
@@ -109,9 +108,10 @@ Beeb::Beeb(uint8_t boot_mode) //
   crtc_ = new Crtc(0xfe00);
   latch_->subscribe(crtc_->hw_scroll_addr());
   v_ula_->set_crtc(crtc_);
+  system_via_->provide_ca1(crtc_->irq_provider());
 
   // Screen Data
-  screen_data_.resize(SCR_WIDTH * SCR_HEIGHT * 3);
+  screen_data_.reserve(1280*768*3);
   pixel_x_ = 0;
   pixel_y_ = 0;
 }
@@ -310,57 +310,51 @@ void Beeb::tick() {
 
   if (clock_->went_low(CLK_16_MHZ)) {
     v_ula_->tick(bus_, dram_bus_);
-
-    static bool last_vs = 1;
-
-    // TODO: Factor this out into some other form.
-    auto vs = crtc_->vsync();
-    auto hs = crtc_->hsync();
-    auto de = crtc_->display_enable();
-
-    if( vs && !last_vs) {
-      spdlog::info( "vsync high at y = {}", pixel_y_);
-    } else if ( !vs && last_vs) {
-      spdlog::info( "vsync  low at y = {}", pixel_y_);
-    }
-    last_vs = vs;
-
-    // If VS in progress, colour pixels red
-    uint32_t pixel_colour = 0;
-    if (vs || hs) {
-      pixel_colour = (vs && hs)
-                     ? 0x00ffff00
-                     : (vs)
-                       ? 0x00ff0000
-                       : 0x0000ff00;
-    } else if (de) {
-      pixel_colour = v_ula_->rgb();
-    } else {
-      pixel_colour = 0x00808080;
-    }
-
-    if (pixel_x_ >= SCR_WIDTH) {
-      pixel_x_ = SCR_WIDTH - 1;
-      pixel_colour = 0x00ff00ff;
-    }
-    if (pixel_y_ >= SCR_HEIGHT) {
-      pixel_y_ = SCR_WIDTH - 1;
-      pixel_colour = 0x00ff00ff;
-    }
-
-    auto base = (pixel_y_ * SCR_WIDTH + pixel_x_) * 3;
-    screen_data_.at(base + 0) = (pixel_colour >> 16) & 0xff;
-    screen_data_.at(base + 1) = (pixel_colour >> 8) & 0xff;
-    screen_data_.at(base + 2) = (pixel_colour >> 0) & 0xff;
-
-    if (++pixel_x_ == SCR_WIDTH) {
-      pixel_x_ = 0;
-      if( ++pixel_y_ == SCR_HEIGHT) {
-        pixel_y_ = 0;
-        fn_(screen_data_);
-      }
-    }
+    update_screen();
   }
+}
+
+void Beeb::update_screen() {
+  static bool last_vs;
+  static bool last_hs;
+
+  auto vs = crtc_->vsync();
+  auto hs = crtc_->hsync();
+
+  // HS just happened. Inc pix y and reset pix x
+  if (!hs && last_hs) {
+//    pixel_x_ = 0;
+//    ++pixel_y_;
+  }
+
+  // VS just happened.
+  // Send the screen and reset pix x and pix y
+  if (!vs && last_vs) {
+    fn_(1024, 312, screen_data_);
+    pixel_x_ = 0;
+    pixel_y_ = 0;
+    screen_data_.clear();
+  }
+
+  if( ++pixel_x_ == 128*8) {
+    pixel_x_ = 0;
+    ++pixel_y_;
+  }
+  if( pixel_y_ == 312 && pixel_x_ == 512) {
+    pixel_y_ = 0;
+  }
+
+
+  uint32_t pixel_colour = 0;
+  if (crtc_->display_enable()) {
+    pixel_colour = v_ula_->rgb();
+  }
+  screen_data_.push_back((pixel_colour >> 16) & 0xff);
+  screen_data_.push_back((pixel_colour >> 8) & 0xff);
+  screen_data_.push_back((pixel_colour >> 0) & 0xff);
+
+  last_vs = vs;
+  last_hs = hs;
 }
 
 std::vector<uint8_t> Beeb::get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const {

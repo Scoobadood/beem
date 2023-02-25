@@ -18,14 +18,14 @@
 #include "6845_crtc.h"
 #include "clock.h"
 
-using PixelFunction = std::function<void(std::vector<uint8_t> scr_data)>;
+using VideoHandler = std::function<void(int32_t w, int32_t h, std::vector<uint8_t> scr_data)>;
 
 const uint32_t SCR_WIDTH = 128 * 8;
-const uint32_t SCR_HEIGHT = 304;
+const uint32_t SCR_HEIGHT = 312;
 
 class Beeb {
 public:
-  Beeb(uint8_t boot_mode = 7);
+  explicit Beeb(uint8_t boot_mode = 7);
 
   void tick();
 
@@ -43,7 +43,7 @@ public:
 
   void release_key(uint8_t key_code);
 
-  void set_pixel_function(const PixelFunction &fn) {fn_ = fn;}
+  void set_video_handler(const VideoHandler &fn) { fn_ = fn;}
 
   [[nodiscard]] std::vector<uint8_t> get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const;
 
@@ -53,6 +53,8 @@ private:
   void pre_dram_checks();
 
   void post_dram_checks();
+
+  void update_screen();
 
   static bool is_1mhz_device_address(const std::shared_ptr<Bus> &bus);
 
@@ -76,13 +78,13 @@ private:
   Crtc *crtc_;
 
   // Call back for monitor
-  PixelFunction fn_;
+  VideoHandler fn_;
 
   uint64_t cached_dram_bus_;
 
   std::vector<uint8_t> screen_data_;
-  uint16_t pixel_x_;
-  uint16_t pixel_y_;
+  int32_t pixel_x_;
+  int32_t pixel_y_;
 };
 
 #endif //M6502_SRC_BEEB_H_
