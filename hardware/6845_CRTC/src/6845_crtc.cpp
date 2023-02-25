@@ -254,6 +254,7 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to cursor_end_line", curs_end_raster_);
       break;
 
+      // Changes here don't take effect until the next CRTC cycle
     case REG_SCREEN_ADDR_HI:
       scr_start_addr_ = (scr_start_addr_ & 0x00ff) | ((data & 0x3f) << 8);
       sync();
@@ -261,6 +262,7 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       spdlog::get("CRTC")->info("      Screen start address is {:04x}", scr_start_addr_);
       break;
 
+      // Changes here don't take effect until the next CRTC cycle
     case REG_SCREEN_ADDR_LO:
       scr_start_addr_ = (scr_start_addr_ & 0x3f00) | data;
       sync();
@@ -453,6 +455,7 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
       }
     }
 
+    /* VSYNC occurs at the END of the line, ie on last raster, not first */
     if (line_cnt_ == vert_sync_pos_) {
       vsync_ = 1;
       irq_provider_->provide_data(1);
@@ -472,8 +475,9 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
     raster_cnt_ = 0;
     adj_cnt_ = 0;
     line_cnt_ = 0;
-    linear_addr_cnt_ = scr_start_addr_;
-    raster_start_addr_ = scr_start_addr_;
+    latched_scr_addr_ = scr_start_addr_;
+    linear_addr_cnt_ = latched_scr_addr_;
+    raster_start_addr_ = latched_scr_addr_;
     v_disp_enable_ = 1;
     h_disp_enable_ = 1;
   }
@@ -486,8 +490,6 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
 // TODO: Updates are not this simple. Once we have basic function working well
 // TODO: We need to examine specific behaviour to support screen tears etc.
 void Crtc::sync() {
-  linear_addr_cnt_ = scr_start_addr_;
-  raster_start_addr_ = scr_start_addr_;
   char_cnt_ = 0;
   raster_cnt_ = 0;
   line_cnt_ = 0;
