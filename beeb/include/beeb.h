@@ -20,8 +20,8 @@
 
 using VideoHandler = std::function<void(int32_t w, int32_t h, std::vector<uint8_t> scr_data)>;
 
-const uint32_t SCR_WIDTH = 128 * 8;
-const uint32_t SCR_HEIGHT = 312;
+const uint32_t SCR_WIDTH = 128 * 8; // 1024
+const uint32_t SCR_HEIGHT = 39 * 8; // 312
 
 class Beeb {
 public:
@@ -43,7 +43,7 @@ public:
 
   void release_key(uint8_t key_code);
 
-  void set_video_handler(const VideoHandler &fn) { fn_ = fn;}
+  void set_video_handler(const VideoHandler &fn) { fn_ = fn; }
 
   [[nodiscard]] std::vector<uint8_t> get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const;
 
