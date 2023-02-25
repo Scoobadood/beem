@@ -458,9 +458,6 @@ void Via::set_ca1(uint8_t state) {
   ca1_ = state;
 
   if (ca1_ == (pcr_ & PCR_CA1_IRQ_CTL)) {
-    // CA1 went active. Generate IRQ and latch data if enabled
-    spdlog::info("VIA${:04x}: CA1 went active", base_address_);
-
     if (acr_ & ACR_PA_LATCH)
       pa_latch_ = read_port_a();
 
