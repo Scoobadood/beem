@@ -39,6 +39,9 @@ public:
 
   [[nodiscard]] inline uint16_t get_ra() const { return raster_cnt_; }
 
+  [[nodiscard]] inline data_provider_8_bit_ptr irq_provider() const { return irq_provider_; }
+
+
   [[nodiscard]] inline bool display_enable() const {
     return (h_disp_enable_ & v_disp_enable_) /* && (( raster_cnt_ & 0x08) ==0)*/;
   }
@@ -123,6 +126,8 @@ private:
 
   /* Data subscribers for other chips */
   data_subscriber_8_bit_ptr hw_scroll_addr_;
+
+  data_provider_8_bit_ptr irq_provider_;
 };
 
 #endif // BEEB_HARDWARE_6845_CRTC_H_

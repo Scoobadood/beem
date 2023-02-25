@@ -83,6 +83,8 @@ Crtc::Crtc(uint16_t base_addr) //
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
+
+  irq_provider_ = std::make_shared<data_provider_8_bit>(0x00);
 }
 
 void Crtc::mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus) {
@@ -341,15 +343,17 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
   // TODO: Handle TTX
   if (output_addr & 0x8000) {
     uint8_t c0c1 = hw_scroll_addr_->data();
+
+    spdlog::get("CRTC")->info("Output address is {:04x}, correcting by c0c1 {:02x}", output_addr, c0c1);
     switch (c0c1) {
       case 0x00:
         output_addr -= 0x4000;
         break;
       case 0x10:
-        output_addr -= 0x2000;
+        output_addr -= 0x5000;
         break;
       case 0x20:
-        output_addr -= 0x5000;
+        output_addr -= 0x2000;
         break;
       case 0x30:
         output_addr -= 0x2800;
@@ -359,6 +363,7 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
         spdlog::error("Latch bits for base addr have crazy value ({:02x})", c0c1);
         break;
     }
+    spdlog::get("CRTC")->info("   corrected to {:04x}", output_addr);
   }
   if (output_addr >= 0x8000) {
     spdlog::get("CRTC")->error("About to output an uncorrected video address:  ({:04x})", output_addr);
@@ -382,23 +387,17 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
 void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   latch_address(dram_bus);
 
-  if (char_cnt_ == horz_disp_) {
-    h_disp_enable_ = 0;
-    if (raster_cnt_ == max_raster_lines_) {
-      raster_start_addr_ = linear_addr_cnt_;
-    }
-  }
-
-  if (hsync_) {
-    hsync_width_cnt_++;
-    if (hsync_width_cnt_ == horz_sync_width_) {
-      hsync_ = 0;
-    }
-  }
 
   if (char_cnt_ == horz_sync_pos_) {
     hsync_ = 1;
     hsync_width_cnt_ = 0;
+  }
+  if (hsync_) {
+    if (hsync_width_cnt_ == horz_sync_width_) {
+      hsync_ = 0;
+    } else {
+      hsync_width_cnt_++;
+    }
   }
 
   if (char_cnt_ == horz_total_) {
@@ -407,6 +406,14 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
     ++char_cnt_;
     ++linear_addr_cnt_;
   }
+
+  if (char_cnt_ == horz_disp_) {
+    h_disp_enable_ = 0;
+    if (raster_cnt_ == max_raster_lines_) {
+      raster_start_addr_ = linear_addr_cnt_;
+    }
+  }
+
 
   if (raster_ended_) {
     char_cnt_ = 0;
@@ -442,34 +449,34 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
       vsync_width_cnt_++;
       if (vsync_width_cnt_ == vert_sync_width_) {
         vsync_ = 0;
+        irq_provider_->provide_data(0);
       }
     }
 
     if (line_cnt_ == vert_sync_pos_) {
       vsync_ = 1;
+      irq_provider_->provide_data(1);
       vsync_width_cnt_ = 0;
     }
 
-    ++line_cnt_;
-    if( line_cnt_ == vert_total_ && vert_total_adj_ == 0) {
+    if (line_cnt_ == vert_total_ && vert_total_adj_ == 0) {
       screen_ended_ = true;
+    } else {
+      ++line_cnt_;
     }
   }
 
   if (screen_ended_) {
     screen_ended_ = false;
+    char_cnt_ = 0;
+    raster_cnt_ = 0;
     adj_cnt_ = 0;
     line_cnt_ = 0;
     linear_addr_cnt_ = scr_start_addr_;
     raster_start_addr_ = scr_start_addr_;
-    char_cnt_ = 0;
-    raster_cnt_ = 0;
-    hsync_ = 0;
-    vsync_ = 0;
     v_disp_enable_ = 1;
     h_disp_enable_ = 1;
   }
-
 
 
   if (frame_cnt_ == 64) frame_cnt_ = 0;

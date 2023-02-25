@@ -4,8 +4,8 @@
 
 #include "mode_4_data.h"
 
-const uint16_t CRTC_REG_SELECT = 0xfe20;
-const uint16_t CRTC_READ_WRITE = 0xfe21;
+const uint16_t CRTC_REG_SELECT = 0xfe00;
+const uint16_t CRTC_READ_WRITE = 0xfe01;
 
 
 /**
