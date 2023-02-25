@@ -111,7 +111,7 @@ Beeb::Beeb(uint8_t boot_mode) //
   system_via_->provide_ca1(crtc_->irq_provider());
 
   // Screen Data
-  screen_data_.reserve(1280*768*3);
+  screen_data_.reserve(1280 * 768 * 3);
   pixel_x_ = 0;
   pixel_y_ = 0;
 }
@@ -336,12 +336,9 @@ void Beeb::update_screen() {
     screen_data_.clear();
   }
 
-  if( ++pixel_x_ == 128*8) {
+  if (++pixel_x_ == 1024) {
     pixel_x_ = 0;
-    ++pixel_y_;
-  }
-  if( pixel_y_ == 312 && pixel_x_ == 512) {
-    pixel_y_ = 0;
+    if (++pixel_y_ == 312) pixel_y_ = 0;
   }
 
 
