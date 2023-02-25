@@ -427,14 +427,13 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
        * The Interrupt Flag Register (IRF) may be read directly by the processor.
        * In addition, individual flag bits may be cleared by writing a "1" into the appropriate bit of the IFR.
        */
-    case IFR:
-      {
-        uint8_t mask = 0x01;
-        for (auto bit = 0; bit < 7; ++bit, mask <<= 1) {
-          if (data & mask)
-            clear_irq(mask);
-        }
+    case IFR: {
+      uint8_t mask = 0x01;
+      for (auto bit = 0; bit < 7; ++bit, mask <<= 1) {
+        if (data & mask)
+          clear_irq(mask);
       }
+    }
       break;
 
     case IER:
@@ -561,24 +560,38 @@ void Via::check_ca2() {
   }
 }
 
+void Via::check_ca1() {
+  for (const auto &provider: ca1_providers_) {
+    if (provider->has_data()) {
+      auto data = provider->data();
+      set_ca1(data);
+    }
+  }
+}
+
 void Via::tick(const std::shared_ptr<Bus> &bus) {
   check_timers();
 
+  check_ca1();
   check_ca2();
 
   check_mmio(bus);
 }
 
-void Via::provide_port_a(data_provider_8_bit_ptr provider) {
+void Via::provide_port_a(const data_provider_8_bit_ptr& provider) {
   port_a_providers_.emplace(provider);
 }
 
-void Via::provide_port_b(data_provider_8_bit_ptr provider) {
+void Via::provide_port_b(const data_provider_8_bit_ptr& provider) {
   port_b_providers_.emplace(provider);
 }
 
-void Via::provide_ca2(data_provider_8_bit_ptr provider) {
+void Via::provide_ca2(const data_provider_8_bit_ptr& provider) {
   ca2_providers_.emplace(provider);
+}
+
+void Via::provide_ca1(const data_provider_8_bit_ptr& provider) {
+  ca1_providers_.emplace(provider);
 }
 
 void Via::subscribe_port_b(const data_subscriber_8_bit_ptr &subscriber) {

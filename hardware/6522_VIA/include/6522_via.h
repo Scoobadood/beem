@@ -21,11 +21,13 @@ public:
 
   void unsubscribe_port_b(const data_subscriber_8_bit_ptr &subscriber);
 
-  void provide_port_a(data_provider_8_bit_ptr provider);
+  void provide_port_a(const data_provider_8_bit_ptr &provider);
 
-  void provide_port_b(data_provider_8_bit_ptr provider);
+  void provide_port_b(const data_provider_8_bit_ptr &provider);
 
-  void provide_ca2(data_provider_8_bit_ptr provider);
+  void provide_ca1(const data_provider_8_bit_ptr &provider);
+
+  void provide_ca2(const data_provider_8_bit_ptr &provider);
 
   void set_ca1(uint8_t state);
 
@@ -43,6 +45,8 @@ private:
   void mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg);
 
   void check_timers();
+
+  void check_ca1();
 
   void check_ca2();
 
@@ -106,6 +110,7 @@ private:
   std::set<data_provider_8_bit_ptr> port_a_providers_;
   std::set<data_provider_8_bit_ptr> port_b_providers_;
   std::set<data_provider_8_bit_ptr> ca2_providers_;
+  std::set<data_provider_8_bit_ptr> ca1_providers_;
 };
 
 #endif //BEEB_HARDWARE_6522_VIA_INCLUDE_H_
