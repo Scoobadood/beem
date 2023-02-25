@@ -14,7 +14,7 @@ Q_OBJECT
 public:
   explicit VduView(QWidget *parent = nullptr);
 
-  void screen_changed(std::vector<uint8_t> scr_data);
+  void screen_changed(int32_t width, int32_t height, const std::vector<uint8_t> & scr_data);
 
   void keyPressEvent(QKeyEvent *event) override;
 
@@ -29,6 +29,8 @@ public:
   void set_beeb(const std::shared_ptr<Beeb> &beeb) {beeb_ = beeb;};
 
 private:
+  int32_t last_width_;
+  int32_t last_height_;
   QPixmap *pixmap_;
   QImage *image_;
   std::shared_ptr<Beeb> beeb_;
