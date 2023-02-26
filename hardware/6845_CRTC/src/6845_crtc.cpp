@@ -348,36 +348,51 @@ void Crtc::handle_cursor() {
   }
 }
 
-void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
-  uint16_t output_addr = ((raster_cnt_) & 0x07) | (linear_addr_cnt_ << 3);
-  // TODO: Handle TTX
-  if (output_addr & 0x8000) {
-    uint8_t c0c1 = hw_scroll_addr_->data();
 
-    spdlog::get("CRTC")->info("Output address is {:04x}, correcting by c0c1 {:02x}", output_addr, c0c1);
-    switch (c0c1) {
-      case 0x00:
-        output_addr -= 0x4000;
-        break;
-      case 0x10:
-        output_addr -= 0x5000;
-        break;
-      case 0x20:
-        output_addr -= 0x2000;
-        break;
-      case 0x30:
-        output_addr -= 0x2800;
-        break;
-      default:
-        spdlog::get("CRTC")->error("Latch bits for base addr have crazy value ({:02x})", c0c1);
-        spdlog::error("Latch bits for base addr have crazy value ({:02x})", c0c1);
-        break;
-    }
-    spdlog::get("CRTC")->info("   corrected to {:04x}", output_addr);
+void Crtc::correct_output_addr(uint16_t & addr) {
+  auto c0c1 = hw_scroll_addr_->data();
+  spdlog::get("CRTC")->info("Output address is {:04x}, correcting by c0c1 {:02x}", addr, c0c1);
+  uint16_t addend = 0;
+  switch (c0c1) {
+    case 0x00:
+      addend = 0x4000;
+      break;
+    case 0x10:
+      addend = 0x3000;
+      break;
+    case 0x20:
+      addend = 0x6000;
+      break;
+    case 0x30:
+      addend = 0x5800;
+      break;
+    default:
+      spdlog::get("CRTC")->error("Latch bits for base addr have crazy value ({:02x})", c0c1);
+      spdlog::error("Latch bits for base addr have crazy value ({:02x})", c0c1);
+      break;
   }
-  if (output_addr >= 0x8000) {
-    spdlog::get("CRTC")->error("About to output an uncorrected video address:  ({:04x})", output_addr);
-    spdlog::error("About to output an uncorrected video address:  ({:04x})", output_addr);
+  addr = (addr + addend) & 0x7fff;
+  spdlog::get("CRTC")->info("   corrected to {:04x}", addr);
+}
+
+void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
+  uint16_t output_addr = 0;
+  if (linear_addr_cnt_ & 0x2000) {
+    // Mode 7 chunky addressing mode if MA13 set.
+    // Address offset by scanline is ignored.
+    // On model B only, there's a quirk for reading 0x3c00.
+    // See: http://www.retrosoftware.co.uk/forum/viewtopic.php?f=73&t=1011
+    output_addr = linear_addr_cnt_ & 0x3ff;
+    if (linear_addr_cnt_ & 0x800) {
+      output_addr |= 0x7c00;
+    } else {
+      output_addr |= 0x3c00;
+    }
+  } else {
+    output_addr = (raster_cnt_ & 0x07) | (linear_addr_cnt_ << 3);
+
+    // Perform screen address wrap around if MA12 set
+    if (linear_addr_cnt_ & 0x1000) correct_output_addr(output_addr);
   }
 
   spdlog::get("CRTC")->debug("Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
@@ -390,8 +405,6 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
                                  dram_bus->tst_RW() ? "R" : "W",
                                  dram_bus->tst_SYNC() ? "SYN" : "   ",
                                  dram_bus->tst_RST() ? "RST" : "");
-
-  handle_cursor();
 }
 
 /**
@@ -648,6 +661,10 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   }
 
   // TODO: JSBeeb Render code removed here, implement in wrapper.
+  latch_address(dram_bus);
+  //
+
+
 
   // CRTC MA always increments, inside display border or not.
   linear_addr_cnt_ = (linear_addr_cnt_ + 1) & 0x3fff;

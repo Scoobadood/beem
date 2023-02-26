@@ -68,6 +68,8 @@ private:
 
   void handle_end_of_scan_line();
 
+  void correct_output_addr(uint16_t &addr);
+
   void mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus);
 
   void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
