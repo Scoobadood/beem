@@ -40,11 +40,11 @@ public:
     return (h_disp_enable_ == 1) && (v_disp_enable_ == 1) && ((raster_cnt_ & 0x08) == 0);
   }
 
-  [[nodiscard]] inline bool hsync() const { return (hsync_ == 1); }
+  [[nodiscard]] inline bool hsync() const { return h_sync_; }
 
   [[nodiscard]] inline uint16_t last_generated_address() const { return last_generated_address_; }
 
-  [[nodiscard]] inline bool vsync() const { return (vsync_ == 1); }
+  [[nodiscard]] inline bool vsync() const { return v_sync_; }
 
   [[nodiscard]] inline bool cursor_enabled() const { return (cursor_enabled_ == 1) && display_enable(); }
 
@@ -54,7 +54,19 @@ public:
 private:
   void latch_address(const std::shared_ptr<Bus> &dram_bus);
 
+  void dispEnableSet(uint8_t flag);
+
+  void dispEnableClear(uint8_t flag);
+
   void handle_cursor();
+
+  void handle_hsync();
+
+  void handle_end_of_frame();
+
+  void handle_end_of_char_line();
+
+  void handle_end_of_scan_line();
 
   void mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus);
 
@@ -64,46 +76,74 @@ private:
   uint8_t reg_select_;
 
   /* Registers */
-  uint8_t horz_total_;        //  R0
-  uint8_t horz_disp_;         //  R1
-  uint8_t horz_sync_pos_;     //  R2
-  uint8_t horz_sync_width_;   //  R3
-  uint8_t vert_total_;        //  R4
-  uint8_t vert_total_adj_;    //  R5
-  uint8_t vert_disp_;         //  R6
-  uint8_t vert_sync_pos_;     //  R7
-  uint8_t vert_sync_width_;   //  R3
-  uint8_t ilace_skew_;        //  R8
-  uint8_t max_raster_lines_;  //  R9
-  uint8_t curs_start_raster_; //  R10
-  uint8_t curs_end_raster_;   //  R11
+  uint8_t reg_horz_total_;        //  R0
+  uint8_t reg_horz_disp_;         //  R1
+  uint8_t reg_horz_sync_pos_;     //  R2
+  uint8_t reg_horz_sync_width_;   //  R3
+  uint8_t reg_vert_total_;        //  R4
+  uint8_t reg_vert_total_adj_;    //  R5
+  uint8_t reg_vert_disp_;         //  R6
+  uint8_t reg_vert_sync_pos_;     //  R7
+  uint8_t reg_vert_sync_width_;   //  R3
+  uint8_t reg_ilace_skew_;        //  R8
+  uint8_t reg_max_raster_lines_;  //  R9
+  uint8_t reg_curs_start_raster_; //  R10
+  uint8_t reg_curs_end_raster_;   //  R11
   uint16_t scr_start_addr_;   //  R12/R13
-  uint16_t curs_start_addr_;  //  R14/R15
+  uint16_t reg_curs_start_addr_;  //  R14/R15
   uint8_t curs_blink_;
   uint8_t curs_blink_rate_;
   uint16_t light_pen_pos_;    //  R16
 
   /* Internal counters */
-  uint8_t char_cnt_;
-  uint8_t line_cnt_;
-  uint8_t raster_cnt_;
-  uint8_t adj_cnt_;
-  uint8_t hsync_width_cnt_;
-  uint8_t vsync_width_cnt_;
   uint8_t frame_cnt_;
-  uint16_t raster_start_addr_;
-  uint16_t latched_scr_addr_;
-  bool raster_ended_;
-  bool line_ended_;
-  bool screen_ended_;
+  bool oddClock_;
+  bool halfClock_;
+
+  /* JSBeeb */
+
+  int16_t char_cnt_;
+  uint8_t hsync_width_cnt_;
+  bool h_sync_;
+
+  int16_t raster_cnt_;
+  bool first_raster_;
+
+  int16_t line_cnt_;
+  int16_t line_start_addr_;
+  int16_t next_line_start_addr_;
+  int32_t vsync_width_cnt_;
+  bool v_sync_;
+  bool had_vsync_this_raster_;
+
+  int v_adj_cnt_;
+  bool in_v_adj_;
+  bool check_v_adj_;
+  bool end_of_v_adj_latched_;
+
+  int16_t frameCount_;
+  bool doEvenFrameLogic_;
+  bool cursorOnThisFrame_;
+  bool endOfFrameLatched_;
+
+  bool cursorOn_;
+  bool cursorOff_;
+  int cursorDrawIndex_;
+
+  uint8_t dispEnabled_;
+  int32_t displayEnableSkew_;
+  bool isEvenRender_;
+  bool lastRenderWasEven_;
+  bool teletextMode_;
+  bool endOfMainLatched_;
+  bool inDummyRaster_;
+
 
   /* Outputs */
   bool cursor_enabled_;
   uint16_t linear_addr_cnt_;
   uint8_t h_disp_enable_;
   uint8_t v_disp_enable_;
-  uint8_t hsync_;
-  uint8_t vsync_;
 
   uint16_t last_generated_address_;
 
