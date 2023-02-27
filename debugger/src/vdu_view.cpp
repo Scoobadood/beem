@@ -19,9 +19,8 @@ VduView::VduView(QWidget *parent) //
         : QLabel{parent} //
 {
   setScaledContents(false);
-  last_width_ = SCR_WIDTH;
-  last_height_ = SCR_HEIGHT;
-  image_ = new QImage(SCR_WIDTH, SCR_HEIGHT, QImage::Format_RGB888);
+  last_width_ = -1;
+  last_height_ = -1;
   pixmap_ = new QPixmap();
   setAutoFillBackground(true);
   setStyleSheet("background-color:#00a0a0");

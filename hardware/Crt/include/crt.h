@@ -17,8 +17,8 @@ public:
     renderer_ = renderer;
   }
 
-  const int CRT_HEIGHT = 1024;
-  const int CRT_WIDTH = 312;
+  static const int CRT_WIDTH = 1024; // 128 * 8
+  static const int CRT_HEIGHT = 312; // 39 * 8
 
 private:
   std::shared_ptr<Crtc> crtc_;

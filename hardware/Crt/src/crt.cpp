@@ -1,5 +1,6 @@
 #include "crt.h"
 
+
 Crt::Crt(const std::shared_ptr<Crtc> &crtc,
          const std::shared_ptr<VideoUla> &v_ula) //
         : crtc_{crtc} //
@@ -28,15 +29,15 @@ Crt::update_screen() {
   // VS just happened.
   // Send the screen and reset pix x and pix y
   if (!vs && last_vs) {
-    renderer_(1024, 312, screen_data_);
+    renderer_(CRT_WIDTH, CRT_HEIGHT, screen_data_);
     pixel_x_ = 0;
     pixel_y_ = 0;
     screen_data_.clear();
   }
 
-  if (++pixel_x_ == 1024) {
+  if (++pixel_x_ == CRT_WIDTH) {
     pixel_x_ = 0;
-    if (++pixel_y_ == 312) pixel_y_ = 0;
+    if (++pixel_y_ == CRT_HEIGHT) pixel_y_ = 0;
   }
 
 

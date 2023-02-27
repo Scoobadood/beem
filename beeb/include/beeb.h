@@ -19,9 +19,6 @@
 #include "crt.h"
 #include "clock.h"
 
-const uint32_t SCR_WIDTH = 128 * 8; // 1024
-const uint32_t SCR_HEIGHT = 39 * 8; // 312
-
 class Beeb {
 public:
   explicit Beeb(uint8_t boot_mode = 7);
