@@ -305,7 +305,7 @@ void Beeb::tick() {
 
   if (clock_->went_low(CLK_16_MHZ)) {
     v_ula_->tick(bus_, dram_bus_);
-    crt_->update_screen();
+    crt_->tick();
   }
 }
 

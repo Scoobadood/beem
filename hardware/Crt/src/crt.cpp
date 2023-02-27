@@ -13,7 +13,7 @@ Crt::Crt(const std::shared_ptr<Crtc> &crtc,
 }
 
 void
-Crt::update_screen() {
+Crt::tick() {
   static bool last_vs;
   static bool last_hs;
 
