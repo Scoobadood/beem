@@ -298,7 +298,6 @@ void Beeb::tick() {
      */
     crtc_->tick(bus_);
 
-
 //    sound_chip_->tick();
     acia_->tick(bus_);
 //    adc_->tick(bus_);
