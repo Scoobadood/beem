@@ -4,6 +4,7 @@ Crt::Crt(const std::shared_ptr<Crtc> &crtc,
          const std::shared_ptr<VideoUla> &v_ula) //
         : crtc_{crtc} //
         , v_ula_{v_ula} //
+        , renderer_{nullptr} //
 {
   // Screen Data
   screen_data_.reserve(1280 * 768 * 3);
@@ -12,7 +13,7 @@ Crt::Crt(const std::shared_ptr<Crtc> &crtc,
 }
 
 void
-Crt::update_screen(const std::function<void(int32_t w, int32_t h, std::vector<uint8_t> scr_data)>& fn) {
+Crt::update_screen() {
   static bool last_vs;
   static bool last_hs;
 
@@ -28,7 +29,7 @@ Crt::update_screen(const std::function<void(int32_t w, int32_t h, std::vector<ui
   // VS just happened.
   // Send the screen and reset pix x and pix y
   if (!vs && last_vs) {
-    fn(1024, 312, screen_data_);
+    renderer_(1024, 312, screen_data_);
     pixel_x_ = 0;
     pixel_y_ = 0;
     screen_data_.clear();

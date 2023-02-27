@@ -19,8 +19,6 @@
 #include "crt.h"
 #include "clock.h"
 
-using VideoHandler = std::function<void(int32_t w, int32_t h, std::vector<uint8_t> scr_data)>;
-
 const uint32_t SCR_WIDTH = 128 * 8; // 1024
 const uint32_t SCR_HEIGHT = 39 * 8; // 312
 
@@ -40,11 +38,11 @@ public:
 
   std::shared_ptr<Bus> bus() { return bus_; }
 
+  std::shared_ptr<Crt> crt() { return crt_; }
+
   void press_key(uint8_t key_code);
 
   void release_key(uint8_t key_code);
-
-  void set_video_handler(const VideoHandler &fn) { fn_ = fn; }
 
   [[nodiscard]] std::vector<uint8_t> get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const;
 
@@ -54,8 +52,6 @@ private:
   void pre_dram_checks();
 
   void post_dram_checks();
-
-  void update_screen();
 
   static bool is_1mhz_device_address(const std::shared_ptr<Bus> &bus);
 
@@ -78,9 +74,6 @@ private:
   Keyboard *keyboard_;
   Acia *acia_;
   Adc *adc_;
-
-  // Call back for monitor
-  VideoHandler fn_;
 
   uint64_t cached_dram_bus_;
 };

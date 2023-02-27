@@ -2,7 +2,6 @@
 #include "rom.h"
 #include "clock.h"
 
-#include <fstream>
 #include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
 
@@ -305,15 +304,10 @@ void Beeb::tick() {
 //    adc_->tick(bus_);
   }
 
-
   if (clock_->went_low(CLK_16_MHZ)) {
     v_ula_->tick(bus_, dram_bus_);
-    update_screen();
+    crt_->update_screen();
   }
-}
-
-void Beeb::update_screen() {
-  crt_->update_screen(fn_);
 }
 
 std::vector<uint8_t> Beeb::get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const {

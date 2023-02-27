@@ -50,7 +50,7 @@ DeebWindow::DeebWindow(QWidget *parent) //
   }
 
   beeb_ = std::make_shared<Beeb>(mode);
-  beeb_->set_video_handler([=](int32_t w, int32_t h, const std::vector<uint8_t> &scr_data) {
+  beeb_->crt()->set_renderer([=](int32_t w, int32_t h, const std::vector<uint8_t> &scr_data) {
     emit screen_changed(w, h, scr_data);
   });
 
