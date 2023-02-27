@@ -16,6 +16,7 @@
 #include "rom.h"
 #include "5c094_vula.h"
 #include "6845_crtc.h"
+#include "crt.h"
 #include "clock.h"
 
 using VideoHandler = std::function<void(int32_t w, int32_t h, std::vector<uint8_t> scr_data)>;
@@ -68,6 +69,7 @@ private:
   std::shared_ptr<data_provider_8_bit> dummy_speech_provider_;
   std::shared_ptr<VideoUla> v_ula_;
   std::shared_ptr<Crtc> crtc_;
+  std::shared_ptr<Crt> crt_;
 
   Via *system_via_;
   Via *user_via_;

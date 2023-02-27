@@ -22,6 +22,7 @@ target_link_libraries(Beeb
         5C094_vULA
         6845_CRTC
         Common
+        Crt
         )
 
 # Tests

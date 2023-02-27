@@ -110,6 +110,9 @@ Beeb::Beeb(uint8_t boot_mode) //
   v_ula_->set_crtc(crtc_);
   system_via_->provide_ca1(crtc_->irq_provider());
 
+  // CRT
+  crt_ = make_shared<Crt>(crtc_, v_ula_);
+
   // Screen Data
   screen_data_.reserve(1280 * 768 * 3);
   pixel_x_ = 0;
