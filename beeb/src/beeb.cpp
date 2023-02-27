@@ -112,11 +112,6 @@ Beeb::Beeb(uint8_t boot_mode) //
 
   // CRT
   crt_ = make_shared<Crt>(crtc_, v_ula_);
-
-  // Screen Data
-  screen_data_.reserve(1280 * 768 * 3);
-  pixel_x_ = 0;
-  pixel_y_ = 0;
 }
 
 void Beeb::reset() {
@@ -318,43 +313,7 @@ void Beeb::tick() {
 }
 
 void Beeb::update_screen() {
-  static bool last_vs;
-  static bool last_hs;
-
-  auto vs = crtc_->vsync();
-  auto hs = crtc_->hsync();
-
-  // HS just happened. Inc pix y and reset pix x
-  if (!hs && last_hs) {
-//    pixel_x_ = 0;
-//    ++pixel_y_;
-  }
-
-  // VS just happened.
-  // Send the screen and reset pix x and pix y
-  if (!vs && last_vs) {
-    fn_(1024, 312, screen_data_);
-    pixel_x_ = 0;
-    pixel_y_ = 0;
-    screen_data_.clear();
-  }
-
-  if (++pixel_x_ == 1024) {
-    pixel_x_ = 0;
-    if (++pixel_y_ == 312) pixel_y_ = 0;
-  }
-
-
-  uint32_t pixel_colour = 0;
-  if (crtc_->display_enable()) {
-    pixel_colour = v_ula_->rgb();
-  }
-  screen_data_.push_back((pixel_colour >> 16) & 0xff);
-  screen_data_.push_back((pixel_colour >> 8) & 0xff);
-  screen_data_.push_back((pixel_colour >> 0) & 0xff);
-
-  last_vs = vs;
-  last_hs = hs;
+  crt_->update_screen(fn_);
 }
 
 std::vector<uint8_t> Beeb::get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const {

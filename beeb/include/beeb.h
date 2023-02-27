@@ -83,10 +83,6 @@ private:
   VideoHandler fn_;
 
   uint64_t cached_dram_bus_;
-
-  std::vector<uint8_t> screen_data_;
-  int32_t pixel_x_;
-  int32_t pixel_y_;
 };
 
 #endif //M6502_SRC_BEEB_H_
