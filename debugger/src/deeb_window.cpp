@@ -135,6 +135,7 @@ DeebWindow::run() {
   set_debug_buttons_running();
 
   brk_requested_ = false;
+
   QtConcurrent::run([&] {
     do {
       beeb_->tick();

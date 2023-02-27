@@ -6,7 +6,6 @@ Crt::Crt(const std::shared_ptr<Crtc> &crtc,
         , v_ula_{v_ula} //
         , renderer_{nullptr} //
 {
-  // Screen Data
   screen_data_.reserve(1280 * 768 * 3);
   pixel_x_ = 0;
   pixel_y_ = 0;

@@ -18,11 +18,11 @@ public:
 private:
   std::shared_ptr<Crtc> crtc_;
   std::shared_ptr<VideoUla> v_ula_;
-  Renderer renderer_;
   std::vector<uint8_t> screen_data_;
+  Renderer renderer_;
   int32_t pixel_x_;
   int32_t pixel_y_;
 
 };
 
-#endif //BEEB_HARDWARE_CRT_
+#endif // BEEB_HARDWARE_CRT_INCLUDE_H
