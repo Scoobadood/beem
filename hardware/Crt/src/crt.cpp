@@ -6,29 +6,29 @@ Crt::Crt(const std::shared_ptr<Crtc> &crtc,
         : crtc_{crtc} //
         , v_ula_{v_ula} //
         , renderer_{nullptr} //
+        , pixel_x_{0} //
+        , pixel_y_{0} //
+        , last_vs_{false} //
+        , last_hs_{false} //
 {
   screen_data_.reserve(1280 * 768 * 3);
-  pixel_x_ = 0;
-  pixel_y_ = 0;
 }
 
 void
 Crt::tick() {
-  static bool last_vs;
-  static bool last_hs;
 
   auto vs = crtc_->vsync();
   auto hs = crtc_->hsync();
 
   // HS just happened. Inc pix y and reset pix x
-  if (!hs && last_hs) {
+  if (!hs && last_hs_) {
 //    pixel_x_ = 0;
 //    ++pixel_y_;
   }
 
   // VS just happened.
   // Send the screen and reset pix x and pix y
-  if (!vs && last_vs) {
+  if (!vs && last_vs_) {
     renderer_(CRT_WIDTH, CRT_HEIGHT, screen_data_);
     pixel_x_ = 0;
     pixel_y_ = 0;
@@ -40,7 +40,6 @@ Crt::tick() {
     if (++pixel_y_ == CRT_HEIGHT) pixel_y_ = 0;
   }
 
-
   uint32_t pixel_colour = 0;
   if (crtc_->display_enable()) {
     pixel_colour = v_ula_->rgb();
@@ -49,6 +48,6 @@ Crt::tick() {
   screen_data_.push_back((pixel_colour >> 8) & 0xff);
   screen_data_.push_back((pixel_colour >> 0) & 0xff);
 
-  last_vs = vs;
-  last_hs = hs;
+  last_vs_ = vs;
+  last_hs_ = hs;
 }

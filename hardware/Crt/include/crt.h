@@ -13,7 +13,7 @@ public:
 
   void tick();
 
-  void set_renderer( const Renderer& renderer) {
+  void set_renderer(const Renderer &renderer) {
     renderer_ = renderer;
   }
 
@@ -27,6 +27,9 @@ private:
   Renderer renderer_;
   int32_t pixel_x_;
   int32_t pixel_y_;
+  bool last_vs_;
+  bool last_hs_;
+
 
 };
 
