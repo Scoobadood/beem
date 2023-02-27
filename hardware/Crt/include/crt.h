@@ -13,7 +13,12 @@ public:
 
   void update_screen();
 
-  void set_renderer( const Renderer& renderer) {renderer_ = renderer;}
+  void set_renderer( const Renderer& renderer) {
+    renderer_ = renderer;
+  }
+
+  const int CRT_HEIGHT = 1024;
+  const int CRT_WIDTH = 312;
 
 private:
   std::shared_ptr<Crtc> crtc_;
