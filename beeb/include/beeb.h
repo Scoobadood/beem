@@ -66,6 +66,8 @@ private:
   std::shared_ptr<Rom> basic_rom_;
   std::shared_ptr<Rom> mos_;
   std::shared_ptr<data_provider_8_bit> dummy_speech_provider_;
+  std::shared_ptr<VideoUla> v_ula_;
+  std::shared_ptr<Crtc> crtc_;
 
   Via *system_via_;
   Via *user_via_;
@@ -74,8 +76,6 @@ private:
   Keyboard *keyboard_;
   Acia *acia_;
   Adc *adc_;
-  VideoUla *v_ula_;
-  Crtc *crtc_;
 
   // Call back for monitor
   VideoHandler fn_;

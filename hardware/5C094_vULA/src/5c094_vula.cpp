@@ -183,7 +183,7 @@ void VideoUla::maybe_latch_new_data(const std::shared_ptr<Bus> &dram_bus) {
   }
 }
 
-void VideoUla::set_crtc(Crtc *crtc) {
+void VideoUla::set_crtc(const std::shared_ptr<Crtc> &crtc) {
   crtc_ = crtc;
 }
 

@@ -36,7 +36,7 @@ public:
 
   void set_clock(std::shared_ptr<Clock> clk) { clock_ = clk; }
 
-  void set_crtc(Crtc *crtc);
+  void set_crtc(const std::shared_ptr<Crtc> & crtc);
 
   void tick(const std::shared_ptr<Bus> &main_bus,
             const std::shared_ptr<Bus> &dram_bus);
@@ -79,7 +79,7 @@ private:
   uint8_t curr_data_;
 
   std::shared_ptr<Clock> clock_;
-  Crtc *crtc_;
+  std::shared_ptr<Crtc> crtc_;
 };
 
 #endif // BEEB_HARDWARE_5C095_VULA_H

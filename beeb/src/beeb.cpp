@@ -101,11 +101,11 @@ Beeb::Beeb(uint8_t boot_mode) //
 
 
   // Video ULA
-  v_ula_ = new VideoUla(0xfe20);
+  v_ula_ = make_shared<VideoUla>(0xfe20);
   v_ula_->set_clock(clock_);
 
   // CRTC
-  crtc_ = new Crtc(0xfe00);
+  crtc_ = make_shared<Crtc>(0xfe00);
   latch_->subscribe(crtc_->hw_scroll_addr());
   v_ula_->set_crtc(crtc_);
   system_via_->provide_ca1(crtc_->irq_provider());
