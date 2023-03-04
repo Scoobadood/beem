@@ -88,6 +88,10 @@ private:
   uint8_t reg_vert_sync_pos_;     //  R7
   uint8_t reg_vert_sync_width_;   //  R3
   uint8_t reg_ilace_skew_;        //  R8
+  uint8_t r8_interlace_mode_;
+  uint8_t r8_display_blanking_delay_;
+  uint8_t r8_cursor_blanking_delay_;
+
   uint8_t reg_max_raster_lines_;  //  R9
   uint8_t reg_curs_start_raster_; //  R10
   uint8_t reg_curs_end_raster_;   //  R11

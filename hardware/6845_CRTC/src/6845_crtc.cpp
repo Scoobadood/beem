@@ -194,9 +194,10 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       break;
 
     case REG_ILD: {
-      reg_ilace_skew_ = data & 0x3f;
+      reg_ilace_skew_ = data;
+      r8_interlace_mode_ = reg_ilace_skew_ & 0x03;
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to ILD.", data);
-      switch (reg_ilace_skew_ & 0x03) {
+      switch (r8_interlace_mode_) {
         case 0:
         case 1:
           spdlog::get("CRTC")->info("      Normal (non-interlaced) sync mode.");
@@ -208,7 +209,8 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
           spdlog::get("CRTC")->info("      Interlace sync and video.");
           break;
       }
-      switch ((reg_ilace_skew_ >> 2) & 0x03) {
+      r8_display_blanking_delay_ = (reg_ilace_skew_ >> 0x04) & 0x03;
+      switch (r8_display_blanking_delay_) {
         case 0:
           spdlog::get("CRTC")->info("      No display blanking delay.");
           break;
@@ -222,7 +224,8 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
           spdlog::get("CRTC")->info("      Video output disabled.");
           break;
       }
-      switch ((reg_ilace_skew_ >> 4) & 0x03) {
+      r8_cursor_blanking_delay_ = (reg_ilace_skew_ >> 0x06) & 0x03;
+      switch (r8_cursor_blanking_delay_) {
         case 0:
           spdlog::get("CRTC")->info("      No cursor blanking delay.");
           break;
@@ -504,7 +507,7 @@ void Crtc::handle_end_of_scan_line() {
   }
 
   // Increment scanline.
-  bool interlacedSyncAndVideo_ = ((reg_ilace_skew_ & 0x03) == 3);
+  bool interlacedSyncAndVideo_ = (r8_interlace_mode_ == 3);
   if (interlacedSyncAndVideo_) {
     raster_cnt_ = (raster_cnt_ + 2) & 0x1e;
   } else {
@@ -542,7 +545,7 @@ void Crtc::handle_end_of_scan_line() {
     // Testing indicates interlace is checked here, a clock before
     // it is entered or not.
     // Like vertical adjust, C4=R4+1.
-    if ((reg_ilace_skew_ & 1) && doEvenFrameLogic_) {
+    if ((r8_interlace_mode_ & 1) && doEvenFrameLogic_) {
       inDummyRaster_ = true;
       endOfFrameLatched_ = true;
     } else {
@@ -624,7 +627,7 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   // at the end of vertical adjust.
   // Without interlace, frames are 312 scanlines. With interlace,
   // both odd and even frames are 312.5 scanlines.
-  bool isInterlace = (reg_ilace_skew_ & 1);
+  bool isInterlace = (r8_interlace_mode_ & 1);
   // TODO: is this off-by-one? b2 uses regs[0]+1.
   // TODO: does this only hit at the half-scanline or is it a
   // half-scanline counter that starts when an R7 hit is noticed?
