@@ -21,6 +21,15 @@
 #include <cstdint>
 #include <string>
 
+const uint8_t VDISPENABLE = 1 << 0;
+const uint8_t HDISPENABLE = 1 << 1;
+const uint8_t SKEWDISPENABLE = 1 << 2;
+const uint8_t SCANLINEDISPENABLE = 1 << 3;
+const uint8_t USERDISPENABLE = 1 << 4;
+const uint8_t FRAMESKIPENABLE = 1 << 5;
+const uint8_t EVERYTHINGENABLED =
+        VDISPENABLE | HDISPENABLE | SKEWDISPENABLE | SCANLINEDISPENABLE | USERDISPENABLE | FRAMESKIPENABLE;
+
 class Crtc {
 public:
   explicit Crtc(uint16_t base_addr);
@@ -37,7 +46,7 @@ public:
 
 
   [[nodiscard]] inline bool display_enable() const {
-    return (h_disp_enable_ == 1) && (v_disp_enable_ == 1) && ((raster_cnt_ & 0x08) == 0);
+    return (dispEnabled_ & (HDISPENABLE | VDISPENABLE)) == (HDISPENABLE | VDISPENABLE);
   }
 
   [[nodiscard]] inline bool hsync() const { return h_sync_; }
@@ -78,33 +87,33 @@ private:
   uint8_t reg_select_;
 
   /* Registers */
-  uint8_t reg_horz_total_;        //  R0
-  uint8_t reg_horz_disp_;         //  R1
-  uint8_t reg_horz_sync_pos_;     //  R2
-  uint8_t reg_horz_sync_width_;   //  R3
-  uint8_t reg_vert_total_;        //  R4
-  uint8_t reg_vert_total_adj_;    //  R5
-  uint8_t reg_vert_disp_;         //  R6
-  uint8_t reg_vert_sync_pos_;     //  R7
-  uint8_t reg_vert_sync_width_;   //  R3
-  uint8_t reg_ilace_skew_;        //  R8
+  uint8_t reg_horz_total_;            //  R0
+  uint8_t reg_horz_disp_;             //  R1
+  uint8_t reg_horz_sync_pos_;         //  R2
+  uint8_t r3_horz_sync_pulse_width_;  //  R3
+  uint8_t r3_vert_sync_pulse_width_;  //  R3
+  uint8_t reg_vert_total_;            //  R4
+  uint8_t reg_vert_total_adj_;        //  R5
+  uint8_t reg_vert_disp_;             //  R6
+  uint8_t reg_vert_sync_pos_;         //  R7
+  uint8_t reg_ilace_skew_;            //  R8
+  bool r8_ilace_sync_and_video_;      //  R8
+  bool r8_is_interlace_;              //  R8
   uint8_t r8_interlace_mode_;
-  uint8_t r8_display_blanking_delay_;
-  uint8_t r8_cursor_blanking_delay_;
+  uint8_t r8_display_enable_skew_;       //  R8
+  uint8_t r8_cursor_delay_;           //  R8
 
   uint8_t reg_max_raster_lines_;  //  R9
   uint8_t reg_curs_start_raster_; //  R10
   uint8_t reg_curs_end_raster_;   //  R11
   uint16_t scr_start_addr_;   //  R12/R13
   uint16_t reg_curs_start_addr_;  //  R14/R15
-  uint8_t curs_blink_;
-  uint8_t curs_blink_rate_;
+  uint8_t r10_curs_blink_;
+  uint8_t r10_curs_blink_rate_;
   uint16_t light_pen_pos_;    //  R16
 
   /* Internal counters */
   uint8_t frame_cnt_;
-  bool oddClock_;
-  bool halfClock_;
 
   /* JSBeeb */
 
@@ -137,7 +146,7 @@ private:
   int cursorDrawIndex_;
 
   uint8_t dispEnabled_;
-  int32_t displayEnableSkew_;
+  int32_t r8_display_enable_skew_;
   bool isEvenRender_;
   bool lastRenderWasEven_;
   bool teletextMode_;

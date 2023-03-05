@@ -29,15 +29,6 @@ const uint8_t REG_CURSOR_POS_LO = 0x0f;
 const uint8_t REG_LPEN_POS_HI = 0x10;
 const uint8_t REG_LPEN_POS_LO = 0x11;
 
-const uint8_t VDISPENABLE = 1 << 0;
-const uint8_t HDISPENABLE = 1 << 1;
-const uint8_t SKEWDISPENABLE = 1 << 2;
-const uint8_t SCANLINEDISPENABLE = 1 << 3;
-const uint8_t USERDISPENABLE = 1 << 4;
-const uint8_t FRAMESKIPENABLE = 1 << 5;
-const uint8_t EVERYTHINGENABLED =
-        VDISPENABLE | HDISPENABLE | SKEWDISPENABLE | SCANLINEDISPENABLE | USERDISPENABLE | FRAMESKIPENABLE;
-
 Crtc::Crtc(uint16_t base_addr) //
         : base_addr_{base_addr} //
         , reg_select_{0}//
@@ -47,13 +38,13 @@ Crtc::Crtc(uint16_t base_addr) //
         , reg_vert_total_{0} //
         , reg_vert_total_adj_{0} //
         , reg_vert_disp_{0} //
-        , reg_horz_sync_width_{0} //
-        , reg_vert_sync_width_{0} //
+        , r3_horz_sync_pulse_width_{0} //
+        , r3_vert_sync_pulse_width_{0} //
         , reg_vert_sync_pos_{0} //
         , reg_ilace_skew_{0} //
         , reg_max_raster_lines_{0} //
-        , curs_blink_{0} //
-        , curs_blink_rate_{0} //
+        , r10_curs_blink_{0} //
+        , r10_curs_blink_rate_{0} //
         , reg_curs_start_raster_{0} //
         , reg_curs_end_raster_{0} //
         , scr_start_addr_{0} //
@@ -140,62 +131,54 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
   }
 
   auto data = bus->get_data();
+  spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to {}", data, register_name_[reg_select_]);
   switch (reg_select_) {
     case REG_HORZ_TOTAL:
       reg_horz_total_ = data;
-      sync();
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to horz_total", data);
       break;
 
     case REG_HORZ_DISP:
       reg_horz_disp_ = data;
-      sync();
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to horz_disp", data);
       break;
 
     case REG_HSYNC_POS:
       reg_horz_sync_pos_ = data;
-      sync();
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to hsync_pos", data);
       break;
 
     case REG_SYNCS: {
-      auto hw = data & 0xf;
-      auto vw = (data >> 4) & 0xf;
-      reg_vert_sync_width_ = (vw == 0) ? 16 : vw;
-      if (hw != 0) reg_horz_sync_width_ = hw;
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to reg_syncs.", data);
-      spdlog::get("CRTC")->info("      hsync_pulse is {:02x} {}", reg_horz_sync_width_, (hw == 0) ? "[ignored 0]" : "");
-      spdlog::get("CRTC")->info("      vsync_time_ is {:02x}", reg_vert_sync_width_);
+      r3_vert_sync_pulse_width_ = (data >> 4) & 0xf; // NB 0 == 16
+      auto hw = (data & 0xf);
+      if (hw != 0) r3_horz_sync_pulse_width_ = hw;
+      spdlog::get("CRTC")->info("      hsync_pulse_width is {:02x} {}", r3_horz_sync_pulse_width_,
+                                (hw == 0) ? "[ignored 0]" : "");
+      spdlog::get("CRTC")->info("      vsync_pulse_width is {:02x}", r3_vert_sync_pulse_width_);
     }
       break;
 
     case REG_VERT_TOTAL:
-      reg_vert_total_ = data;
-      sync();
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to vert_total", data);
+      reg_vert_total_ = data & 0x7f;
+      spdlog::get("CRTC")->info("      reg_vert_total_ : {:02x}", reg_vert_total_);
       break;
 
     case REG_VERT_TOTAL_ADJ:
-      reg_vert_total_adj_ = data;
-      sync();
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to vert_total_adj", data);
+      reg_vert_total_adj_ = data & 0x1f;
+      spdlog::get("CRTC")->info("      reg_vert_total_adj_ : {:02x}", reg_vert_total_adj_);
       break;
 
     case REG_VERT_TOTAL_DISP:
-      reg_vert_disp_ = data;
-      sync();
-      spdlog::get("CRTC")->info("CRTC: {:02x} to vert_total_disp", data);
+      reg_vert_disp_ = data & 0x7f;
+      spdlog::get("CRTC")->info("      reg_vert_disp_ : {:02x}", reg_vert_disp_);
       break;
 
     case REG_VSYNC_POS:
-      reg_vert_sync_pos_ = data;
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to vsync_pos", data);
+      reg_vert_disp_ = data & 0x7f;
+      spdlog::get("CRTC")->info("      reg_vert_disp_ : {:02x}", reg_vert_disp_);
       break;
 
     case REG_ILD: {
-      reg_ilace_skew_ = data;
-      r8_interlace_mode_ = reg_ilace_skew_ & 0x03;
+      reg_ilace_skew_ = data & 0xf3;
+      r8_ilace_sync_and_video_ = ((reg_ilace_skew_ & 0x03) == 3);
+      r8_is_interlace_ = (reg_ilace_skew_ & 0x01);
       spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to ILD.", data);
       switch (r8_interlace_mode_) {
         case 0:
@@ -209,10 +192,10 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
           spdlog::get("CRTC")->info("      Interlace sync and video.");
           break;
       }
-      r8_display_blanking_delay_ = (reg_ilace_skew_ >> 0x04) & 0x03;
-      switch (r8_display_blanking_delay_) {
+      r8_display_enable_skew_ = (reg_ilace_skew_ >> 0x04) & 0x03;
+      switch (r8_display_enable_skew_) {
         case 0:
-          spdlog::get("CRTC")->info("      No display blanking delay.");
+          spdlog::get("CRTC")->info("      No display enable delay.");
           break;
         case 1:
           spdlog::get("CRTC")->info("      One character display blanking delay.");
@@ -224,8 +207,15 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
           spdlog::get("CRTC")->info("      Video output disabled.");
           break;
       }
-      r8_cursor_blanking_delay_ = (reg_ilace_skew_ >> 0x06) & 0x03;
-      switch (r8_cursor_blanking_delay_) {
+      if (r8_display_enable_skew_ < 3) {
+        dispEnableSet(USERDISPENABLE);
+      } else {
+        // Handles mode 6 and mode 3 blank lines amongst others.
+        dispEnableClear(USERDISPENABLE);
+      }
+
+      r8_cursor_delay_ = (reg_ilace_skew_ >> 0x06) & 0x03;
+      switch (r8_cursor_delay_) {
         case 0:
           spdlog::get("CRTC")->info("      No cursor blanking delay.");
           break;
@@ -244,64 +234,47 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
 
     case REG_CHAR_SCAN_LINES:
       reg_max_raster_lines_ = data & 0x1f;
-      sync();
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to char_scan_lines. Scan lines set to {:02x}", data,
-                                reg_max_raster_lines_);
+      spdlog::get("CRTC")->info("      reg_max_raster_lines_ : {:02x}", reg_max_raster_lines_);
       break;
 
     case REG_CURSOR_START:
-      curs_blink_ = (data >> 6) & 0x01;
-      curs_blink_rate_ = (data >> 5) & 0x01;
+      r10_curs_blink_ = (data >> 6) & 0x01;
+      r10_curs_blink_rate_ = (data >> 5) & 0x01;
       reg_curs_start_raster_ = data & 0x1f;
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to cursor_start_reg.", data);
-      spdlog::get("CRTC")->info("      Cursor blink {}", curs_blink_ ? "enabled" : "disabled");
-      spdlog::get("CRTC")->info("      blink rate {}", curs_blink_rate_ ? "fast" : "slow");
+      spdlog::get("CRTC")->info("      Cursor blink {}", r10_curs_blink_ ? "enabled" : "disabled");
+      spdlog::get("CRTC")->info("      blink rate {}", r10_curs_blink_rate_ ? "fast" : "slow");
       spdlog::get("CRTC")->info("      start line {}.", reg_curs_start_raster_);
       break;
 
     case REG_CURSOR_END:
       reg_curs_end_raster_ = data & 0x1f;
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to cursor_end_line", reg_curs_end_raster_);
+      spdlog::get("CRTC")->info("      reg_curs_end_raster_ : {:02x}", reg_curs_end_raster_);
       break;
 
       // Changes here don't take effect until the next CRTC cycle
     case REG_SCREEN_ADDR_HI:
       scr_start_addr_ = (scr_start_addr_ & 0x00ff) | ((data & 0x3f) << 8);
-      sync();
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to scr_start_addr_hi.", data);
       spdlog::get("CRTC")->info("      Screen start address is {:04x}", scr_start_addr_);
       break;
 
       // Changes here don't take effect until the next CRTC cycle
     case REG_SCREEN_ADDR_LO:
       scr_start_addr_ = (scr_start_addr_ & 0x3f00) | data;
-      sync();
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to scr_start_addr_lo.", data);
       spdlog::get("CRTC")->info("      Screen start address is {:04x}", scr_start_addr_);
       break;
 
     case REG_CURSOR_POS_HI:
       reg_curs_start_addr_ = (reg_curs_start_addr_ & 0xff) | ((data & 0x3f) << 8);
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to cur_pos_hi.", data);
-      spdlog::get("CRTC")->info("      Cursor pos is x{:04x} : {},{}",
-                                reg_curs_start_addr_,
-                                ((reg_curs_start_addr_ >> 7) & 0x7f),
-                                (reg_curs_start_addr_ & 0x7f));
+      spdlog::get("CRTC")->info("      Cursor pos is {:04x}", reg_curs_start_addr_);
       break;
 
     case REG_CURSOR_POS_LO:
       reg_curs_start_addr_ = (reg_curs_start_addr_ & 0x3f00) | data;
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to cur_pos_lo.", data);
-      spdlog::get("CRTC")->info("      Cursor pos is x{:04x} : {},{}",
-                                reg_curs_start_addr_,
-                                ((reg_curs_start_addr_ >> 7) & 0x7f),
-                                (reg_curs_start_addr_ & 0x7f));
+      spdlog::get("CRTC")->info("      Cursor pos is {:04x}", reg_curs_start_addr_);
       break;
 
     default:
-      spdlog::error("CRTC: Attempted to write {:02x} to illegal register {} {}",
-                    data, reg_select_,
-                    reg_select_ <= 17 ? register_name_[reg_select_] : "???");
+      spdlog::error("CRTC: Attempted to write {:02x} to illegal register {}", data, reg_select_);
       break;
   }
 }
@@ -338,21 +311,21 @@ void Crtc::handle_cursor() {
   if (linear_addr_cnt_ == reg_curs_start_addr_) {
     if (raster_cnt_ >= reg_curs_start_raster_ && raster_cnt_ <= reg_curs_end_raster_) {
     }
-    if (!curs_blink_) cursor_enabled_ = true;
+    if (!r10_curs_blink_) cursor_enabled_ = true;
     else {
       /*Bit 5 is the blink timing control bit.
        * When bit 5=0, blink frequency = 16 times the field rate.
        * When bit 5=1, blink frequency = 32 times the field rate.
        */
       cursor_enabled_ =
-              (curs_blink_rate_ == 1 && (frame_cnt_ & 0x20)) || (curs_blink_rate_ == 0 && (frame_cnt_ & 0x10));
+              (r10_curs_blink_rate_ == 1 && (frame_cnt_ & 0x20)) || (r10_curs_blink_rate_ == 0 && (frame_cnt_ & 0x10));
 
     }
   }
 }
 
 
-void Crtc::correct_output_addr(uint16_t & addr) {
+void Crtc::correct_output_addr(uint16_t &addr) {
   auto c0c1 = hw_scroll_addr_->data();
   spdlog::get("CRTC")->info("Output address is {:04x}, correcting by c0c1 {:02x}", addr, c0c1);
   uint16_t addend = 0;
@@ -415,33 +388,7 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
  */
 void Crtc::handle_hsync() {
   hsync_width_cnt_ = (hsync_width_cnt_ + 1) & 0x0f;
-
-  /*
-   * The original jsbeeb code does a bunch of manipulation of the pixel X counter
-   * to split the hblank timing either side of the display area and create a border
-   * We should consider doing this in the outer VDU display code instead.
-   */
-  if (hsync_width_cnt_ == hsync_width_cnt_ >> 1) {
-    /*
-      // Start at -8 because the +8 is added before the pixel render.
-      bitmapX = -8;
-
-      // Half-clock horizontal movement
-      if (hsync_width_cnt_ & 1) {
-        bitmapX -= 4;
-      }
-
-      // The CRT vertical beam speed is constant, so this is actually
-      // an approximation that works if hsyncs are spaced evenly.
-      bitmapY += 2;
-
-      // If no VSync occurs this frame, go back to the top and force a repaint
-      if (bitmapY >= 768) {
-        // Arbitrary moment when TV will give up and start flyback in the absence of an explicit VSync signal
-        paintAndClear();
-      }
-      */
-  } else if (hsync_width_cnt_ == reg_horz_sync_width_) {
+  if (hsync_width_cnt_ == r3_horz_sync_pulse_width_) {
     h_sync_ = false;
   }
 }
@@ -461,8 +408,8 @@ void Crtc::handle_end_of_frame() {
   line_start_addr_ = next_line_start_addr_;
   dispEnableSet(VDISPENABLE);
 
-  cursorOnThisFrame_ = !curs_blink_ || (curs_blink_rate_ == 1 && (frame_cnt_ & 0x08)) ||
-                       (curs_blink_rate_ == 0 && (frame_cnt_ & 0x10));
+  cursorOnThisFrame_ = !r10_curs_blink_ || (r10_curs_blink_rate_ == 1 && (frame_cnt_ & 0x08)) ||
+                       (r10_curs_blink_rate_ == 0 && (frame_cnt_ & 0x10));
   lastRenderWasEven_ = isEvenRender_;
   isEvenRender_ = !(frameCount_ & 1);
   if (!v_sync_) {
@@ -587,15 +534,10 @@ void Crtc::handle_end_of_scan_line() {
  * @param dram_bus
  */
 void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
-  oddClock_ = !oddClock_;
-  if (halfClock_ && !oddClock_) {
-    return;
-  }
-
   if (h_sync_) handle_hsync();
 
   // Handle delayed display enable due to skew
-  auto displayEnablePos = displayEnableSkew_ + (teletextMode_ ? 2 : 0);
+  auto displayEnablePos = r8_display_enable_skew_ + (teletextMode_ ? 2 : 0);
   if (char_cnt_ == displayEnablePos) {
     dispEnableSet(SKEWDISPENABLE);
   }
@@ -636,7 +578,7 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   auto isVsyncPoint = !isInterlace || !doEvenFrameLogic_ || halfR0Hit;
   bool vSyncEnding = false;
   bool vSyncStarting = false;
-  if (v_sync_ && vsync_width_cnt_ == reg_vert_sync_width_ && isVsyncPoint) {
+  if (v_sync_ && vsync_width_cnt_ == r3_vert_sync_pulse_width_ && isVsyncPoint) {
     vSyncEnding = true;
     v_sync_ = false;
   }
