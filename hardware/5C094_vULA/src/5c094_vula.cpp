@@ -38,6 +38,11 @@ VideoUla::VideoUla(uint16_t base_addr) //
   }
 }
 
+/**
+ * Update ULA palette data
+ * data consists of a four bit logical colour in bits 4-7 and an
+ * actual colour in bits 0-3
+ */
 void VideoUla::write_palette(uint8_t data) {
   auto logical = (data >> 4) & 0xf;
   auto actual = data & 0xf;
@@ -45,6 +50,11 @@ void VideoUla::write_palette(uint8_t data) {
   spdlog::get("vULA")->info("vULA: Set palette logical {:02x} to actual {}", logical, colour_name_[actual]);
 }
 
+
+/*
+ * Write to ULA registers.
+ *
+ */
 void VideoUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
   auto data = bus->get_data();
   switch (addr - base_addr_) {
