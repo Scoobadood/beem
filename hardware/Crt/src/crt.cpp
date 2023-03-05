@@ -1,4 +1,5 @@
 #include "crt.h"
+#include "spdlog/spdlog.h"
 
 
 Crt::Crt(const std::shared_ptr<Crtc> &crtc,
@@ -11,43 +12,69 @@ Crt::Crt(const std::shared_ptr<Crtc> &crtc,
         , last_vs_{false} //
         , last_hs_{false} //
 {
-  screen_data_.reserve(1280 * 768 * 3);
+  screen_data_.resize(1024 * 768 * 3, 0);
+  even_frame_ = true;
+  warm_up_ = std::numeric_limits<uint16_t>::max() * 4;
+  ready_ = false;
 }
+
 
 void
 Crt::tick() {
+  if( !ready_) {
+    if( warm_up_-- == 0) ready_ = true;
+    return;
+  }
 
   auto vs = crtc_->vsync();
   auto hs = crtc_->hsync();
 
-  // HS just happened. Inc pix y and reset pix x
-  if (!hs && last_hs_) {
-//    pixel_x_ = 0;
-//    ++pixel_y_;
-  }
-
-  // VS just happened.
-  // Send the screen and reset pix x and pix y
-  if (!vs && last_vs_) {
-    renderer_(CRT_WIDTH, CRT_HEIGHT, screen_data_);
-    pixel_x_ = 0;
-    pixel_y_ = 0;
-    screen_data_.clear();
-  }
-
-  if (++pixel_x_ == CRT_WIDTH) {
-    pixel_x_ = 0;
-    if (++pixel_y_ == CRT_HEIGHT) pixel_y_ = 0;
-  }
-
   uint32_t pixel_colour = 0;
-  if (crtc_->display_enable()) {
+  if (vs) {
+    if (hs) {
+      pixel_colour = 0xffff00;
+    } else {
+      pixel_colour = 0xff0000;
+    }
+  } else if (hs) {
+    pixel_colour = 0x00ff00;
+  } else if (crtc_->display_enable()) {
     pixel_colour = v_ula_->rgb();
+  } else {
+    pixel_colour = 0x808080;
   }
-  screen_data_.push_back((pixel_colour >> 16) & 0xff);
-  screen_data_.push_back((pixel_colour >> 8) & 0xff);
-  screen_data_.push_back((pixel_colour >> 0) & 0xff);
+  auto pixel_addr_ = ((pixel_y_ * 1024) + pixel_x_) * 3;
+  if( pixel_addr_ >=0) {
+    screen_data_.at(pixel_addr_) = ((pixel_colour >> 16) & 0xff);
+    screen_data_.at(pixel_addr_ + 1) = ((pixel_colour >> 8) & 0xff);
+    screen_data_.at(pixel_addr_ + 2) = ((pixel_colour >> 0) & 0xff);
+  }
 
-  last_vs_ = vs;
+  ++pixel_x_;
+
+  if (hs && !last_hs_) {
+    pixel_x_ = 0;
+    pixel_y_ += 2;
+  }
+
+  if (vs && !last_vs_) {
+    pixel_x_ = even_frame_ ? 0 : pixel_x_;
+    pixel_y_ = even_frame_ ? -1 : 0;
+    even_frame_ = !even_frame_;
+    renderer_(1024, 768, screen_data_);
+  }
+
+  // Flyback at 768 anyway
+  if( pixel_x_ >=1024) {
+    spdlog::error( "PixelX is {}. Expected hsync before now. Manually resetting", pixel_x_);
+//    pixel_x_ = 0;
+  }
+  if (pixel_y_ >= 768) {
+    spdlog::error( "PixelY is {}. Expected vsync before now. Manually resetting", pixel_y_);
+    pixel_x_ = pixel_y_ = 0;
+    even_frame_ = true;
+    renderer_(1024, 768, screen_data_);
+  }
   last_hs_ = hs;
+  last_vs_ = vs;
 }

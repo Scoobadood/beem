@@ -17,8 +17,8 @@ public:
     renderer_ = renderer;
   }
 
-  static const int CRT_WIDTH = 1024; // 128 * 8
-  static const int CRT_HEIGHT = 312; // 39 * 8
+  static const int WIDTH = 1024; // 128 * 8
+  static const int HEIGHT = 625; // (39 * 8 +0.5) * 2
 
 private:
   std::shared_ptr<Crtc> crtc_;
@@ -29,8 +29,9 @@ private:
   int32_t pixel_y_;
   bool last_vs_;
   bool last_hs_;
-
-
+  bool even_frame_;
+  uint32_t warm_up_;
+  bool ready_;
 };
 
 #endif // BEEB_HARDWARE_CRT_INCLUDE_H
