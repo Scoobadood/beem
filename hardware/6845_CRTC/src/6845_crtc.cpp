@@ -31,7 +31,7 @@ const uint8_t REG_LPEN_POS_LO = 0x11;
 
 Crtc::Crtc(uint16_t base_addr) //
         : base_addr_{base_addr} //
-        , reg_select_{0}//
+        , selected_register_{0}//
         , reg_horz_total_{0} //
         , reg_horz_disp_{0} //
         , reg_horz_sync_pos_{0} //
@@ -47,9 +47,9 @@ Crtc::Crtc(uint16_t base_addr) //
         , r10_curs_blink_rate_{0} //
         , reg_curs_start_raster_{0} //
         , reg_curs_end_raster_{0} //
-        , scr_start_addr_{0} //
+        , reg_scr_start_addr_{0} //
         , reg_curs_start_addr_{0} //
-        , light_pen_pos_{0} //
+        , reg_light_pen_pos_{0} //
         , char_cnt_{0} //
         , line_cnt_{0} //
         , raster_cnt_{0} //
@@ -86,35 +86,41 @@ Crtc::Crtc(uint16_t base_addr) //
 }
 
 void Crtc::mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus) {
-  if (addr == CRTC_REG_SELECT) {
-    spdlog::error("CRTC: Invalid attempt to read from REG_SELECT");
+  if (addr != CRTC_READ_WRITE) {
+    spdlog::error("CRTC: Invalid attempt to read from {:04x}", addr);
+    bus->set_data(0);
     return;
   }
 
   auto data = bus->get_data();
-  switch (reg_select_) {
+  spdlog::get("CRTC")->info("CRTC: Trying to read from ({}) {}", selected_register_,
+                            selected_register_ < register_name_->size()
+                            ? register_name_[selected_register_]
+                            : "???");
+  switch (selected_register_) {
+    case REG_SCREEN_ADDR_HI:
+      data = (reg_scr_start_addr_ >> 8) & 0x3f;
+      break;
+    case REG_SCREEN_ADDR_LO:
+      data = reg_scr_start_addr_ & 0xff;
+      break;
     case REG_CURSOR_POS_HI:
       data = (reg_curs_start_addr_ >> 8) & 0x3f;
-      spdlog::get("CRTC")->info("CRTC: Read cursor position hi ({:02x})", data);
       break;
     case REG_CURSOR_POS_LO:
       data = reg_curs_start_addr_ & 0xff;
-      spdlog::get("CRTC")->info("CRTC: Read cursor position lo ({:02x})", data);
       break;
     case REG_LPEN_POS_HI:
-      data = (light_pen_pos_ >> 8) & 0x3f;
-      spdlog::get("CRTC")->info("CRTC: Read light pen position hi ({:02x})", data);
+      data = (reg_light_pen_pos_ >> 8) & 0x3f;
       break;
     case REG_LPEN_POS_LO:
-      data = reg_curs_start_addr_ & 0xff;
-      spdlog::get("CRTC")->info("CRTC: Read cursor position lo ({:02x})", data);
+      data = reg_light_pen_pos_ & 0xff;
       break;
     default:
-      spdlog::error("CRTC: Attempted illegal read from register {} {}",
-                    reg_select_,
-                    reg_select_ <= 17 ? register_name_[reg_select_] : "???");
+      spdlog::error("      Read not supported");
       return;
   }
+  spdlog::get("CRTC")->info("      read {:02x}", data);
   bus->set_data(data);
 }
 
@@ -126,13 +132,13 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
     } else {
       spdlog::get("CRTC")->info("CRTC: Selected {} register", register_name_[reg]);
     }
-    reg_select_ = reg & 0x1f;
+    selected_register_ = reg & 0x1f;
     return;
   }
 
   auto data = bus->get_data();
-  spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to {}", data, register_name_[reg_select_]);
-  switch (reg_select_) {
+  spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to {}", data, register_name_[selected_register_]);
+  switch (selected_register_) {
     case REG_HORZ_TOTAL:
       reg_horz_total_ = data;
       break;
@@ -253,14 +259,14 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
 
       // Changes here don't take effect until the next CRTC cycle
     case REG_SCREEN_ADDR_HI:
-      scr_start_addr_ = (scr_start_addr_ & 0x00ff) | ((data & 0x3f) << 8);
-      spdlog::get("CRTC")->info("      Screen start address is {:04x}", scr_start_addr_);
+      reg_scr_start_addr_ = (reg_scr_start_addr_ & 0x00ff) | ((data & 0x3f) << 8);
+      spdlog::get("CRTC")->info("      Screen start address is {:04x}", reg_scr_start_addr_);
       break;
 
       // Changes here don't take effect until the next CRTC cycle
     case REG_SCREEN_ADDR_LO:
-      scr_start_addr_ = (scr_start_addr_ & 0x3f00) | data;
-      spdlog::get("CRTC")->info("      Screen start address is {:04x}", scr_start_addr_);
+      reg_scr_start_addr_ = (reg_scr_start_addr_ & 0x3f00) | data;
+      spdlog::get("CRTC")->info("      Screen start address is {:04x}", reg_scr_start_addr_);
       break;
 
     case REG_CURSOR_POS_HI:
@@ -274,7 +280,7 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       break;
 
     default:
-      spdlog::error("CRTC: Attempted to write {:02x} to illegal register {}", data, reg_select_);
+      spdlog::error("CRTC: Attempted to write {:02x} to illegal register {}", data, selected_register_);
       break;
   }
 }
@@ -404,7 +410,7 @@ void Crtc::dispEnableClear(uint8_t flag) {
 void Crtc::handle_end_of_frame() {
   line_cnt_ = 0;
   first_raster_ = true;
-  next_line_start_addr_ = scr_start_addr_;
+  next_line_start_addr_ = reg_scr_start_addr_;
   line_start_addr_ = next_line_start_addr_;
   dispEnableSet(VDISPENABLE);
 
@@ -569,13 +575,12 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   // at the end of vertical adjust.
   // Without interlace, frames are 312 scanlines. With interlace,
   // both odd and even frames are 312.5 scanlines.
-  bool isInterlace = (r8_interlace_mode_ & 1);
   // TODO: is this off-by-one? b2 uses regs[0]+1.
   // TODO: does this only hit at the half-scanline or is it a
   // half-scanline counter that starts when an R7 hit is noticed?
 
   auto halfR0Hit = (char_cnt_ == reg_horz_total_ >> 1);
-  auto isVsyncPoint = !isInterlace || !doEvenFrameLogic_ || halfR0Hit;
+  auto isVsyncPoint = !r8_is_interlace_ || !doEvenFrameLogic_ || halfR0Hit;
   bool vSyncEnding = false;
   bool vSyncStarting = false;
   if (v_sync_ && vsync_width_cnt_ == r3_vert_sync_pulse_width_ && isVsyncPoint) {

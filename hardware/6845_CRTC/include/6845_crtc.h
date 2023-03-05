@@ -84,7 +84,7 @@ private:
   void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
 
   uint16_t base_addr_;
-  uint8_t reg_select_;
+  uint8_t selected_register_;
 
   /* Registers */
   uint8_t reg_horz_total_;            //  R0
@@ -99,18 +99,18 @@ private:
   uint8_t reg_ilace_skew_;            //  R8
   bool r8_ilace_sync_and_video_;      //  R8
   bool r8_is_interlace_;              //  R8
-  uint8_t r8_interlace_mode_;
-  uint8_t r8_display_enable_skew_;       //  R8
+  uint8_t r8_interlace_mode_;         //  R8
+  uint8_t r8_display_enable_skew_;    //  R8
   uint8_t r8_cursor_delay_;           //  R8
 
   uint8_t reg_max_raster_lines_;  //  R9
   uint8_t reg_curs_start_raster_; //  R10
   uint8_t reg_curs_end_raster_;   //  R11
-  uint16_t scr_start_addr_;   //  R12/R13
+  uint16_t reg_scr_start_addr_;   //  R12/R13
   uint16_t reg_curs_start_addr_;  //  R14/R15
   uint8_t r10_curs_blink_;
   uint8_t r10_curs_blink_rate_;
-  uint16_t light_pen_pos_;    //  R16
+  uint16_t reg_light_pen_pos_;    //  R16
 
   /* Internal counters */
   uint8_t frame_cnt_;
@@ -146,7 +146,6 @@ private:
   int cursorDrawIndex_;
 
   uint8_t dispEnabled_;
-  int32_t r8_display_enable_skew_;
   bool isEvenRender_;
   bool lastRenderWasEven_;
   bool teletextMode_;
