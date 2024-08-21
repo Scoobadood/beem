@@ -4,7 +4,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
 
-list(APPEND CMAKE_PREFIX_PATH "/Users/dave/Qt_5.15/6.2.4/macos/lib/cmake")
+list(APPEND CMAKE_PREFIX_PATH "/Users/dave/Qt/6.7.0/macos/lib/cmake")
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
 add_executable(deeb
