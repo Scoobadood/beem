@@ -16,7 +16,7 @@
 #include <QtConcurrent/QtConcurrent>
 
 VduView::VduView(QWidget *parent) //
-        : QLabel{parent} //
+    : QLabel{parent} //
 {
   setScaledContents(false);
   last_width_ = -1;
@@ -29,9 +29,9 @@ VduView::VduView(QWidget *parent) //
   setAttribute(Qt::WA_Hover);
 }
 
-void VduView::screen_changed(int32_t width, int32_t height, const std::vector<uint8_t>& scr_data) {
+void VduView::screen_changed(int32_t width, int32_t height, const std::vector<uint8_t> &scr_data) {
   // ARBITRARY values to prevent ugliness while machine is booting.
-  if( width < 1 || width > 1280 || height < 1 || height > 1024) return;
+  if (width < 1 || width > 1280 || height < 1 || height > 1024) return;
   if (width != last_width_ || height != last_height_) {
     delete image_;
     image_ = new QImage(width, height, QImage::Format_RGB888);
@@ -46,7 +46,7 @@ void VduView::screen_changed(int32_t width, int32_t height, const std::vector<ui
   pixmap_->convertFromImage(*image_);
   int w = contentsRect().width();
   int h = contentsRect().height();
-    setPixmap(*pixmap_);
+  setPixmap(*pixmap_);
 //  if (w < h) {
 //    int ah = (w * 576.0 / 720.0);
 //    setPixmap(pixmap_->scaled(w, ah, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
