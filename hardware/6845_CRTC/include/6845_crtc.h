@@ -3,9 +3,12 @@
  * This is the heart of the BBC Micro's video circuitry. Its major function is that of displaying the video data
  * in memory on a raster scan display device such as a television or monitor. As a bonus, the sequential nature
  * of accessing the system RAM for the video display refreshes all the DRAM storage.
+ *
  * The CRTC does not interfere with CPU access to the memory, as they operate on alternate phases of the system clock.
  * The 6845 is responsible for producing the correct format on the display device, positioning the cursor, and
- * monitoring the light pen input. Other video functions involving colour and Teletext are dealt with by the
+ * monitoring the light pen input.
+ *
+ * Other video functions involving colour and Teletext are dealt with by the
  * video ULA (IC6) and the Teletext Character Generator (IC5).
  *
  * http://www.6502.org/users/andre/hwinfo/crtc/crtc.html
@@ -21,14 +24,14 @@
 #include <cstdint>
 #include <string>
 
-const uint8_t VDISPENABLE = 1 << 0;
-const uint8_t HDISPENABLE = 1 << 1;
-const uint8_t SKEWDISPENABLE = 1 << 2;
-const uint8_t SCANLINEDISPENABLE = 1 << 3;
-const uint8_t USERDISPENABLE = 1 << 4;
-const uint8_t FRAMESKIPENABLE = 1 << 5;
-const uint8_t EVERYTHINGENABLED =
-        VDISPENABLE | HDISPENABLE | SKEWDISPENABLE | SCANLINEDISPENABLE | USERDISPENABLE | FRAMESKIPENABLE;
+const uint8_t VSYNC_DISP_ENABLE = 1 << 0;
+const uint8_t HSYNC_DISP_ENABLE = 1 << 1;
+const uint8_t SKEW_DISP_ENABLE = 1 << 2;
+const uint8_t SCANLINE_DISP_ENABLE = 1 << 3;
+const uint8_t USER_DISP_ENABLE = 1 << 4;
+const uint8_t FRAME_SKIP_ENABLE = 1 << 5;
+const uint8_t EVERYTHING_ENABLED =
+        VSYNC_DISP_ENABLE | HSYNC_DISP_ENABLE | SKEW_DISP_ENABLE | SCANLINE_DISP_ENABLE | USER_DISP_ENABLE | FRAME_SKIP_ENABLE;
 
 class Crtc {
 public:
@@ -46,7 +49,7 @@ public:
 
 
   [[nodiscard]] inline bool display_enable() const {
-    return (dispEnabled_ & (HDISPENABLE | VDISPENABLE)) == (HDISPENABLE | VDISPENABLE);
+    return (display_enabled_ & (HSYNC_DISP_ENABLE | VSYNC_DISP_ENABLE)) == (HSYNC_DISP_ENABLE | VSYNC_DISP_ENABLE);
   }
 
   [[nodiscard]] inline bool hsync() const { return h_sync_; }
@@ -63,13 +66,13 @@ public:
 private:
   void latch_address(const std::shared_ptr<Bus> &dram_bus);
 
-  void dispEnableSet(uint8_t flag);
+  void set_disp_enable(uint8_t flag);
 
-  void dispEnableClear(uint8_t flag);
+  void clear_disp_enable(uint8_t flag);
 
   void handle_cursor();
 
-  void handle_hsync();
+  void maybe_handle_hsync();
 
   void handle_end_of_frame();
 
@@ -126,7 +129,7 @@ private:
 
   int16_t line_cnt_;
   int16_t line_start_addr_;
-  int16_t next_line_start_addr_;
+  uint16_t next_line_start_addr_;
   int32_t vsync_width_cnt_;
   bool v_sync_;
   bool had_vsync_this_raster_;
@@ -137,7 +140,7 @@ private:
   bool end_of_v_adj_latched_;
 
   int16_t frameCount_;
-  bool doEvenFrameLogic_;
+  bool do_even_frame_logic_;
   bool cursorOnThisFrame_;
   bool endOfFrameLatched_;
 
@@ -145,10 +148,10 @@ private:
   bool cursorOff_;
   int cursorDrawIndex_;
 
-  uint8_t dispEnabled_;
+  uint8_t display_enabled_;
   bool isEvenRender_;
   bool lastRenderWasEven_;
-  bool teletextMode_;
+  bool teletext_mode_;
   bool endOfMainLatched_;
   bool inDummyRaster_;
 
