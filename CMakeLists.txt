@@ -9,7 +9,7 @@ set(CMAKE_OSX_ARCHITECTURES "arm64")
 set(GIT_VERSION_STRING "git version 2.20.1 (Apple Git-117)")
 set(CMAKE_CXX_FLAGS_DEBUG "-glldb -O0 -Wall")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall")
-set(CMAKE_CXX_FLAGS_DEBUG_COVERAGE "-g -O0 -Wall -fprofile-arcs -ftest-coverage")
+set(CMAKE_CXX_FLAGS_DEBUG_COVERAGE "-g -O0 -Wall -fprofile-arcs -ftest-coverage -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer")
 
 # Write targets to bin directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)

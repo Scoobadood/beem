@@ -1,14 +1,10 @@
 /.qtc_clangd/
-/build-debugger-Qt_5_15_2_clang_64_temporary-Debug/
-/cmake-build-debug/
-/build/
 /bin/
 /lib/
 /docs/
 logs/
 /data/
 
-cmake-build-debug/
 
 **CMakeLists.txt.user
 
@@ -19,3 +15,7 @@ debugger/src/breakpoint_dlg.ui.autosave
 
 .idea/
 
+/cmake-build-release/
+/cmake-build-relwithdebinfo-coverage/
+/cmake-build-relwithdebinfo/
+/cmake-build-debug/
