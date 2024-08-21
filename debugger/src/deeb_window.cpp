@@ -232,14 +232,14 @@ void DeebWindow::paste_text() {
         beeb_->press_key(buff[i]);
         if (buff[i] == KEY_SHIFT)
           beeb_->press_key(buff[++i]);
-        msleep(50);
+        msleep(120);
         if (buff[i] == KEY_RETURN) {
-          msleep(500);
+          msleep(1000);
         }
         beeb_->release_key(buff[i]);
         if (buff[i - 1] == KEY_SHIFT)
           beeb_->release_key(buff[i - 1]);
-        msleep(50);
+        msleep(120);
       }
     }
   };
