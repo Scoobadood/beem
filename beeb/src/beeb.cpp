@@ -4,6 +4,7 @@
 
 #include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <fstream>
 
 /* Memory Map constants */
 const uint16_t DRAM_BASE = 0x0000;
@@ -35,7 +36,7 @@ const uint16_t MMIO_JIM_START = 0xfd00;
 const uint16_t MMIO_JIM_END = 0xfdff;
 
 Beeb::Beeb(uint8_t boot_mode) //
-        : cached_dram_bus_{0} //
+    : cached_dram_bus_{0} //
 {
   using namespace std;
 
@@ -82,7 +83,7 @@ Beeb::Beeb(uint8_t boot_mode) //
   system_via_->provide_ca2(keyboard_->irq_provider());
 
   class dsp : public data_provider_8_bit {
-  public:
+   public:
     virtual ~dsp() = default;
 
     inline bool has_data() const override { return true; }
@@ -232,9 +233,9 @@ void Beeb::tick() {
     cached_dram_bus_ = dram_bus_->get_pins();
   }
 
-// CPU normally does internal work in LOW phase and then
-// Bus RW in high phase. We're phaking it so we just go
-// Off the high phase which also makes the isolation code work.
+  // CPU normally does internal work in LOW phase and then
+  // Bus RW in high phase. We're phaking it so we just go
+  // Off the high phase which also makes the isolation code work.
   if (clock_->went_high(CLK_E_2_MHZ)) {
     spdlog::get("BusDance")->debug("BEEB: 2MHzE went high. CPU starting work.");
 

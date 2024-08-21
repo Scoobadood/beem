@@ -91,10 +91,13 @@ void TestCrtc::SetUp() {
   set_register(9, 0x07);
   set_register(10, 0x67);
   set_register(11, 0x08);
-  set_register(12, 0x0b);
+  set_register(12, 0x0b); // 0x5800 / 8
   set_register(13, 0x00);
   set_register(14, 0x0b);
   set_register(15, 0x00);
+
+  crtc_->hw_scroll_addr()->set_data(4,true);
+  crtc_->hw_scroll_addr()->set_data(5,true);
 }
 
 TEST_F(TestCrtc, test_mode_4_sequence) {
