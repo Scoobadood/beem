@@ -61,7 +61,8 @@ Crtc::Crtc(uint16_t base_addr) //
     , h_disp_enable_{0} //
     , v_disp_enable_{0} //
     , first_raster_{true}//
-    ,isEvenRender_{true}//
+    , start_of_frame_{true}//
+    , isEvenRender_{true}//
     , display_enabled_{FRAME_SKIP_ENABLE}//
     , register_name_
           {
@@ -299,24 +300,35 @@ void Crtc::handle_cursor() {
   }
 }
 
+/*
+ Inputs	Outputs	Meanings
+ MA12  C1 C0	Amount 	      Restart	MODEs
+                to subtract   address
+  0	   x  x	    0             n/a       0..6
+  1	   0  0	    &4000         &4000	    3
+  1    0  1	    &2000         &6000	    6
+  1    1  0	    &5000         &3000	    0,1,2
+  1    1  1	    &2800         &5800	    4,5
+
+ */
 void Crtc::correct_output_addr(uint16_t &addr) {
-  auto c0c1 = hw_scroll_addr_->data();
+  auto c0c1 = hw_scroll_addr_->data() >> 4;
   spdlog::get("CRTC")->info("Output address is {:04x}, correcting by c0c1 {:02x}", addr, c0c1);
-  uint16_t addend = 0;
+  uint16_t subtrahend = 0;
   switch (c0c1) {
-    case 0x00:addend = 0x4000;
+    case 0x00:subtrahend = 0x4000;
       break;
-    case 0x10:addend = 0x3000;
+    case 0x01:subtrahend = 0x2000;
       break;
-    case 0x20:addend = 0x6000;
+    case 0x02:subtrahend = 0x5000;
       break;
-    case 0x30:addend = 0x5800;
+    case 0x03:subtrahend = 0x2800;
       break;
     default:spdlog::get("CRTC")->error("Latch bits for base addr have crazy value ({:02x})", c0c1);
       spdlog::error("Latch bits for base addr have crazy value ({:02x})", c0c1);
       break;
   }
-  addr = (addr + addend) & 0x7fff;
+  addr = (addr - subtrahend);
   spdlog::get("CRTC")->info("   corrected to {:04x}", addr);
 }
 
@@ -356,7 +368,7 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
  * Reset hsync when the width count has passed.
  */
 void Crtc::maybe_handle_hsync() {
-  if(!h_sync_) return;
+  if (!h_sync_) return;
 
   hsync_width_cnt_ = (hsync_width_cnt_ + 1) & 0x0f;
   if (hsync_width_cnt_ == r3_horz_sync_pulse_width_) {
@@ -375,7 +387,8 @@ void Crtc::clear_disp_enable(uint8_t flag) {
 void Crtc::handle_end_of_frame() {
   line_cnt_ = 0;
   first_raster_ = true;
-  next_line_start_addr_ = reg_scr_start_addr_;// this.nextLineStartAddr = (this.regs[13] | (this.regs[12] << 8)) & 0x3fff;
+  next_line_start_addr_ =
+      reg_scr_start_addr_;// this.nextLineStartAddr = (this.regs[13] | (this.regs[12] << 8)) & 0x3fff;
   line_start_addr_ = next_line_start_addr_;
   set_disp_enable(VSYNC_DISP_ENABLE);
 
@@ -476,6 +489,7 @@ void Crtc::handle_end_of_scan_line() {
     end_of_v_adj_latched_ = false;
     endOfFrameLatched_ = false;
     inDummyRaster_ = false;
+    start_of_frame_ = true;
 
     handle_end_of_char_line();
     handle_end_of_frame();
@@ -505,6 +519,12 @@ void Crtc::handle_end_of_scan_line() {
  * @param dram_bus
  */
 void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
+  if (start_of_frame_) {
+    linear_addr_cnt_ = reg_scr_start_addr_;
+    line_start_addr_ = linear_addr_cnt_;
+    start_of_frame_ = false;
+  }
+
   // Turn off if on and pulse width elapsed
   maybe_handle_hsync();
 
