@@ -49,7 +49,7 @@ public:
 
 
   [[nodiscard]] inline bool display_enable() const {
-    return (display_enabled_ & (HSYNC_DISP_ENABLE | VSYNC_DISP_ENABLE)) == (HSYNC_DISP_ENABLE | VSYNC_DISP_ENABLE);
+    return ((display_enabled_ & EVERYTHING_ENABLED)==EVERYTHING_ENABLED);// & (HSYNC_DISP_ENABLE | VSYNC_DISP_ENABLE)) == (HSYNC_DISP_ENABLE | VSYNC_DISP_ENABLE);
   }
 
   [[nodiscard]] inline bool hsync() const { return h_sync_; }
@@ -117,6 +117,8 @@ private:
 
   /* Internal counters */
   uint8_t frame_cnt_;
+
+  bool start_of_frame_;
 
   /* JSBeeb */
 
