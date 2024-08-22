@@ -29,19 +29,15 @@ Crt::tick() {
   auto vs = crtc_->vsync();
   auto hs = crtc_->hsync();
 
-  uint32_t pixel_colour = 0;
+  uint32_t pixel_colour = 0x808080;
   if (vs) {
-    if (hs) {
-      pixel_colour = 0xffff00;
-    } else {
-      pixel_colour = 0xff0000;
-    }
-  } else if (hs) {
-    pixel_colour = 0x00ff00;
-  } else if (crtc_->display_enable()) {
+      pixel_colour |= 0xff0000;
+  }
+  if (hs) {
+    pixel_colour |= 0x00ff00;
+  }
+  if (!hs && !vs && crtc_->display_enable()) {
     pixel_colour = v_ula_->rgb();
-  } else {
-    pixel_colour = 0x808080;
   }
   auto pixel_addr_ = ((pixel_y_ * 1024) + pixel_x_) * 3;
   if( pixel_addr_ >=0) {
@@ -65,12 +61,12 @@ Crt::tick() {
   }
 
   // Flyback at 768 anyway
-  if( pixel_x_ >=1024) {
-    spdlog::error( "PixelX is {}. Expected hsync before now. Manually resetting", pixel_x_);
-//    pixel_x_ = 0;
-  }
+//  if( pixel_x_ >=1024) {
+//    spdlog::error( "PixelX is {}. Expected hsync before now. Manually resetting", pixel_x_);
+////    pixel_x_ = 0;
+//  }
   if (pixel_y_ >= 768) {
-    spdlog::error( "PixelY is {}. Expected vsync before now. Manually resetting", pixel_y_);
+//    spdlog::error( "PixelY is {}. Expected vsync before now. Manually resetting", pixel_y_);
     pixel_x_ = pixel_y_ = 0;
     even_frame_ = true;
     renderer_(1024, 768, screen_data_);
