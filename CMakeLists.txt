@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(Beeb
+project(libs/beeb
         VERSION 0.1
         LANGUAGES CXX)
 
@@ -51,7 +51,5 @@ FetchContent_MakeAvailable(googletest)
 # Enable Test
 enable_testing()
 
-add_subdirectory(hardware)
-add_subdirectory(beeb)
-add_subdirectory(debugger)
-add_subdirectory(common)
+add_subdirectory(apps)
+add_subdirectory(libs)

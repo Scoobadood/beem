@@ -10,8 +10,8 @@ logs/
 
 .qtc_clangd
 
-/debugger/Beeb.*
-debugger/src/breakpoint_dlg.ui.autosave
+/apps/debugger/Beeb.*
+apps/debugger/src/breakpoint_dlg.ui.autosave
 
 .idea/
 
@@ -19,3 +19,7 @@ debugger/src/breakpoint_dlg.ui.autosave
 /cmake-build-relwithdebinfo-coverage/
 /cmake-build-relwithdebinfo/
 /cmake-build-debug/
+/build
+apps/crtc_inspector/build/
+apps/crtc_inspector/src/crtc_view.ui.autosave
+CMakeLists.txt.user.903709d
