@@ -682,6 +682,7 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   if (v_sync_ && (vsync_width_cnt_ == r3_vert_sync_pulse_width_) && should_trigger_v_sync) {
     v_sync_ending = true;
     v_sync_ = false;
+    irq_provider_->provide_data(0x00);
   }
   if ((character_line_cnt_ == reg_vert_sync_pos_) && !v_sync_ && !had_vsync_this_raster_ && should_trigger_v_sync) {
     v_sync_starting = true;
@@ -699,6 +700,8 @@ void Crtc::generate_next_address(const std::shared_ptr<Bus> &dram_bus) {
   if (v_sync_starting && !v_sync_ending) {
     had_vsync_this_raster_ = true;
     vsync_width_cnt_ = 0;
+    // Raise vsync
+    irq_provider_->provide_data(0xff);
   }
 
   if (v_sync_starting || v_sync_ending) {

@@ -18,6 +18,7 @@
 #include "6845_crtc.h"
 #include "crt.h"
 #include "clock.h"
+#include "../../hardware/2C198_sULA/include/2c198_sula.h"
 
 class Beeb {
 public:
@@ -43,7 +44,11 @@ public:
 
   [[nodiscard]] std::vector<uint8_t> get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const;
 
-private:
+  void load_data(const std::vector<uint8_t>& data, uint16_t address);
+
+  void add_cassette_listener(const std::function<void(bool)>& listener);
+
+ private:
   bool cpu_has_address_bus();
 
   void pre_dram_checks();
@@ -61,6 +66,7 @@ private:
   std::shared_ptr<Rom> mos_;
   std::shared_ptr<data_provider_8_bit> dummy_speech_provider_;
   std::shared_ptr<VideoUla> v_ula_;
+  std::shared_ptr<SerialUla> s_ula_;
   std::shared_ptr<Crtc> crtc_;
   std::shared_ptr<Crt> crt_;
 
@@ -69,10 +75,13 @@ private:
   IC32Latch *latch_;
   SN76489 *sound_chip_;
   Keyboard *keyboard_;
-  Acia *acia_;
+  std::shared_ptr<Acia> acia_;
   Adc *adc_;
 
   uint64_t cached_dram_bus_;
+
+  std::vector<std::function<void(bool)>> cassette_listeners_;
+  bool last_cassette_motor_;
 };
 
 #endif //M6502_SRC_BEEB_H_

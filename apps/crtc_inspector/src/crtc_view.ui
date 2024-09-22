@@ -2187,7 +2187,7 @@
          </sizepolicy>
         </property>
         <property name="title">
-         <string>State</string>
+         <string>TransmitState</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_6">
          <property name="spacing">

@@ -18,6 +18,7 @@ target_link_libraries(Beeb
         SN76489
         Keyboard
         Acia
+        2C198_sULA
         Adc
         5C094_vULA
         6845_CRTC

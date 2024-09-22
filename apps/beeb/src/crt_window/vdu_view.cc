@@ -42,6 +42,7 @@ void VduView::paintEvent(QPaintEvent *event) {
 
   // Source rect - eiher the whole ting or just the display area
   QRect sourceRect(DE_LEFT, DE_TOP, DE_WIDTH, DE_HEIGHT);
+//  QRect sourceRect(0, 0, image_->width(), image_->height());
 
   double aspectRatio = static_cast<double>(DE_WIDTH) / DE_HEIGHT;
   auto widgetWidth = width();

@@ -6,6 +6,7 @@
 #include <QFileDialog>
 #include <fstream>
 #include <QVBoxLayout>
+#include <UEF/uef.h>
 
 DebuggerWindow::DebuggerWindow(
     BreakpointManager * breakpoint_manager,

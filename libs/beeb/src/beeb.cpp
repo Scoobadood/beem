@@ -16,11 +16,12 @@ const uint16_t BASIC_ROM_LAST = 0xBfff;
 const uint16_t MOS_ROM_BASE = 0xC000;
 
 /* MMIO addresses */
-const uint16_t MMIO_SULA_START = 0xfe08;
-const uint16_t MMIO_SULA_END = 0xfe1f;
 const uint16_t MMIO_CRTC_REG_SEL = 0xfe00;
 const uint16_t MMIO_CRTC_READ_WRITE = 0xfe01;
-const uint16_t MMIO_ACIA = 0xfe08;
+const uint16_t MMIO_ACIA_START = 0xfe08;
+const uint16_t MMIO_ACIA_END = 0xfe0f;
+const uint16_t MMIO_SULA_START = 0xfe10;
+const uint16_t MMIO_SULA_END = 0xfe1f;
 const uint16_t MMIO_ECONET_STATID = 0xfe18;
 const uint16_t MMIO_VULA_REG_SEL = 0xfe20;
 const uint16_t MMIO_VULA_PLT = 0xfe21;
@@ -37,6 +38,7 @@ const uint16_t MMIO_JIM_END = 0xfdff;
 
 Beeb::Beeb(uint8_t boot_mode) //
     : cached_dram_bus_{0} //
+    , last_cassette_motor_{false} //
 {
   using namespace std;
 
@@ -92,7 +94,12 @@ Beeb::Beeb(uint8_t boot_mode) //
   system_via_->provide_port_b(dummy_speech_provider_);
 
   // ACIA
-  acia_ = new Acia();
+  acia_ = make_shared<Acia>(0xfe08);
+
+  // Serial ULA
+  s_ula_ = make_shared<SerialUla>(0xfe10);
+  s_ula_->set_acia(acia_);
+
 
   // ADC
   adc_ = new Adc(0xfec0);
@@ -135,9 +142,9 @@ bool Beeb::cpu_has_address_bus() {
 }
 
 /*
- * Return true if the address on the bus corresponds to 1MHz HW, specifically:
- * -
- *
+ * Return true if the device is addressed at 1MHz
+ * Data source from here:
+ * https://beebwiki.mdfs.net/Cycle_stretching
  */
 bool Beeb::is_1mhz_device_address(const std::shared_ptr<Bus> &bus) {
   auto addr = bus->get_address();
@@ -146,9 +153,9 @@ bool Beeb::is_1mhz_device_address(const std::shared_ptr<Bus> &bus) {
   if (addr == MMIO_CRTC_READ_WRITE || addr == MMIO_CRTC_REG_SEL) return true;
 
   /* ACIA */
-  if (addr == MMIO_ACIA) return true;
+  if (addr >= MMIO_ACIA_START && addr <= MMIO_ACIA_END) return true;
 
-  /* Serial ULA */
+  /* SULA */
   if (addr >= MMIO_SULA_START && addr <= MMIO_SULA_END) return true;
 
   /* Econet station id */
@@ -237,7 +244,8 @@ void Beeb::tick() {
   if (clock_->went_high(CLK_E_2_MHZ)) {
     spdlog::get("BusDance")->debug("BEEB: 2MHzE went high. CPU starting work.");
 
-    if (system_via_->has_irq()) cpu_->raise_irq(); else cpu_->clear_irq();
+    if (system_via_->has_irq() || acia_->has_irq()) cpu_->raise_irq();
+    else cpu_->clear_irq();
 
     cpu_->tick(bus_);
     spdlog::get("BusDance")->debug("CPU  : finished work. Main bus {:04x} {:02x} {} {}",
@@ -300,11 +308,22 @@ void Beeb::tick() {
 //    sound_chip_->tick();
     acia_->tick(bus_);
 //    adc_->tick(bus_);
+    s_ula_->tick(bus_);
+    // notify listeners of stuff
+    auto scm = s_ula_->is_motor_on();
+    if (scm != last_cassette_motor_) {
+      for (const auto &fn : cassette_listeners_) {
+        fn(scm);
+      }
+      last_cassette_motor_ = scm;
+    }
   }
 
   if (clock_->went_low(CLK_16_MHZ)) {
     v_ula_->tick(bus_, dram_bus_);
     crt_->tick();
+
+    s_ula_->tick_16mhz();
   }
 }
 
@@ -363,4 +382,12 @@ void Beeb::press_key(uint8_t key_code) {
 
 void Beeb::release_key(uint8_t key_code) {
   keyboard_->release_key(key_code);
+}
+
+void Beeb::load_data(const std::vector<uint8_t> &data, uint16_t address) {
+  dram_->load(data, address);
+}
+
+void Beeb::add_cassette_listener(const std::function<void(bool)> &listener) {
+  cassette_listeners_.push_back(listener);
 }

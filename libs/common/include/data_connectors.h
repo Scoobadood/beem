@@ -7,6 +7,11 @@
 
 #include <set>
 
+/*
+ * Subscribe to data which may change.
+ * Client: calls data_changed() and get_data()
+ * Server: calls set_data
+ */
 class data_subscriber_8_bit {
 public:
   explicit data_subscriber_8_bit(uint8_t mask) //
@@ -42,6 +47,9 @@ private:
   bool data_changed_;
 };
 
+/*
+ *
+ */
 class data_provider_8_bit {
 public:
   explicit data_provider_8_bit(uint8_t initial_data = 0) : data_{initial_data}, has_data_{false} {}

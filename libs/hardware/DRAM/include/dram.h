@@ -23,6 +23,11 @@ public:
   bool load(const std::string &file_name);
 
   /**
+   * Load the given data into memory at the specified point.
+   */
+  void load(const std::vector<uint8_t>& data, uint16_t addr);
+
+  /**
    * Perform reads and writes to bus
    *
    * @param bus

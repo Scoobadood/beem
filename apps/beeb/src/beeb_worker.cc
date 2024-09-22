@@ -4,6 +4,8 @@
 #include <QDebug>
 #include <QCoreApplication>
 
+#include <UEF/uef.h>
+
 BeebWorker::BeebWorker(int32_t mode, BreakpointManager *breakpoint_manager)
     : branch_return_target_{0} //
     , breakpoint_manager_{breakpoint_manager} //
@@ -98,4 +100,10 @@ void BeebWorker::start_beeb() {
     emit paused();
   }
   emit finished();
+}
+
+void BeebWorker::load_code(std::vector<uint8_t> code, uint16_t address){
+  /* TODO: this is hacky and not threadsafe. remover once tapeloader proper is done
+   */
+  beeb_->load_data(code, address);
 }

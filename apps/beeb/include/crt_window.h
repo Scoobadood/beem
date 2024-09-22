@@ -7,6 +7,7 @@
 #include "vdu_view.h"
 #include "debugger_window.h"
 #include "memory_window.h"
+#include "led_label_widget.h"
 
 class CrtWindow : public QMainWindow {
  Q_OBJECT
@@ -23,6 +24,7 @@ class CrtWindow : public QMainWindow {
 
  private:
   std::shared_ptr<Beeb> beeb_;
+  LedLabelWidget * cassette_drive_led_;
 
   VduView *vdu_;
 };

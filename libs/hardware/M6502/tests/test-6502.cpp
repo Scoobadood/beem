@@ -1,11 +1,9 @@
-#include "m6502.h"
+#include <6502/m6502.h>
 #include "dram.h"
 #include "bus.h"
-#include "cycle_handler.h"
-#include "opcodes.h"
+#include <6502/opcodes.h>
 
 #include <chrono>
-#include <fstream>
 #include <iostream>
 #include <vector>
 #include <iomanip>

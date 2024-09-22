@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <set>
+#include <string>
 
 class Via {
 public:
@@ -111,6 +112,9 @@ private:
   std::set<data_provider_8_bit_ptr> port_b_providers_;
   std::set<data_provider_8_bit_ptr> ca2_providers_;
   std::set<data_provider_8_bit_ptr> ca1_providers_;
+
+  // My name (to distinguish multiple VIAs)
+  std::string via_name_;
 };
 
 #endif //BEEB_HARDWARE_6522_VIA_INCLUDE_H_

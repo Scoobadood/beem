@@ -5,6 +5,7 @@
 #include <QAtomicInteger>
 #include "beeb.h"
 #include "breakpoint_manager.h"
+#include <UEF/uef.h>
 
 class BeebWorker : public QObject {
  Q_OBJECT
@@ -13,6 +14,7 @@ class BeebWorker : public QObject {
   BeebWorker(int32_t mode,
              BreakpointManager *breakpoint_manager);
   std::shared_ptr<Beeb> beeb();
+  void load_code(std::vector<uint8_t> code, uint16_t address);
 
  public slots :
   void start_beeb();
@@ -20,7 +22,6 @@ class BeebWorker : public QObject {
   void step();
   void step_out();
   void run();
-
  signals:
   void finished();
   void paused();

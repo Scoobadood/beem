@@ -77,10 +77,16 @@ int main(int argc, char *argv[]) {
   // Main window
   auto crt_window = new CrtWindow(beeb_worker->beeb());
 
+  // Cassette window
+  auto cassette_window = new CassetteWindow();
+
   config_memory_window(crt_window, memory_window);
   config_debugger_window(beeb_worker, crt_window, debugger_window);
 
-  auto window_mediator = new WindowMediator(breakpoint_manager, crt_window, debugger_window, memory_window);
+  auto window_mediator = new WindowMediator(breakpoint_manager, crt_window,
+                                            debugger_window, memory_window,
+                                            cassette_window,
+                                            beeb_worker.get());
   crt_window->show();
   worker_thread->start();
 

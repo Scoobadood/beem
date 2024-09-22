@@ -105,3 +105,12 @@ uint8_t DRAM::at_bus(uint16_t addr) const {
   return memory_->at(addr - bus_address_);
 }
 
+/**
+ * Load the given data into memory at the specified point.
+ */
+void DRAM::load(const std::vector<uint8_t>& data, uint16_t addr){
+  for( auto b : data) {
+    memory_->at(addr - bus_address_) = b;
+    addr++;
+  }
+}

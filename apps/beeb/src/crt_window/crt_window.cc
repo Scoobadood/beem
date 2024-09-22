@@ -1,14 +1,27 @@
 #include "crt_window.h"
+#include "led_label_widget.h"
 #include <QApplication>
 #include <QtConcurrent/QtConcurrent>
 #include <QMenuBar>
 #include <QCloseEvent>
+#include <QStatusBar>
 #include <utility>
 
 CrtWindow::CrtWindow(std::shared_ptr<Beeb> beeb, QWidget *parent)
     : QMainWindow(parent) //
     , beeb_{std::move(beeb)} //
 {
+  // Add a status bar LED for cassette drive
+  cassette_drive_led_ = new LedLabelWidget("cassette\nmotor", this);
+  statusBar()->addWidget(cassette_drive_led_);
+  beeb_->add_cassette_listener([&](bool cassette_on){
+    if( cassette_on) {
+      cassette_drive_led_->turn_on();
+    } else {
+      cassette_drive_led_->turn_off();
+    }
+  });
+
   // Add a VDU view
   vdu_ = new VduView(this);
   setCentralWidget(vdu_);
