@@ -6,7 +6,7 @@
 #define M6502_SRC_BEEB_H_
 
 #include "dram.h"
-#include "m6502.h"
+#include <6502/m6502.h>
 #include "6522_via.h"
 #include "IC32Latch.h"
 #include "sound_76489.h"

@@ -8,5 +8,5 @@ list(APPEND CMAKE_PREFIX_PATH "/Users/dave/Qt/6.7.0/macos/lib/cmake")
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
 
+add_subdirectory(beeb)
 add_subdirectory(crtc_inspector)
-add_subdirectory(debugger)

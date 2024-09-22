@@ -4,21 +4,20 @@
 
 #include <spdlog/spdlog-inl.h>
 
-
 M6502::M6502() //
-        : brk_flags_{0} //
-        , pc_{0} //
-        , flags_{0} //
-        , stack_pointer_{0} //
-        , accumulator_{0} //
-        , x_reg_{0} //
-        , y_reg_{0} //
-        , interrupt_requested_{false} //
-        , temp_addr_{0} //
-        , ir_{0} //
-        , reset_in_process_{false} //
-        , reset_cycle_{0} //
-        , next_history_buffer_entry_{0} //
+    : brk_flags_{0} //
+    , pc_{0} //
+    , flags_{0} //
+    , stack_pointer_{0} //
+    , accumulator_{0} //
+    , x_reg_{0} //
+    , y_reg_{0} //
+    , interrupt_requested_{false} //
+    , temp_addr_{0} //
+    , ir_{0} //
+    , reset_in_process_{false} //
+    , reset_cycle_{0} //
+    , next_history_buffer_entry_{0} //
 {
   opcode_history_buffer_.resize(history_size_, 0xff);
   pc_history_buffer_.resize(history_size_, 0xffff);
