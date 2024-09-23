@@ -67,6 +67,11 @@ void BeebWorker::start_beeb() {
         beeb_->tick();
       } while (!beeb_->bus()->tst_SYNC());
 
+      // Emit tracing data
+      const auto & cpu = beeb_->cpu();
+      emit trace(cpu->PC(), cpu->A(), cpu->X(),cpu->Y(), cpu->flags(), cpu->SP());
+
+
       // If we're paused
       if (state_.loadAcquire() == PAUSED) {
         break;

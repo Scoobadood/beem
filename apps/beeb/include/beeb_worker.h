@@ -22,6 +22,7 @@ class BeebWorker : public QObject {
   void step();
   void step_out();
   void run();
+
  signals:
   void finished();
   void paused();
@@ -29,6 +30,7 @@ class BeebWorker : public QObject {
   void registers_changed(uint8_t a, uint8_t x, uint8_t y, uint16_t pc, uint8_t sp);
   void pc_changed(uint16_t pc);
   void bus_changed(std::shared_ptr<Bus> bus);
+  void trace( uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp);
 
  private:
   const int32_t PAUSED = 0;
