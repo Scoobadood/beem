@@ -11,6 +11,7 @@ target_include_directories(acia_tester
 target_link_libraries(acia_tester
         PRIVATE
         Acia
+        2C198_sULA
         Qt${QT_VERSION_MAJOR}::Core
         Qt${QT_VERSION_MAJOR}::Widgets
         spdlog::spdlog

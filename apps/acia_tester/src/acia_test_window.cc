@@ -1,6 +1,5 @@
 #include "acia_test_window.h"
 #include "ui_acia_test_window.h"
-#include "fake_sula.h"
 
 AciaTestWindow::AciaTestWindow(const std::shared_ptr<DebuggableAcia> &acia, QWidget *parent)
     : QMainWindow(parent)//
@@ -78,15 +77,11 @@ AciaTestWindow::send_data() {
 }
 
 void AciaTestWindow::set_cts(){
-  auto sula =acia_->sula();
-  auto fake_sula = std::static_pointer_cast<FakeSula>(sula);
-  fake_sula->set_cts();
+  acia_->raise_cts();
 }
 
 void AciaTestWindow::clr_cts(){
-  auto sula =acia_->sula();
-  auto fake_sula = std::static_pointer_cast<FakeSula>(sula);
-  fake_sula->clear_cts();
+  acia_->clear_cts();
 }
 
 void AciaTestWindow::reload_ui(){

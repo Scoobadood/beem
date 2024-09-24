@@ -5,9 +5,8 @@
 
 class DebuggableAcia: public Acia {
  public:
-  DebuggableAcia(uint16_t base_addr, std::shared_ptr<AbstractSula>& sula ) : Acia(base_addr, sula){}
+  DebuggableAcia(uint16_t base_addr ) : Acia(base_addr){}
 
-  inline std::shared_ptr<AbstractSula> sula() { return s_ula_;}
   inline uint8_t status_register() { return status_register_;}
 
   inline uint8_t tdr(){ return tdr_;}

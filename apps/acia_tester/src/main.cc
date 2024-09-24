@@ -3,7 +3,6 @@
 #include "spdlog/sinks/basic_file_sink.h"
 #include "acia_test_window.h"
 #include "debuggable_acia.h"
-#include "fake_sula.h"
 
 #include <QApplication>
 
@@ -18,8 +17,7 @@ int main(int argc, char *argv[]) {
 
   QApplication a(argc, argv);
 
-  std::shared_ptr<AbstractSula> fake_sula = std::make_shared<FakeSula>();
-  auto acia = std::make_shared<DebuggableAcia>(0xfe08, fake_sula);
+  auto acia = std::make_shared<DebuggableAcia>(0xfe08);
 
   auto main_window = new AciaTestWindow(acia);
 
