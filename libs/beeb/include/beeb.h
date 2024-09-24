@@ -43,6 +43,7 @@ public:
   void release_key(uint8_t key_code);
 
   [[nodiscard]] std::vector<uint8_t> get_memory_contents(uint16_t start_addr, uint32_t num_bytes) const;
+  void get_memory_contents(uint16_t start_addr, uint32_t num_bytes, uint8_t * buffer) const;
 
   void load_data(const std::vector<uint8_t>& data, uint16_t address);
 

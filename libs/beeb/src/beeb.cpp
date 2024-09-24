@@ -376,6 +376,53 @@ std::vector<uint8_t> Beeb::get_memory_contents(uint16_t start_addr, uint32_t num
   return return_data;
 }
 
+void Beeb::get_memory_contents(uint16_t start_addr, uint32_t num_bytes, uint8_t * buffer) const {
+  if (num_bytes == 0) {
+    spdlog::warn("BEEB: Request for 0 bytes of data in get_memory_contents at {:04x}", start_addr);
+    return;
+  }
+  if (start_addr + num_bytes > 0x10000) {
+    spdlog::error("BEEB: Retrieving {} bytes from start address {:04x} goes beyond 64K boudnary.", num_bytes,
+                  start_addr);
+    return;
+  }
+
+  auto buffer_idx = 0;
+  if (start_addr <= DRAM_LAST) {
+    const auto &dram_memory = dram_->data();
+    // Copy at least some of the data from DRAM
+    auto nb = std::min((uint32_t) num_bytes, (uint32_t) DRAM_LAST - (uint32_t) start_addr + 1);
+    for( auto i=0; i<nb; ++i) {
+      buffer[buffer_idx++] = dram_memory->at(start_addr+i);
+    }
+    num_bytes -= nb;
+    start_addr += nb;
+  }
+
+  // For now, BASIC ROM
+  if (num_bytes > 0 && start_addr <= BASIC_ROM_LAST) {
+    const auto &basic_memory = basic_rom_->data();
+    // Copy at least some of the data from DRAM
+    auto nb = std::min((uint32_t) num_bytes, (uint32_t) BASIC_ROM_LAST - start_addr + 1);
+
+    // Need to adjust the actual addresses to offset the base address in memory
+    for( auto i=0; i<nb; ++i) {
+      buffer[buffer_idx++] = basic_memory->at(start_addr+i-BASIC_ROM_BASE);
+    }
+    num_bytes -= nb;
+    start_addr += nb;
+  }
+
+  // MOS
+  if (num_bytes > 0 /* Add MMIO HW exclusions here */) {
+    const auto &mos_memory = mos_->data();
+    // Copy at least some of the data from DRAM
+    for( auto i=0; i<num_bytes; ++i) {
+      buffer[buffer_idx++] = mos_memory->at(start_addr+i-MOS_ROM_BASE);
+    }
+  }
+}
+
 void Beeb::press_key(uint8_t key_code) {
   keyboard_->press_key(key_code);
 }
