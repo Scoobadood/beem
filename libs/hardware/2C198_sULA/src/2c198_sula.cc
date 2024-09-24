@@ -139,8 +139,6 @@ SerialUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       acia_->raise_cts();
     }
   }
-
-  tx_clock_counter_ = 13;
 }
 
 uint8_t
