@@ -7,7 +7,6 @@
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/pattern_formatter.h"
-#include "data_connectors.h"
 
 #include <memory>
 #include <utility>
@@ -26,7 +25,7 @@ const uint16_t RO_RDR = 1; // Receive Data Register
 // Status register flags and functions
 #define MAKE_SR_FLAG(name, bit) \
 const uint8_t SR_##name##_FLAG = (1 << bit); \
-inline bool SR_##name(uint8_t sr) { return (sr & SR_##name##_FLAG);} \
+inline auto SR_##name(uint8_t sr)  -> bool { return (sr & SR_##name##_FLAG);}\
 inline void SR_SET_##name(uint8_t &sr) { sr |= SR_##name##_FLAG;}    \
 inline void SR_CLR_##name(uint8_t &sr) { sr &= ~SR_##name##_FLAG;}    \
 
@@ -115,11 +114,11 @@ MAKE_SR_FLAG(TDRE, 1)
 MAKE_SR_FLAG(RDRF, 0)
 
 // Parsing control register
-inline bool MASTER_RESET(uint8_t ctl) { return ((ctl & 0x3) == 0x03); }
-inline uint8_t CTR_DIV_SEL(uint8_t ctl) { return (ctl & 0x3); }
-inline uint8_t WORD_SEL(uint8_t ctl) { return ((ctl >> 2) & 0x07); }
-inline uint8_t TX_CTL_BITS(uint8_t ctl) { return ((ctl >> 5) & 0x03); }
-inline bool RX_INT_ENBL(uint8_t ctl) { return ((ctl & 0x80) == 0x80); }
+inline auto MASTER_RESET(uint8_t ctl) -> bool { return ((ctl & 0x3) == 0x03); }
+inline auto CTR_DIV_SEL(uint8_t ctl) -> uint8_t { return (ctl & 0x3); }
+inline auto WORD_SEL(uint8_t ctl) -> uint8_t { return ((ctl >> 2) & 0x07); }
+inline auto TX_CTL_BITS(uint8_t ctl) -> uint8_t { return ((ctl >> 5) & 0x03); }
+inline auto RX_INT_ENBL(uint8_t ctl) -> bool { return ((ctl & 0x80) == 0x80); }
 
 Acia::Acia(uint16_t base_addr) //
     : base_addr_{base_addr} //
@@ -174,23 +173,49 @@ Acia::Acia(uint16_t base_addr) //
   SR_CLR_CTS(status_register_);
 }
 
-void Acia::master_reset() {
-  if (is_in_power_on_reset_) is_in_power_on_reset_ = false;
-  SR_CLR_IRQ(status_register_);
+void Acia::perform_master_reset() {
+  /* 6850 datasheet
+   * During the first master reset, the IRQ* and RTS* outputs are held at level 1.
+   * On all other master resets, the RTS* output can be programmed high or low with the IRQ* output held high.
+   * IRQ is inactive high.
+   */
+  clear_interrupt();
+
+  /* 6850 datasheet
+   * The power-on reset is released by means of the bus-programmed master reset which must be applied prior
+   * to operating the ACIA.
+   */
+  if (is_in_power_on_reset_) {
+    is_in_power_on_reset_ = false;
+    /*During the first master reset, the IRQ* and RTS* outputs are held at level 1.*/
+    rts_ = true;
+    return;
+  }
+
+  /* Star dot: https://stardot.org.uk/forums/viewtopic.php?p=361776#p361776
+   * At the end of the sequence is a write of 03 to the ACIA control register, which is the master reset.
+   * This immediately halts transmission, and the contents of the transmit data register and output shift
+   * register are cleared.
+   */
+  tdr_ = 0;
+  tdr_is_full_ = false;
+  tx_shift_register_ = 0;
+  state_ = IDLE;
+
+  /* Alan Clements http://alanclements.org/serialio.html
+   * The IRQ bit is cleared by a read from the RDR, or by a write to the TDR, or by a software master reset.
+   * This operation clears all internal status bits, with the exception of the CTS and DCD bits of the status register
+   */
   SR_CLR_FE(status_register_);
   SR_CLR_OVRN(status_register_);
   SR_CLR_PE(status_register_);
   SR_CLR_RDRF(status_register_);
   SR_CLR_TDRE(status_register_);
 
-  /* Star dot: https://stardot.org.uk/forums/viewtopic.php?p=361776#p361776
-   * At the end of the sequence is a write of 03 to the ACIA control register, which is the master reset.
-   * This immediately halts transmission, and the contents of the transmit data register and output shift register are cleared.
-   */
-  tdr_ = 0;
-  tdr_is_full_ = false;
-  tx_shift_register_ = 0;
-  state_ = IDLE;
+  // CTS is active low
+  if( !cts_) {
+    SR_SET_TDRE(status_register_);
+  }
 }
 
 /********************************************************************************
@@ -203,7 +228,7 @@ void Acia::write_ctl(uint8_t data) {
 
   if (MASTER_RESET(data)) {
     spdlog::get("ACIA")->info("  Master Reset");
-    master_reset();
+    perform_master_reset();
     return;
   }
   if (is_in_power_on_reset_) return;
@@ -238,7 +263,9 @@ void Acia::write_ctl(uint8_t data) {
   }
 
   // Log changes
-  spdlog::get("ACIA")->info("  Clock divisor : {}", clk_divisor_);
+  spdlog::get("ACIA")->info("  Clock divisor : {} ({} baud)",
+                            clk_divisor_,
+                            (clk_divisor_ == 64 ? "300" : (clk_divisor_ == 16 ? "1200" : "19200")));
   spdlog::get("ACIA")->info("    Word length : {}", word_length_);
   spdlog::get("ACIA")->info("         Parity : {}", parity_ == 0 ? "none" : (parity_ == 1 ? "odd" : "even"));
   spdlog::get("ACIA")->info("      Stop bits : {}", stop_bits_);
@@ -247,7 +274,7 @@ void Acia::write_ctl(uint8_t data) {
   spdlog::get("ACIA")->info("  Rx interrupts : {}", rx_int_enabled_ ? "enabled" : "disabled ");
 }
 
-uint8_t Acia::clock_divisor(uint8_t ctl) {
+auto Acia::clock_divisor(uint8_t ctl) -> uint8_t {
   auto bits = CTR_DIV_SEL(ctl);
   if (bits == 0x00) return 1;
   if (bits == 0x01) return 16;
@@ -255,7 +282,7 @@ uint8_t Acia::clock_divisor(uint8_t ctl) {
   auto msg = fmt::format("Unexpected value for clock divisor: {}", bits);
   spdlog::get("ACIA")->error("  {}", msg);
   spdlog::error(msg);
-  return 1;
+  return 16;
 }
 
 void Acia::configure_serial_protocol(uint8_t data) {
@@ -285,9 +312,9 @@ void Acia::configure_serial_protocol(uint8_t data) {
  * CR5 or CR6 or by the loss of CTS which inhibits the TDRE status bit.
  */
 void Acia::enable_tx_interrupts() {
+  if (is_in_power_on_reset_) return;
   tx_int_enabled_ = true;
-  if (cts_ || is_in_power_on_reset_) return;
-  // Raise IRQ
+  // Raise IRQ if TDRE is set
   if (SR_TDRE(status_register_)) {
     raise_interrupt();
   }
@@ -311,15 +338,20 @@ void Acia::disable_rx_interrupts() {
  **                                                                            **
  ********************************************************************************/
 void Acia::read_status(const std::shared_ptr<Bus> &bus) {
-  spdlog::get("ACIA")->info("Status read {}{}{}{}{}{}{}{}",
-                            SR_IRQ(status_register_) ? "I" : "i",
-                            SR_PE(status_register_) ? "P" : "p",
-                            SR_OVRN(status_register_) ? "O" : "o",
-                            SR_FE(status_register_) ? "F" : "f",
-                            SR_CTS(status_register_) ? "C" : "c",
-                            SR_DCD(status_register_) ? "D" : "d",
-                            SR_TDRE(status_register_) ? "T" : "t",
-                            SR_RDRF(status_register_) ? "R" : "r");
+  static uint8_t last_status = 0xff;
+  if( last_status != status_register_) {
+    // Only log changes to status
+    spdlog::get("ACIA")->info("Status read (changed since last read) {}{}{}{}{}{}{}{}",
+                              SR_IRQ(status_register_) ? "I" : "i",
+                              SR_PE(status_register_) ? "P" : "p",
+                              SR_OVRN(status_register_) ? "O" : "o",
+                              SR_FE(status_register_) ? "F" : "f",
+                              SR_CTS(status_register_) ? "C" : "c",
+                              SR_DCD(status_register_) ? "D" : "d",
+                              SR_TDRE(status_register_) ? "T" : "t",
+                              SR_RDRF(status_register_) ? "R" : "r");
+    last_status = status_register_;
+  }
   bus->set_data(status_register_);
   if (sr2_high_wait_for_sr_read_) {
     sr2_high_wait_for_sr_read_ = false;
@@ -380,6 +412,9 @@ void Acia::write_tdr(uint8_t data) {
   tdr_ = data;
   tdr_is_full_ = true;
 
+  // Inactive high. Cleared by a write to TDR
+  clear_interrupt();
+
   /* 6850 datasheet
    * Writing data into the register causes the Transmit Data Register Empty bit in the Status Register to go low.
    */
@@ -422,7 +457,6 @@ void Acia::maybe_rw(const std::shared_ptr<Bus> &bus) {
 
 void Acia::maybe_load_shift_register() {
   if (!tdr_is_full_) return;
-  if (state_ != IDLE) return;
 
   /*
    * The transfer will take place within 1-bit time of the trailing edge of the Write command.
@@ -433,7 +467,7 @@ void Acia::maybe_load_shift_register() {
   spdlog::get("ACIA")->info("Loading Tx Shift Register from TDR {:02x}", tdr_);
   tx_shift_register_ = tdr_;
   tdr_is_full_ = false;
-  tdr_went_empty();
+//  tdr_went_empty();
 
   tx_shift_count_ = 0;
   parity_bit_ = (parity_ == 1) ? 1 : 0;
@@ -441,22 +475,25 @@ void Acia::maybe_load_shift_register() {
 }
 
 void Acia::shift_out_data() {
-  if( --tx_clock_ticks_ != 0 ) return;
-  tx_clock_ticks_ = clk_divisor_;
-
-  spdlog::get("ACIA")->info("Shift state: {}. Reg: {:02x} -> {}",
-                            (uint8_t) state_,
-                            tx_shift_register_,
-                            tx_shift_register_ & 0x01);
   switch (state_) {
+    case IDLE:
+      maybe_load_shift_register();
+      break;
+
     case SEND_START_BIT:
+      spdlog::get("ACIA")->info("Shift state: SEND_START_BIT. Reg: {:02x} -> 0", tx_shift_register_);
       // send start bit
       set_output(0);
       state_ = SEND_BITS;
+      tdr_went_empty();
       break;
 
     case SEND_BITS: {
       auto out_bit = tx_shift_register_ & 1;
+      spdlog::get("ACIA")->info("Shift state: SEND_BITS. Reg: {:02x} -> {}",
+                                tx_shift_register_,
+                                out_bit);
+
       if (parity_ != 0 && out_bit) {
         parity_bit_ = (parity_bit_ + 1) & 0x01;
       }
@@ -469,14 +506,19 @@ void Acia::shift_out_data() {
         else state_ = SEND_STOP_BIT_1;
       }
     }
+
       break;
 
     case SEND_PARITY:
+      spdlog::get("ACIA")->info("Shift state: SEND_PARITY. Reg: {:02x} -> {}",
+                                tx_shift_register_,
+                                parity_bit_);
       set_output(parity_bit_);
       state_ = SEND_STOP_BIT_1;
       break;
 
     case SEND_STOP_BIT_1:
+      spdlog::get("ACIA")->info("Shift state: SEND_STOP_BIT_1. Reg: {:02x} -> 1", tx_shift_register_);
       set_output(1);
       if (stop_bits_ == 2) {
         state_ = SEND_STOP_BIT_2;
@@ -484,10 +526,13 @@ void Acia::shift_out_data() {
         state_ = IDLE;
       }
       break;
+
     case SEND_STOP_BIT_2:
+      spdlog::get("ACIA")->info("Shift state: SEND_STOP_BIT_2. Reg: {:02x} -> 1", tx_shift_register_);
       set_output(1);
       state_ = IDLE;
       break;
+
     default:
       auto msg = fmt::format("Bad state {} ", (uint8_t) state_);
       spdlog::get("ACIA")->error(msg);
@@ -540,14 +585,12 @@ void Acia::cts_went_inactive_high() {
 void Acia::tick(const std::shared_ptr<Bus> &bus) {
   maybe_rw(bus);
 
-  maybe_load_shift_register();
-
-  if (!tdr_is_full_ && !cts_ && !SR_TDRE(status_register_)) {
-    SR_SET_TDRE(status_register_);
-    if (tx_int_enabled_) {
-      raise_interrupt();
-    }
-  }
+//  if (!tdr_is_full_ && !cts_ && !SR_TDRE(status_register_)) {
+//    SR_SET_TDRE(status_register_);
+//    if (tx_int_enabled_) {
+//      raise_interrupt();
+//    }
+//  }
 }
 
 void Acia::set_output(uint8_t out) {
@@ -562,9 +605,16 @@ void Acia::raise_interrupt() {
   spdlog::get("ACIA")->info("!! Raising IRQ");
 }
 
+void Acia::clear_interrupt(){
+  SR_CLR_IRQ(status_register_);
+  // IRQ is active low
+  irq_ = true;
+  spdlog::get("ACIA")->info("Cleared IRQ");
+}
+
 void Acia::tx_clock() {
   // CTS is inactive high
-  if (cts_ || state_ == IDLE) return;
+  if (cts_) return;
   if (--tx_clock_ticks_ != 0) return;
 
   shift_out_data();
@@ -594,7 +644,7 @@ void Acia::clear_dcd() {
 }
 
 void Acia::raise_dcd() {
-  if( dcd_) return;
+  if (dcd_) return;
   dcd_ = true;
   dcd_went_inactive_high();
 }

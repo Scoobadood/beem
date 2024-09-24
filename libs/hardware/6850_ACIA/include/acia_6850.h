@@ -17,7 +17,7 @@ class Acia {
   void tx_clock();
   void rx_clock();
   // IRQ is active low
-  [[nodiscard]] inline bool has_irq() const { return !irq_ ;}
+  [[nodiscard]] inline bool has_irq() const { return !irq_; }
 
   void clear_cts();
   void raise_cts();
@@ -25,7 +25,7 @@ class Acia {
   void raise_dcd();
 
  private:
-  void master_reset();
+  void perform_master_reset();
   static uint8_t clock_divisor(uint8_t ctl);
   void configure_serial_protocol(uint8_t data);
   void enable_tx_interrupts();
@@ -38,14 +38,14 @@ class Acia {
 
   void set_output(uint8_t out);
   void raise_interrupt();
+  void clear_interrupt();
   void tdr_went_empty();
   void cts_went_active_low();
   void cts_went_inactive_high();
   void dcd_went_active_low();
   void dcd_went_inactive_high();
 
-
-    void mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus);
+  void mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus);
   void read_rdr(const std::shared_ptr<Bus> &bus);
   void read_status(const std::shared_ptr<Bus> &bus);
 
