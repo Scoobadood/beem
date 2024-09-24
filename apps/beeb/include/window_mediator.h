@@ -26,6 +26,8 @@ class WindowMediator : public QObject {
   void hide_debugger_view();
   void show_memory_view();
   void hide_memory_view();
+  void trace_on();
+  void trace_off();
 
  public slots:
   void edit_breakpoints();
@@ -49,6 +51,7 @@ class WindowMediator : public QObject {
   QAction * load_symbols_action_;
   QAction * add_breakpoint_action_;
   QAction * load_uef_action_;
+  QAction * toggle_trace_action_;
 };
 
 #endif // BEEB_INCLUDE_WINDOW_MEDIATOR_H_

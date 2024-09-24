@@ -23,8 +23,10 @@ class DebuggerWindow : public QMainWindow {
  public slots:
   void paused();
   void load_symbols();
+  void trace( uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp, uint32_t memory);
 
- signals:
+
+    signals:
   void debugger_break();
   void debugger_run();
   void debugger_step();

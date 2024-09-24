@@ -9,11 +9,11 @@
 #include <UEF/uef.h>
 
 DebuggerWindow::DebuggerWindow(
-    BreakpointManager * breakpoint_manager,
+    BreakpointManager *breakpoint_manager,
     QWidget *parent)
     : QMainWindow(parent) //
     , bus_view_{nullptr} //
-    {
+{
   setWindowTitle("Debugger");
   setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
 
@@ -120,4 +120,33 @@ void DebuggerWindow::load_symbols() {
 
   // Force repeat disassembly
   disassembly_view_->set_symbols(symbols);
+}
+
+void DebuggerWindow::trace(uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp, uint32_t memory) {
+  using namespace std;
+
+  uint8_t err;
+  uint16_t offset = 0;
+  auto op = disassembler_->disassemble_one((const uint8_t *) &memory, 4u, offset, err);
+  auto arg = op.opcode.bytes == 1
+             ? "    "
+             : (op.opcode.bytes == 2
+                ? fmt::format("  {:02x}", op.data)
+                : fmt::format("{:04x}", op.data));
+  auto flag_s = fmt::format("{}{}_{}{}{}{}{}",
+                            flags & 0x80 ? 'N' : 'n',
+                            flags & 0x40 ? 'V' : 'v',
+                            flags & 0x10 ? 'B' : 'b',
+                            flags & 0x08 ? 'D' : 'd',
+                            flags & 0x04 ? 'I' : 'i',
+                            flags & 0x02 ? 'Z' : 'z',
+                            flags & 0x01 ? 'C' : 'c'
+  );
+  auto dis = fmt::format("{:04x} {:4s} {}  A:{:02x} X:{:02x} Y:{:02x} {}",
+                         pc,
+                         op.opcode.name,
+                         arg,
+                         a, x, y, flag_s
+  );
+  cout << dis << endl;
 }

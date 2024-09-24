@@ -8,6 +8,8 @@ const QString SHOW_MEMORY_INVESTIGATOR = "Show &Memory";
 const QString HIDE_MEMORY_INVESTIGATOR = "Hide &Memory";
 const QString SHOW_CASSETTE = "Show &Cassette";
 const QString HIDE_CASSETTE = "Hide &Cassette";
+const QString ENABLE_TRACING = "Enable tracing";
+const QString DISABLE_TRACING = "Disable tracing";
 
 WindowMediator::WindowMediator(
     BreakpointManager *breakpoint_manager,
@@ -31,6 +33,7 @@ WindowMediator::WindowMediator(
   load_symbols_action_ = new QAction("Load symbols", this);
   add_breakpoint_action_ = new QAction("Add Breakpoint", this);
   load_uef_action_ = new QAction("Load UEF", this);
+  toggle_trace_action_ = new QAction(ENABLE_TRACING, this);
 
   setup_main_window_menu();
   setup_debugger_window_menu();
@@ -63,7 +66,17 @@ WindowMediator::WindowMediator(
     }
   }));
 
-  assert(connect(cassette_window_, &CassetteWindow::close_cassette_window, [&]() {
+  assert(connect(toggle_trace_action_, &QAction::triggered, [&]() {
+    if (toggle_trace_action_->text() == DISABLE_TRACING) {
+      trace_off();
+    } else {
+      trace_on();
+    }
+  }));
+  assert(connect(beeb_worker, &BeebWorker::trace, debugger_window_, &DebuggerWindow::trace));
+
+
+      assert(connect(cassette_window_, &CassetteWindow::close_cassette_window, [&]() {
     hide_cassette_view();
   }));
 
@@ -87,6 +100,9 @@ void WindowMediator::setup_debugger_window_menu() {
   debugger_menu->addAction(load_symbols_action_);
   debugger_menu->addAction(add_breakpoint_action_);
   debugger_menu->addAction(load_uef_action_);
+
+  auto trace_menu = debugger_window_->menuBar()->addMenu(tr("&Trace"));
+  trace_menu->addAction(toggle_trace_action_);
 }
 
 void WindowMediator::setup_main_window_menu() {
@@ -132,3 +148,13 @@ void WindowMediator::hide_memory_view() {
   toggle_debugger_action_->setText(SHOW_MEMORY_INVESTIGATOR);
   memory_window_->hide();
 }
+void WindowMediator::trace_on(){
+  toggle_trace_action_->setText(DISABLE_TRACING);
+  beeb_worker_->enable_tracing();
+}
+void WindowMediator::trace_off(){
+  toggle_trace_action_->setText(ENABLE_TRACING);
+  beeb_worker_->disable_tracing();
+}
+
+
