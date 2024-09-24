@@ -15,6 +15,8 @@ class BeebWorker : public QObject {
              BreakpointManager *breakpoint_manager);
   std::shared_ptr<Beeb> beeb();
   void load_code(std::vector<uint8_t> code, uint16_t address);
+  void enable_tracing();
+  void disable_tracing();
 
  public slots :
   void start_beeb();
@@ -30,7 +32,7 @@ class BeebWorker : public QObject {
   void registers_changed(uint8_t a, uint8_t x, uint8_t y, uint16_t pc, uint8_t sp);
   void pc_changed(uint16_t pc);
   void bus_changed(std::shared_ptr<Bus> bus);
-  void trace( uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp);
+  void trace( uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp, uint32_t data);
 
  private:
   const int32_t PAUSED = 0;
@@ -43,6 +45,7 @@ class BeebWorker : public QObject {
   std::shared_ptr<Beeb> beeb_;
   BreakpointManager *breakpoint_manager_;
   bool done_;
+  bool tracing_;
 
   QAtomicInteger<int32_t> state_;
 };

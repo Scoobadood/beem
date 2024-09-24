@@ -68,8 +68,15 @@ void BeebWorker::start_beeb() {
       } while (!beeb_->bus()->tst_SYNC());
 
       // Emit tracing data
-      const auto & cpu = beeb_->cpu();
-      emit trace(cpu->PC(), cpu->A(), cpu->X(),cpu->Y(), cpu->flags(), cpu->SP());
+      if (tracing_) {
+        const auto &cpu = beeb_->cpu();
+        auto pc = cpu->PC();
+        // SYNC is high while fetching opcode so here we collect data from PC-1
+        // We collect 4 bytes which is as much as we need for an opcode plus max 3 bytes data
+        uint32_t memory_contents;
+        beeb_->get_memory_contents(pc, 4, (uint8_t *)&memory_contents);
+        emit trace(pc, cpu->A(), cpu->X(), cpu->Y(), cpu->flags(), cpu->SP(), memory_contents);
+      }
 
 
       // If we're paused
@@ -107,8 +114,11 @@ void BeebWorker::start_beeb() {
   emit finished();
 }
 
-void BeebWorker::load_code(std::vector<uint8_t> code, uint16_t address){
+void BeebWorker::load_code(std::vector<uint8_t> code, uint16_t address) {
   /* TODO: this is hacky and not threadsafe. remover once tapeloader proper is done
    */
   beeb_->load_data(code, address);
 }
+
+void BeebWorker::enable_tracing() { tracing_ = true; }
+void BeebWorker::disable_tracing() { tracing_ = false; }
