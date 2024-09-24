@@ -131,7 +131,7 @@ void DebuggerWindow::trace(uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t
   auto arg = op.opcode.bytes == 1
              ? "    "
              : (op.opcode.bytes == 2
-                ? fmt::format("  {:02x}", op.data)
+                ? fmt::format("{:02x}  ", op.data)
                 : fmt::format("{:04x}", op.data));
   auto flag_s = fmt::format("{}{}_{}{}{}{}{}",
                             flags & 0x80 ? 'N' : 'n',
