@@ -10,6 +10,7 @@
 #include <QTextCursor>
 #include "data_display_widget.h"
 #include "breakpoint_manager.h"
+#include "Disassembler/symbol_file_loader.h"
 struct ColourScheme;
 
 class DisassemblyView : public DataDisplayWidget {
@@ -20,9 +21,9 @@ class DisassemblyView : public DataDisplayWidget {
 
   ~DisassemblyView() override;
 
-  void set_data(const std::vector<uint8_t> &data) override;
+  [[nodiscard]] Disassembler&  disassembler() { return disassembler_;}
 
-  void set_symbols(const std::map<uint16_t, std::string> &symbols);
+  void set_data(const std::vector<uint8_t> &data) override;
 
   void resizeEvent(QResizeEvent *event) override;
 
@@ -59,9 +60,8 @@ class DisassemblyView : public DataDisplayWidget {
 
   void layout_disassembly();
 
-  bool is_labelled(uint16_t address, QString &label);
-
-  QString address_or_label(uint16_t addr, bool zp = false);
+  static QString address_or_label(const Operation& op, bool zp = false);
+  static QString address_or_label(const Operation& op, uint16_t addr, bool zp = false);
 
   bool address_on_screen(uint16_t addr, uint32_t *row = nullptr, float *proportion = nullptr);
 
@@ -91,9 +91,6 @@ class DisassemblyView : public DataDisplayWidget {
 
   /** The addresses at which a breakpoint has been set */
   BreakpointManager *breakpoint_manager_;
-
-  /** A map of adress to symbol lookup */
-  std::map<uint16_t, QString> symbols_;
 
   /** The colour scheme for this window */
   std::unique_ptr<ColourScheme> colour_scheme_;

@@ -1,6 +1,8 @@
 add_library(Disassembler
         SHARED
         src/disassembler.cc include/Disassembler/disassembler.h
+        src/symbol_file_loader.cc include/Disassembler/symbol_file_loader.h
+        src/operation_formatter.cc include/Disassembler/operation_formatter.h
 )
 
 target_include_directories(Disassembler

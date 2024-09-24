@@ -1,5 +1,4 @@
 #include "debugger_window.h"
-#include "spdlog/spdlog.h"
 
 #include <QToolBar>
 #include <QStatusBar>
@@ -7,17 +6,22 @@
 #include <fstream>
 #include <QVBoxLayout>
 #include <UEF/uef.h>
+#include <Disassembler/symbol_file_loader.h>
+#include <Disassembler/operation_formatter.h>
+
+const uint32_t MAX_TRACE_BUFFER_SIZE = 1'000'000;
 
 DebuggerWindow::DebuggerWindow(
     BreakpointManager *breakpoint_manager,
     QWidget *parent)
     : QMainWindow(parent) //
     , bus_view_{nullptr} //
+    , trace_buffer_{} //
+    , trace_buffer_idx_{0}//
 {
   setWindowTitle("Debugger");
   setWindowFlags(Qt::Window | Qt::CustomizeWindowHint | Qt::WindowTitleHint);
 
-  disassembler_ = std::make_shared<Disassembler>();
   disassembly_view_ = new DisassemblyView(breakpoint_manager, this);
   register_view_ = new RegisterView(this);
 
@@ -46,6 +50,8 @@ DebuggerWindow::DebuggerWindow(
   setStatusBar(status_bar);
 
   setCentralWidget(disassembly_view_);
+
+  trace_buffer_.reserve(MAX_TRACE_BUFFER_SIZE);
 }
 
 DebuggerWindow::~DebuggerWindow() = default;
@@ -99,54 +105,48 @@ void DebuggerWindow::load_symbols() {
   if (file_name.isNull() || file_name.isEmpty()) {
     return;
   }
-  std::ifstream file{file_name.toStdString(), std::ios::in};
-  if (file.fail()) {
-    spdlog::error("Error reading file {} ", file_name.toStdString());
-  }
 
-  std::string line;
-  std::map<uint16_t, std::string> symbols;
-  while (getline(file, line)) {
-    // Split into address and symbol
-    auto idx = line.find(' ');
-    if (idx != -1) {
-      auto addr_txt = line.substr(0, idx);
-      auto symbol = line.substr(idx);
-      auto addr = (uint16_t) std::stoi(addr_txt, nullptr, 16);
-      symbols.emplace(addr, symbol);
-    }
-  }
-  file.close();
+  auto symbols = load_symbols_from_file(file_name.toStdString());
 
-  // Force repeat disassembly
-  disassembly_view_->set_symbols(symbols);
+  disassembly_view_->disassembler().set_symbols(symbols);
+  // Force redraw
+  update();
+}
+
+void DebuggerWindow::push_to_trace_buffer(const std::string& item) {
+  if( trace_buffer_idx_ < MAX_TRACE_BUFFER_SIZE ) {
+    trace_buffer_.push_back(item);
+  } else {
+    trace_buffer_.at(trace_buffer_idx_) = item;
+  }
+  trace_buffer_idx_ = (trace_buffer_idx_+1) % MAX_TRACE_BUFFER_SIZE;
 }
 
 void DebuggerWindow::trace(uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp, uint32_t memory) {
-  using namespace std;
-
   uint8_t err;
   uint16_t offset = 0;
-  auto op = disassembler_->disassemble_one((const uint8_t *) &memory, 4u, offset, err);
-  auto arg = op.opcode.bytes == 1
-             ? "    "
-             : (op.opcode.bytes == 2
-                ? fmt::format("{:02x}  ", op.data)
-                : fmt::format("{:04x}", op.data));
-  auto flag_s = fmt::format("{}{}_{}{}{}{}{}",
-                            flags & 0x80 ? 'N' : 'n',
-                            flags & 0x40 ? 'V' : 'v',
-                            flags & 0x10 ? 'B' : 'b',
-                            flags & 0x08 ? 'D' : 'd',
-                            flags & 0x04 ? 'I' : 'i',
-                            flags & 0x02 ? 'Z' : 'z',
-                            flags & 0x01 ? 'C' : 'c'
+  auto op = disassembly_view_->disassembler().disassemble_one((const uint8_t *) &memory, 4u, offset, err);
+  // Make new op with correct address/label
+  auto &symbols = disassembly_view_->disassembler().symbols();
+  auto iter = symbols.find(pc);
+  auto label = (iter == symbols.end())
+               ? ""
+               : iter->second.name;
+
+  std::string line;
+  if( label.size() > 20) {
+    push_to_trace_buffer(label);
+    std::cout << label << std::endl;
+    auto op2 = Operation{"", pc, op.opcode, op.data};
+    line = format_single_line(op2, disassembly_view_->disassembler().symbols());
+  } else {
+    auto op2 = Operation{label, pc, op.opcode, op.data};
+    line = format_single_line(op2, disassembly_view_->disassembler().symbols());
+  }
+
+  line = fmt::format("{:50s} A:{:02x} X:{:02x} Y:{:02x} F:{}",
+                    line, a, x, y, format_flags(flags)
   );
-  auto dis = fmt::format("{:04x} {:4s} {}  A:{:02x} X:{:02x} Y:{:02x} {}",
-                         pc,
-                         op.opcode.name,
-                         arg,
-                         a, x, y, flag_s
-  );
-  cout << dis << endl;
+  push_to_trace_buffer(line);
+  std::cout << line << std::endl;
 }

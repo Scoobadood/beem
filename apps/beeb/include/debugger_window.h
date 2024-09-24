@@ -20,6 +20,7 @@ class DebuggerWindow : public QMainWindow {
   DisassemblyView *view() { return disassembly_view_; }
   RegisterView *registers() { return register_view_; }
 
+
  public slots:
   void paused();
   void load_symbols();
@@ -37,8 +38,8 @@ class DebuggerWindow : public QMainWindow {
   void do_step();
   void do_step_out();
   void do_run();
+  void push_to_trace_buffer(const std::string& item);
 
-  std::shared_ptr<Disassembler> disassembler_;
   DisassemblyView *disassembly_view_;
   RegisterView * register_view_;
   BusView * bus_view_;
@@ -47,5 +48,9 @@ class DebuggerWindow : public QMainWindow {
   QAction *step_out_action_;
   QAction *run_action_;
   QAction *pause_action_;
+
+  std::vector<std::string> trace_buffer_;
+  uint32_t trace_buffer_idx_;
+
 };
 #endif // BEEB_DEBUGGER_WINDOW_H_

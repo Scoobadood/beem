@@ -1,4 +1,5 @@
 #include "disassembly_view.h"
+#include "Disassembler/operation_formatter.h"
 #include <spdlog/spdlog.h>
 
 #include <QScrollBar>
@@ -241,68 +242,15 @@ void DisassemblyView::set_pc(uint16_t pc) {
   te_disassembly_->update();
 }
 
-QString DisassemblyView::address_or_label(uint16_t addr, bool zp) {
-  QString label;
-  if (is_labelled(addr, label)) {
-    return label;
-  } else {
-    return QString("$%1").arg(addr, zp ? 2 : 4, 16, QChar('0'));
-  }
-}
-
 /**
  * Format an operation for rendering in the view.
  * This takes care only of building the individual text strings. It doe not apply any styling.
  */
 DisassemblyView::FormattedOperation DisassemblyView::format_for_display(const Operation &op) {
-  QString addr = QString("%1:")
-      .arg(op.address, 4, 16, QChar('0'));
-
+  QString addr = QString("%1:").arg(op.address, 4, 16, QChar('0'));
   QString label = QString::fromStdString("");
-
   QString opc = QString::fromStdString(op.opcode.name);
-  QString arg;
-  switch (op.opcode.addressing_mode) {
-    case OpCode::Implied:
-      arg = "";
-      break;
-    case OpCode::Immediate:
-      arg = QString("#$%1").arg(op.data, 2, 16, QChar('0'));
-      break;
-    case OpCode::Absolute:
-      arg = address_or_label(op.data);
-      break;
-    case OpCode::IndirectIndexedX:
-      arg = QString("(%1,X)").arg(address_or_label(op.data));
-      break;
-    case OpCode::IndirectIndexedY:
-      arg = QString("(%1),Y").arg(address_or_label(op.data));
-      break;
-    case OpCode::Indirect:
-      arg = QString("(%1)").arg(address_or_label(op.data));
-      break;
-    case OpCode::AbsoluteIndexedX:
-      arg = QString("%1,X").arg(address_or_label(op.data));
-      break;
-    case OpCode::AbsoluteIndexedY:
-      arg = QString("%1,Y").arg(address_or_label(op.data));
-      break;
-    case OpCode::Accumulator:
-      arg = QString("A");
-      break;
-    case OpCode::ZeroPage:
-      arg = QString("%1").arg(address_or_label(op.data, true));
-      break;
-    case OpCode::ZeroPageIndexedY:
-      arg = QString("%1,Y").arg(address_or_label(op.data, true));
-      break;
-    case OpCode::ZeroPageIndexedX:
-      arg = QString("%1,X").arg(address_or_label(op.data, true));
-      break;
-    case OpCode::Relative:
-      arg = QString("%1").arg(address_or_label(op.address + 2 + (int8_t) op.data));
-      break;
-  }
+  QString arg = QString::fromStdString(format_args(op, disassembler_.symbols()));
 
   QString raw = QString("%1").arg(op.opcode.hex, 2, 16, QChar('0'));
   if (op.opcode.bytes > 1) {
@@ -377,23 +325,12 @@ void DisassemblyView::disassemble_data(const std::vector<uint8_t> &data) {
       break;
     }
     disassembly_.emplace_back(dis);
-    auto iter = symbols_.find(dis.address);
-    // If there's a label, skip a line in our lookup table
-    if (iter != symbols_.end()) {
+    if( !dis.label.empty())
       ++rows;
-    }
     addr_to_row_.emplace(dis.address, rows);
     row_to_addr_.emplace(rows, dis.address);
     ++rows;
   }
-}
-
-bool DisassemblyView::is_labelled(uint16_t address, QString &label) {
-  if (symbols_.empty()) return false;
-  auto iter = symbols_.find(address);
-  if (iter == symbols_.end()) return false;
-  label = iter->second;
-  return true;
 }
 
 /**
@@ -412,8 +349,8 @@ void DisassemblyView::layout_disassembly() {
   auto op_idx = 0;
   for (const auto &op : disassembly_) {
     QString label;
-    if (is_labelled(op.address, label)) {
-      label = QString("%1").arg(label, -12, ' ');
+    if (!op.label.empty()) {
+      label = QString("%1").arg(QString::fromStdString(op.label), -12, ' ');
       te_disassembly_->setTextColor(colour_scheme_->label_colour);
       te_disassembly_->insertPlainText(label);// For BP Marker
       te_disassembly_->textCursor().block().setUserState(LS_LABEL | op.address);
@@ -473,16 +410,16 @@ void DisassemblyView::mousePressEvent(QMouseEvent *e) {
 
   /* Read user state of line */
   auto line_state = cursor.block().userState();
-  if (line_state & LS_LABEL) {
-    // label
-    spdlog::info("The label for address {:04x} {}", (line_state & 0xffff),
-                 symbols_.at(line_state & 0xffff).toStdString());
-  } else if (line_state & LS_OPCOD) {
-    auto op_idx = line_state & 0xffff;
-    auto op = disassembly_.at(op_idx);
-    spdlog::info("The address {:04x} with operation {} {}", op.address, op.opcode.name,
-                 (line_state & LS_BRKPT) ? "with a breakpoint." : "");
-  }
+//  if (line_state & LS_LABEL) {
+//    // label
+//    spdlog::info("The label for address {:04x} {}", (line_state & 0xffff),
+//                 symbols_.at(line_state & 0xffff).toStdString());
+//  } else if (line_state & LS_OPCOD) {
+//    auto op_idx = line_state & 0xffff;
+//    auto op = disassembly_.at(op_idx);
+//    spdlog::info("The address {:04x} with operation {} {}", op.address, op.opcode.name,
+//                 (line_state & LS_BRKPT) ? "with a breakpoint." : "");
+//  }
 
   switch (line_state >> 16) {
     // Label, do nothing
@@ -512,12 +449,4 @@ void DisassemblyView::mousePressEvent(QMouseEvent *e) {
       break;
 
   }
-}
-
-void DisassemblyView::set_symbols(const std::map<uint16_t, std::string> &symbols) {
-  symbols_.clear();
-  for (const auto &s : symbols) {
-    symbols_.emplace(s.first, QString::fromStdString(s.second));
-  }
-  layout_disassembly();
 }
