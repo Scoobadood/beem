@@ -467,7 +467,7 @@ void Acia::maybe_load_shift_register() {
   spdlog::get("ACIA")->info("Loading Tx Shift Register from TDR {:02x}", tdr_);
   tx_shift_register_ = tdr_;
   tdr_is_full_ = false;
-//  tdr_went_empty();
+  tdr_went_empty();
 
   tx_shift_count_ = 0;
   parity_bit_ = (parity_ == 1) ? 1 : 0;
@@ -485,7 +485,6 @@ void Acia::shift_out_data() {
       // send start bit
       set_output(0);
       state_ = SEND_BITS;
-      tdr_went_empty();
       break;
 
     case SEND_BITS: {
