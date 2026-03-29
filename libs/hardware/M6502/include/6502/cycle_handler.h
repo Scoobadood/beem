@@ -8,10 +8,9 @@
 #include "m6502.h"
 #include "bus.h"
 
-#include <functional>
 #include <map>
 
-using CycleHandler = std::function<void(M6502 *, Bus &)>;
+using CycleHandler = void (*)(M6502 *, Bus &);
 
 CycleHandler cycle_handler(uint16_t ir);
 
