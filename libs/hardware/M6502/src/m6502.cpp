@@ -24,11 +24,12 @@ M6502::M6502() //
   pc_history_buffer_.resize(history_size_, 0xffff);
   try {
     auto logger = spdlog::basic_logger_mt("CPU", "logs/CPU.txt", true);
-    logger->flush_on(spdlog::level::trace);
+    logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
+  logger_ = spdlog::get("CPU");
 }
 
 bool M6502::maybe_handle_reset(const std::shared_ptr<Bus> &bus) {
@@ -86,7 +87,7 @@ bool M6502::maybe_handle_reset(const std::shared_ptr<Bus> &bus) {
 void M6502::maybe_handle_sync(const std::shared_ptr<Bus> &bus) {
   if (bus->tst_SYNC()) {
     if (interrupt_requested_ && !tstI()) {
-      spdlog::get("CPU")->debug("Interrupt requested");
+      logger_->debug("Interrupt requested");
       brk_flags_ |= BRK_IRQ;
       clrB();
       ir_ = 0;

@@ -5,6 +5,7 @@
 
 #include <QWidget>
 #include <QKeyEvent>
+#include <QMetaObject>
 
 #include <QCoreApplication>
 #include <QApplication>
@@ -24,15 +25,35 @@ VduView::VduView(QWidget *parent) //
 {
 }
 
+// Called from the emulation thread — must not touch Qt widgets directly.
 void VduView::screen_changed(int32_t width, int32_t height, const std::vector<uint8_t> &scr_data) {
-  if (width != last_width_ || height != last_height_) {
-    delete image_;
-    image_ = new QImage(scr_data.data(), width, height, QImage::Format_RGB888);
-    last_width_ = width;
-    last_height_ = height;
-  } else {
-    memcpy(image_->bits(), scr_data.data(), width * height * 3);
+  {
+    std::lock_guard<std::mutex> lock(frame_mutex_);
+    frame_buffer_.assign(scr_data.begin(), scr_data.end());
+    frame_w_ = width;
+    frame_h_ = height;
   }
+  QMetaObject::invokeMethod(this, &VduView::consume_frame, Qt::QueuedConnection);
+}
+
+// Called on the main thread via QueuedConnection.
+void VduView::consume_frame() {
+  std::vector<uint8_t> local_buf;
+  int32_t w, h;
+  {
+    std::lock_guard<std::mutex> lock(frame_mutex_);
+    if (frame_buffer_.empty()) return;
+    local_buf.swap(frame_buffer_);
+    w = frame_w_;
+    h = frame_h_;
+  }
+  if (w != last_width_ || h != last_height_) {
+    delete image_;
+    image_ = new QImage(w, h, QImage::Format_RGB888);
+    last_width_ = w;
+    last_height_ = h;
+  }
+  memcpy(image_->bits(), local_buf.data(), local_buf.size());
   update();
 }
 

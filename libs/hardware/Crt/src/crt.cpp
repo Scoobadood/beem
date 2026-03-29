@@ -21,11 +21,12 @@ Crt::Crt(const std::shared_ptr<Crtc> &crtc,
 
   try {
     auto logger = spdlog::basic_logger_mt("CRT", "logs/CRT.txt", true);
-    logger->flush_on(spdlog::level::trace);
+    logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
+  logger_ = spdlog::get("CRT");
 }
 
 void

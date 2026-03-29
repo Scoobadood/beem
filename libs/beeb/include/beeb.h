@@ -7,6 +7,7 @@
 
 #include "dram.h"
 #include <6502/m6502.h>
+#include <spdlog/spdlog.h>
 #include "6522_via.h"
 #include "IC32Latch.h"
 #include "sound_76489.h"
@@ -80,6 +81,7 @@ public:
   Adc *adc_;
 
   uint64_t cached_dram_bus_;
+  std::shared_ptr<spdlog::logger> bus_dance_logger_;
 
   std::vector<std::function<void(bool)>> cassette_listeners_;
   bool last_cassette_motor_;

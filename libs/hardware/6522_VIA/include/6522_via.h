@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <set>
 #include <string>
+#include <spdlog/spdlog.h>
 
 class Via {
 public:
@@ -115,6 +116,7 @@ private:
 
   // My name (to distinguish multiple VIAs)
   std::string via_name_;
+  std::shared_ptr<spdlog::logger> logger_;
 };
 
 #endif //BEEB_HARDWARE_6522_VIA_INCLUDE_H_

@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <string>
+#include <spdlog/spdlog.h>
 
 const uint8_t VSYNC_DISP_ENABLE = 1 << 0;
 const uint8_t HSYNC_DISP_ENABLE = 1 << 1;
@@ -198,6 +199,8 @@ class Crtc {
   data_subscriber_8_bit_ptr hw_scroll_addr_;
 
   data_provider_8_bit_ptr irq_provider_;
+  std::shared_ptr<spdlog::logger> logger_;
+  std::shared_ptr<spdlog::logger> bus_dance_logger_;
 };
 
 #endif // BEEB_HARDWARE_6845_CRTC_H_

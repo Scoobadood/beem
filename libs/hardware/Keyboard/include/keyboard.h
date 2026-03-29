@@ -8,6 +8,7 @@
 #include "data_connectors.h"
 
 #include <vector>
+#include <spdlog/spdlog.h>
 
 const uint8_t KEY_F0 = 0x20;
 const uint8_t KEY_F1 = 0x71;
@@ -158,6 +159,7 @@ private:
   uint8_t key_2_;
   bool shift_pressed_;
   bool ctrl_pressed_;
+  std::shared_ptr<spdlog::logger> logger_;
 };
 
 #endif // BEEB_HW_KEYBOARD_H_

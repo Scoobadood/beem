@@ -102,11 +102,13 @@ Crtc::Crtc(uint16_t base_addr) //
   hw_scroll_addr_ = std::make_shared<data_subscriber_8_bit>(0x30);
   try {
     auto logger = spdlog::basic_logger_mt("CRTC", "logs/crtc-log.txt", true);
-    logger->flush_on(spdlog::level::debug);
+    logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
+  logger_ = spdlog::get("CRTC");
+  bus_dance_logger_ = spdlog::get("BusDance");
 
   irq_provider_ = std::make_shared<data_provider_8_bit>(0x00);
 }
@@ -119,7 +121,7 @@ void Crtc::mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus) {
   }
 
   uint8_t data;
-  spdlog::get("CRTC")->info("CRTC: Trying to read from ({}) {}", selected_register_,
+  logger_->info("CRTC: Trying to read from ({}) {}", selected_register_,
                             selected_register_ < register_name_->size()
                             ? register_name_[selected_register_]
                             : "???");
@@ -146,7 +148,7 @@ void Crtc::mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       spdlog::error("      Read not supported");
       return;
   }
-  spdlog::get("CRTC")->info("      read {:02x}", data);
+  logger_->info("      read {:02x}", data);
   bus->set_data(data);
 }
 
@@ -156,14 +158,14 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
     if (reg > 17) {
       spdlog::error("CRTC: Selected invalid register {}", reg);
     } else {
-      spdlog::get("CRTC")->info("CRTC: Selected {} register", register_name_[reg]);
+      logger_->info("CRTC: Selected {} register", register_name_[reg]);
     }
     selected_register_ = reg & 0x1f;
     return;
   }
 
   auto data = bus->get_data();
-  spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to {}", data, register_name_[selected_register_]);
+  logger_->info("CRTC: Wrote {:02x} to {}", data, register_name_[selected_register_]);
   switch (selected_register_) {
     case REG_HORZ_TOTAL:
       reg_horz_total_ = data;
@@ -183,47 +185,47 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       if (hw != 0) {
         r3_horz_sync_width_ = hw;
       }
-      spdlog::get("CRTC")->info("      hsync_pulse_width is {:02x} {}", r3_horz_sync_width_,
+      logger_->info("      hsync_pulse_width is {:02x} {}", r3_horz_sync_width_,
                                 (hw == 0) ? "[ignored 0]" : "");
-      spdlog::get("CRTC")->info("      vsync_pulse_width is {:02x}", r3_vert_sync_pulse_width_);
+      logger_->info("      vsync_pulse_width is {:02x}", r3_vert_sync_pulse_width_);
     }
       break;
 
     case REG_VERT_TOTAL:
       reg_vert_total_ = data & 0x7f;
-      spdlog::get("CRTC")->info("      reg_vert_total_ : {:02x}", reg_vert_total_);
+      logger_->info("      reg_vert_total_ : {:02x}", reg_vert_total_);
       break;
 
     case REG_VERT_TOTAL_ADJ:
       reg_vert_total_adj_ = data & 0x1f;
-      spdlog::get("CRTC")->info("      reg_vert_total_adj_ : {:02x}", reg_vert_total_adj_);
+      logger_->info("      reg_vert_total_adj_ : {:02x}", reg_vert_total_adj_);
       break;
 
     case REG_VERT_TOTAL_DISP:
       reg_vert_disp_ = data & 0x7f;
-      spdlog::get("CRTC")->info("      reg_vert_disp_ : {:02x}", reg_vert_disp_);
+      logger_->info("      reg_vert_disp_ : {:02x}", reg_vert_disp_);
       break;
 
     case REG_VSYNC_POS:
       reg_vert_sync_pos_ = data & 0x7f;
-      spdlog::get("CRTC")->info("      reg_vert_sync_pos_ : {:02x}", reg_vert_sync_pos_);
+      logger_->info("      reg_vert_sync_pos_ : {:02x}", reg_vert_sync_pos_);
       break;
 
     case REG_ILD: {
       // Mask out unused bits
       reg_ilace_and_delay_ = data & 0xf3;
       r8_interlace_mode_ = reg_ilace_and_delay_ & 0x03;
-      spdlog::get("CRTC")->info("CRTC: Wrote {:02x} to ILD.", data);
+      logger_->info("CRTC: Wrote {:02x} to ILD.", data);
       switch (r8_interlace_mode_) {
         case 0:
         case 1:
-          spdlog::get("CRTC")->info("      Normal (non-interlaced) sync mode.");
+          logger_->info("      Normal (non-interlaced) sync mode.");
           break;
         case 2:
-          spdlog::get("CRTC")->info("      Interlace sync.");
+          logger_->info("      Interlace sync.");
           break;
         case 3:
-          spdlog::get("CRTC")->info("      Interlace sync and video.");
+          logger_->info("      Interlace sync and video.");
           break;
       }
       auto skew = (reg_ilace_and_delay_ & 0x30) >> 4;
@@ -235,16 +237,16 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       }
       switch (r8_display_enable_skew_) {
         case 0:
-          spdlog::get("CRTC")->info("      No display enable delay.");
+          logger_->info("      No display enable delay.");
           break;
         case 1:
-          spdlog::get("CRTC")->info("      One character display blanking delay.");
+          logger_->info("      One character display blanking delay.");
           break;
         case 2:
-          spdlog::get("CRTC")->info("      Two character display blanking delay.");
+          logger_->info("      Two character display blanking delay.");
           break;
         case 3:
-          spdlog::get("CRTC")->info("      Video output disabled.");
+          logger_->info("      Video output disabled.");
           break;
       }
       r8_is_interlace_ = (reg_ilace_and_delay_ & 0x01);
@@ -252,16 +254,16 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       r8_cursor_delay_ = (reg_ilace_and_delay_ >> 0x06) & 0x03;
       switch (r8_cursor_delay_) {
         case 0:
-          spdlog::get("CRTC")->info("      No cursor blanking delay.");
+          logger_->info("      No cursor blanking delay.");
           break;
         case 1:
-          spdlog::get("CRTC")->info("      One character cursor blanking delay.");
+          logger_->info("      One character cursor blanking delay.");
           break;
         case 2:
-          spdlog::get("CRTC")->info("      Two character cursor blanking delay.");
+          logger_->info("      Two character cursor blanking delay.");
           break;
         case 3:
-          spdlog::get("CRTC")->info("      Cursor output disabled.");
+          logger_->info("      Cursor output disabled.");
           break;
       }
     }
@@ -269,43 +271,43 @@ void Crtc::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
 
     case REG_CHAR_SCAN_LINES:
       reg_rasters_per_char_ = data & 0x1f;
-      spdlog::get("CRTC")->info("      reg_max_raster_lines_ : {:02x}", reg_rasters_per_char_);
+      logger_->info("      reg_max_raster_lines_ : {:02x}", reg_rasters_per_char_);
       break;
 
     case REG_CURSOR_START:
       r10_curs_blink_ = (data >> 6) & 0x01;
       r10_curs_blink_rate_ = (data >> 5) & 0x01;
       reg_curs_start_raster_ = data & 0x1f;
-      spdlog::get("CRTC")->info("      Cursor blink {}", r10_curs_blink_ ? "enabled" : "disabled");
-      spdlog::get("CRTC")->info("      blink rate {}", r10_curs_blink_rate_ ? "fast" : "slow");
-      spdlog::get("CRTC")->info("      start line {}.", reg_curs_start_raster_);
+      logger_->info("      Cursor blink {}", r10_curs_blink_ ? "enabled" : "disabled");
+      logger_->info("      blink rate {}", r10_curs_blink_rate_ ? "fast" : "slow");
+      logger_->info("      start line {}.", reg_curs_start_raster_);
       break;
 
     case REG_CURSOR_END:
       reg_curs_end_raster_ = data & 0x1f;
-      spdlog::get("CRTC")->info("      reg_curs_end_raster_ : {:02x}", reg_curs_end_raster_);
+      logger_->info("      reg_curs_end_raster_ : {:02x}", reg_curs_end_raster_);
       break;
 
       // Changes here don't take effect until the next CRTC cycle
       // As the CRTC address is latched at the start of frame.
     case REG_SCREEN_ADDR_HI:
       reg_scr_start_addr_ = (reg_scr_start_addr_ & 0x00ff) | ((data & 0x3f) << 8);
-      spdlog::get("CRTC")->info("      Screen start address is {:04x}", reg_scr_start_addr_);
+      logger_->info("      Screen start address is {:04x}", reg_scr_start_addr_);
       break;
 
     case REG_SCREEN_ADDR_LO:
       reg_scr_start_addr_ = (reg_scr_start_addr_ & 0x3f00) | data;
-      spdlog::get("CRTC")->info("      Screen start address is {:04x}", reg_scr_start_addr_);
+      logger_->info("      Screen start address is {:04x}", reg_scr_start_addr_);
       break;
 
     case REG_CURSOR_POS_HI:
       reg_curs_start_addr_ = (reg_curs_start_addr_ & 0xff) | ((data & 0x3f) << 8);
-      spdlog::get("CRTC")->info("      Cursor pos is {:04x}", reg_curs_start_addr_);
+      logger_->info("      Cursor pos is {:04x}", reg_curs_start_addr_);
       break;
 
     case REG_CURSOR_POS_LO:
       reg_curs_start_addr_ = (reg_curs_start_addr_ & 0x3f00) | data;
-      spdlog::get("CRTC")->info("      Cursor pos is {:04x}", reg_curs_start_addr_);
+      logger_->info("      Cursor pos is {:04x}", reg_curs_start_addr_);
       break;
 
     default:
@@ -341,7 +343,7 @@ void Crtc::tick(const std::shared_ptr<Bus> &bus) {
   if (addr < base_addr_ || addr > (base_addr_ + CRTC_READ_WRITE)) {
     return;
   }
-  spdlog::get("CRTC")->info("CRTC: CS Addr: {:04x}, RW:{}, {}.",
+  logger_->info("CRTC: CS Addr: {:04x}, RW:{}, {}.",
                             addr,
                             (bus->tst_RW() ? "R" : "W"),
                             (bus->tst_RW() ? "" : fmt::format("D:{:02x}", bus->get_data())));
@@ -388,7 +390,7 @@ void Crtc::handle_cursor() {
  */
 void Crtc::wrap_output_addr(uint16_t &addr) {
   auto c0c1 = hw_scroll_addr_->data() >> 4;
-  spdlog::get("CRTC")->info("Output address is {:04x}, correcting by c0c1 {:02x}", addr, c0c1);
+  logger_->debug("Output address is {:04x}, correcting by c0c1 {:02x}", addr, c0c1);
   uint16_t subtrahend = 0;
   switch (c0c1) {
     case 0x00:
@@ -404,12 +406,12 @@ void Crtc::wrap_output_addr(uint16_t &addr) {
       subtrahend = 0x2800;
       break;
     default:
-      spdlog::get("CRTC")->error("Latch bits for base addr have crazy value ({:02x})", c0c1);
+      logger_->error("Latch bits for base addr have crazy value ({:02x})", c0c1);
       spdlog::error("Latch bits for base addr have crazy value ({:02x})", c0c1);
       break;
   }
   addr = (addr - subtrahend);
-  spdlog::get("CRTC")->info("   corrected to {:04x}", addr);
+  logger_->debug("   corrected to {:04x}", addr);
 }
 
 void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
@@ -434,7 +436,7 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
     }
   }
 
-  spdlog::get("CRTC")->debug("Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
+  logger_->debug("Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
   dram_bus->set_address(output_addr);
   dram_bus->set_RW();
 
@@ -465,7 +467,7 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
 
   last_generated_address_ = output_addr;
 
-  spdlog::get("BusDance")->debug("CRTC: Writing vram address, expects to own bus. DRAM bus {:04x} {:02x} {} {}",
+  bus_dance_logger_->debug("CRTC: Writing vram address, expects to own bus. DRAM bus {:04x} {:02x} {} {}",
                                  dram_bus->get_address(),
                                  dram_bus->get_data(),
                                  dram_bus->tst_RW() ? "R" : "W",

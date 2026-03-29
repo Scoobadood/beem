@@ -44,11 +44,12 @@ Beeb::Beeb(uint8_t boot_mode) //
 
   try {
     auto logger = spdlog::basic_logger_mt("BusDance", "logs/bus-log.txt", true);
-    logger->flush_on(spdlog::level::debug);
+    logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
+  bus_dance_logger_ = spdlog::get("BusDance");
 
 
   // Make a common clock for most things
@@ -176,13 +177,13 @@ bool Beeb::is_1mhz_device_address(const std::shared_ptr<Bus> &bus) {
 /* Determine whether we should copy address and data from main bus or not*/
 void Beeb::pre_dram_checks() {
   if (!cpu_has_address_bus()) {
-    spdlog::get("BusDance")->debug("PRE : CPU doesn't have control.");
+    bus_dance_logger_->debug("PRE : CPU doesn't have control.");
     return;
   }
 
   auto addr = bus_->get_address();
   if (addr < DRAM_BASE || addr > DRAM_LAST) {
-    spdlog::get("BusDance")->debug("PRE : CPU not accessing DRAM.");
+    bus_dance_logger_->debug("PRE : CPU not accessing DRAM.");
     return;
   }
 
@@ -193,7 +194,7 @@ void Beeb::pre_dram_checks() {
     dram_bus_->clr_RW();
     dram_bus_->set_data(bus_->get_data());
   }
-  spdlog::get("BusDance")->debug("PRE : CPU addressing DRAM. Copied Bus to DRAM bus {:04x} {:02x} {} {}",
+  bus_dance_logger_->debug("PRE : CPU addressing DRAM. Copied Bus to DRAM bus {:04x} {:02x} {} {}",
                                  dram_bus_->get_address(),
                                  dram_bus_->get_data(),
                                  dram_bus_->tst_RW() ? "R" : "W",
@@ -203,20 +204,20 @@ void Beeb::pre_dram_checks() {
 
 void Beeb::post_dram_checks() {
   if (!cpu_has_address_bus()) {
-    spdlog::get("BusDance")->debug("POST: CPU doesn't have control.");
+    bus_dance_logger_->debug("POST: CPU doesn't have control.");
     return;
   }
 
   auto addr = bus_->get_address();
   if (addr < DRAM_BASE || addr > DRAM_LAST) {
-    spdlog::get("BusDance")->debug("POST: CPU didn't access DRAM.");
+    bus_dance_logger_->debug("POST: CPU didn't access DRAM.");
     return;
   }
 
   if (bus_->tst_RW()) {
     bus_->set_data(dram_bus_->get_data());
   }
-  spdlog::get("BusDance")->debug("POST: CPU had DRAM control and {} {:02x} {} {:04x}. {}",
+  bus_dance_logger_->debug("POST: CPU had DRAM control and {} {:02x} {} {:04x}. {}",
                                  bus_->tst_RW() ? "read" : "wrote",
                                  bus_->get_data(),
                                  bus_->tst_RW() ? "from" : "to",
@@ -229,7 +230,7 @@ void Beeb::tick() {
   clock_->tick();
 
   if (clock_->went_high(CLK_2_MHZ)) {
-    spdlog::get("BusDance")->debug("BEEB: 2MHz went high. Cached DRAM bus {:04x} {:02x} {} {}",
+    bus_dance_logger_->debug("BEEB: 2MHz went high. Cached DRAM bus {:04x} {:02x} {} {}",
                                    dram_bus_->get_address(),
                                    dram_bus_->get_data(),
                                    dram_bus_->tst_RW() ? "R" : "W",
@@ -242,13 +243,13 @@ void Beeb::tick() {
   // Bus RW in high phase. We're phaking it so we just go
   // Off the high phase which also makes the isolation code work.
   if (clock_->went_high(CLK_E_2_MHZ)) {
-    spdlog::get("BusDance")->debug("BEEB: 2MHzE went high. CPU starting work.");
+    bus_dance_logger_->debug("BEEB: 2MHzE went high. CPU starting work.");
 
     if (system_via_->has_irq() || acia_->has_irq()) cpu_->raise_irq();
     else cpu_->clear_irq();
 
     cpu_->tick(bus_);
-    spdlog::get("BusDance")->debug("CPU  : finished work. Main bus {:04x} {:02x} {} {}",
+    bus_dance_logger_->debug("CPU  : finished work. Main bus {:04x} {:02x} {} {}",
                                    bus_->get_address(),
                                    bus_->get_data(),
                                    bus_->tst_RW() ? "R" : "W",
@@ -262,7 +263,7 @@ void Beeb::tick() {
   }
   // Allow for DRAM Access
   if (clock_->went_high(CLK_4_MHZ)) {
-    spdlog::get("BusDance")->debug("BEEB: 4MHz went high. {} should have control",
+    bus_dance_logger_->debug("BEEB: 4MHz went high. {} should have control",
                                    clock_->is_high(CLK_2_MHZ) ? " CPU" : "CRTC");
     pre_dram_checks();
     dram_->tick(dram_bus_);
@@ -277,7 +278,7 @@ void Beeb::tick() {
 
   if (clock_->went_low(CLK_2_MHZ)) {
     dram_bus_->set_pins(cached_dram_bus_);
-    spdlog::get("BusDance")->debug("BEEB: 2MHz went low. DRAM bus restored {:04x} {:02x} {} {}",
+    bus_dance_logger_->debug("BEEB: 2MHz went low. DRAM bus restored {:04x} {:02x} {} {}",
                                    dram_bus_->get_address(),
                                    dram_bus_->get_data(),
                                    dram_bus_->tst_RW() ? "R" : "W",

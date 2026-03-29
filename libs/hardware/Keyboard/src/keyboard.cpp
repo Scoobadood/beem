@@ -36,12 +36,12 @@ Keyboard::Keyboard(uint8_t dips) //
 
   try {
     auto logger = spdlog::basic_logger_mt("KEYB", "logs/keyboard.txt", true);
-    logger->flush_on(spdlog::level::debug);
+    logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
-
+  logger_ = spdlog::get("KEYB");
 }
 
 /*
@@ -50,7 +50,7 @@ Keyboard::Keyboard(uint8_t dips) //
  * BUT ROW 0 is not scanned.
  */
 void Keyboard::tick() {
-  spdlog::get("KEYB")->debug("tick (AS:{})",
+  logger_->debug("tick (AS:{})",
                              auto_scan_enabled_
                              ? fmt::format("Y {}", scan_col_)
                              : "N");
@@ -60,7 +60,7 @@ void Keyboard::tick() {
   if (!auto_scan_enabled_) {
     if (data_src_->data_changed()) {
       auto data = data_src_->data();
-      spdlog::get("KEYB")->debug("Rx data {:02x}", data);
+      logger_->debug("Rx data {:02x}", data);
       scan_col_ = (data & 0x0f);
       check_pa7(data);
     }
@@ -139,13 +139,13 @@ void Keyboard::check_we() {
   if (enable == auto_scan_enabled_) return;
 
   auto_scan_enabled_ = enable;
-  spdlog::get("KEYB")->debug("Autoscan {}", auto_scan_enabled_ ? "enabled" : "disabled");
+  logger_->debug("Autoscan {}", auto_scan_enabled_ ? "enabled" : "disabled");
 }
 
 void log_state(const std::string &led_name, bool old_state, bool new_state) {
   std::string action = (old_state == new_state) ? "still" : "turned";
   std::string state = new_state ? "on" : "off";
-  spdlog::info("{} LED {} {}", led_name, action, state);
+  spdlog::debug("{} LED {} {}", led_name, action, state);
 }
 
 /*
@@ -171,12 +171,12 @@ void Keyboard::press_key(uint8_t key) {
   if( key == KEY_CTL) {ctrl_pressed_ = true;return;}
   if (key_1_ == key || key_2_ == key) return;
   if (key_1_ == 0xff) {
-    spdlog::get("KEYB")->debug("Key {:02x} pressed");
+    logger_->debug("Key {:02x} pressed");
     key_1_ = key;
     return;
   }
   if (key_2_ == 0xff) {
-    spdlog::get("KEYB")->debug("Key {:02x} pressed");
+    logger_->debug("Key {:02x} pressed");
     key_2_ = key;
     return;
   }
@@ -189,12 +189,12 @@ void Keyboard::release_key(uint8_t key) {
   if (key_1_ == key) {
     key_1_ = key_2_;
     key_2_ = 0xff;
-    spdlog::get("KEYB")->debug("Key {:02x} released");
+    logger_->debug("Key {:02x} released");
     return;
   }
   if (key_2_ == key) {
     key_2_ = 0xff;
-    spdlog::get("KEYB")->debug("Key {:02x} released");
+    logger_->debug("Key {:02x} released");
     return;
   }
 }

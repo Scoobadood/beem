@@ -85,11 +85,12 @@ Via::Via(uint16_t base_address) //
   via_name_ = fmt::format("VIA@{:04x}", base_address);
   try {
     auto logger = spdlog::basic_logger_mt(via_name_, "logs/" + via_name_ + ".txt", true);
-    logger->flush_on(spdlog::level::trace);
+    logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
+  logger_ = spdlog::get(via_name_);
 }
 
 void Via::check_mmio(const std::shared_ptr<Bus> &bus) {
@@ -119,7 +120,7 @@ void Via::mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg) {
       } else {
         data = read_port_b();
       }
-      spdlog::get(via_name_)->info("Read ({:02x}) from {} IRB",
+      logger_->info("Read ({:02x}) from {} IRB",
                                    data,
                                    PB_LATCHED(acr_) ? "(latched)" : "");
       break;
@@ -131,7 +132,7 @@ void Via::mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg) {
       } else {
         data = read_port_a();
       }
-      spdlog::get(via_name_)->info("Read ({:02x}) from {} IRA{}",
+      logger_->info("Read ({:02x}) from {} IRA{}",
                                    data,
                                    PA_LATCHED(acr_) ? "(latched)" : "",
                                    (reg == IORA ? "" : "_NOH"));
@@ -140,34 +141,34 @@ void Via::mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg) {
 
     case DDRB:
       data = ddrb_;
-      spdlog::get(via_name_)->info("Read ({:02x}) from DDRB", data);
+      logger_->info("Read ({:02x}) from DDRB", data);
       break;
 
     case DDRA:
       data = ddra_;
-      spdlog::get(via_name_)->info("Read ({:02x}) from DDRA", data);
+      logger_->info("Read ({:02x}) from DDRA", data);
       break;
 
     case T1C_L:
-      spdlog::get(via_name_)->info("Read T1C_L");
+      logger_->info("Read T1C_L");
       break;
     case T1C_H:
-      spdlog::get(via_name_)->info("Read T1C_H");
+      logger_->info("Read T1C_H");
       break;
     case T1L_L:
-      spdlog::get(via_name_)->info("Read T1L_L");
+      logger_->info("Read T1L_L");
       break;
     case T1L_H:
-      spdlog::get(via_name_)->info("Read T1L_H");
+      logger_->info("Read T1L_H");
       break;
     case T2C_L:
-      spdlog::get(via_name_)->info("Read T2C_L");
+      logger_->info("Read T2C_L");
       break;
     case T2C_H:
-      spdlog::get(via_name_)->info("Read T2C_H");
+      logger_->info("Read T2C_H");
       break;
     case SR:
-      spdlog::get(via_name_)->info("Read SR");
+      logger_->info("Read SR");
       break;
 
     case ACR:
@@ -289,7 +290,7 @@ void Via::write_port_b(uint8_t data) {
 }
 
 void Via::write_irq_enable(uint8_t data) {
-  spdlog::get(via_name_)->info("Writing ({:02x}) to IER", data);
+  logger_->info("Writing ({:02x}) to IER", data);
   auto old_ier = ier_;
   if (data & 0x80) {
     ier_ |= data;
@@ -298,52 +299,52 @@ void Via::write_irq_enable(uint8_t data) {
   }
 
   // FIXME: Only report CA2 for debug purposes
-  spdlog::get(via_name_)->info("write to IER. {}",
+  logger_->info("write to IER. {}",
                                ((ier_ ^ old_ier) & IRQ_CA2) ? (TST_CA2(ier_) ? "CA2 enabled" : "CA2 disabled")
                                                             : "CA2 unchanged"
   );
 }
 
 void Via::write_acr(uint8_t data) {
-  spdlog::get(via_name_)->info("Writing ({:02x}) to ACR", data);
+  logger_->info("Writing ({:02x}) to ACR", data);
 
   acr_ = data;
 
-  spdlog::get(via_name_)->info("  PA_L {}", PA_LATCHED(acr_) ? "enabled" : "disabled");
-  spdlog::get(via_name_)->info("  PB_L {}", PB_LATCHED(acr_) ? "enabled" : "disabled");
-  spdlog::get(via_name_)->info("  T1 {}", ACR_T1_CTL(acr_) ? "Continuous" : "One shot");
-  spdlog::get(via_name_)->info("  T2 {}", ACR_T2_CTL(acr_) ? "Count down" : "One shot");
-  spdlog::get(via_name_)->info("  PB7 {}", ACR_T1_PB7(acr_) ? "Enabled" : "Disabled");
+  logger_->info("  PA_L {}", PA_LATCHED(acr_) ? "enabled" : "disabled");
+  logger_->info("  PB_L {}", PB_LATCHED(acr_) ? "enabled" : "disabled");
+  logger_->info("  T1 {}", ACR_T1_CTL(acr_) ? "Continuous" : "One shot");
+  logger_->info("  T2 {}", ACR_T2_CTL(acr_) ? "Count down" : "One shot");
+  logger_->info("  PB7 {}", ACR_T1_PB7(acr_) ? "Enabled" : "Disabled");
   switch ((acr_ >> 2) & 0x7) {
     case 0:
-      spdlog::get(via_name_)->info("  SR Disabled");
+      logger_->info("  SR Disabled");
       break;
     case 1:
-      spdlog::get(via_name_)->info("  SR Shift in T2");
+      logger_->info("  SR Shift in T2");
       break;
     case 2:
-      spdlog::get(via_name_)->info("  SR Shift in 1MHz");
+      logger_->info("  SR Shift in 1MHz");
       break;
     case 3:
-      spdlog::get(via_name_)->info("  SR Shift in Ext Clk");
+      logger_->info("  SR Shift in Ext Clk");
       break;
     case 4:
-      spdlog::get(via_name_)->info("  SR Shift out Free running T2");
+      logger_->info("  SR Shift out Free running T2");
       break;
     case 5:
-      spdlog::get(via_name_)->info("  SR Shift out T2");
+      logger_->info("  SR Shift out T2");
       break;
     case 6:
-      spdlog::get(via_name_)->info("  SR Shift out 1MHz");
+      logger_->info("  SR Shift out 1MHz");
       break;
     case 7:
-      spdlog::get(via_name_)->info("  SR Shift out Ext Clk");
+      logger_->info("  SR Shift out Ext Clk");
       break;
   }
 }
 
 void Via::write_pcr(uint8_t data) {
-  spdlog::get(via_name_)->info("Writing ({:02x}) to PCR", data);
+  logger_->info("Writing ({:02x}) to PCR", data);
   ca1_pos_active_edge_ = TST_FLG(data, PCR_CA1_IRQ_CTL);
   cb1_pos_active_edge_ = TST_FLG(data, PCR_CB1_IRQ_CTL);
   ca2_ctl_ = (data >> 1) & 0x07;
@@ -357,10 +358,10 @@ void Via::write_pcr(uint8_t data) {
     cb2_ = cb2_ctl_ & 0x01;
   }
 
-  spdlog::get(via_name_)->info("  CA1:{} active edge", cb1_pos_active_edge_ ? "positive" : "negative");
-  spdlog::get(via_name_)->info("  CB1:{} active edge", cb1_pos_active_edge_ ? "positive" : "negative");
-  spdlog::get(via_name_)->info("  CA2_CTL1:{}", ca2_ctl_);
-  spdlog::get(via_name_)->info("  CB2_CTL1:{}", cb2_ctl_);
+  logger_->info("  CA1:{} active edge", cb1_pos_active_edge_ ? "positive" : "negative");
+  logger_->info("  CB1:{} active edge", cb1_pos_active_edge_ ? "positive" : "negative");
+  logger_->info("  CA2_CTL1:{}", ca2_ctl_);
+  logger_->info("  CB2_CTL1:{}", cb2_ctl_);
 }
 
 void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
@@ -413,7 +414,7 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
       break;
 
     case SR:
-      spdlog::get(via_name_)->info("Wrote ({:02x}) to SR", data);
+      logger_->info("Wrote ({:02x}) to SR", data);
       break;
 
     case ACR:
@@ -467,7 +468,7 @@ void Via::set_ca1(uint8_t state) {
   prev_ca1_ = ca1_;
   ca1_ = state;
 
-  spdlog::get(via_name_)->debug("set_ca1({:02x}) value changed", state);
+  logger_->debug("set_ca1({:02x}) value changed", state);
 
   // If PCR_CA1_IRQ_CTL is set then +ve active edge else -ve active edge
   // This tests whether CA1 is triggered
@@ -480,7 +481,7 @@ void Via::set_ca1(uint8_t state) {
 
 
     // CA1 active edge triggered so raise IRQ
-    spdlog::get(via_name_)->debug(" raising IRQ CA1");
+    logger_->debug(" raising IRQ CA1");
     raise_irq(IRQ_CA1);
   }
 }
@@ -498,7 +499,7 @@ void Via::set_cb1(uint8_t state) {
 
   if (cb1_ == (pcr_ & PCR_CB1_IRQ_CTL)) {
     // CB1 went active. Generate IRQ and latch data if enabled
-    spdlog::get(via_name_)->info("  CB1 went active");
+    logger_->info("  CB1 went active");
     if (acr_ & ACR_PB_LATCH)
       pb_latch_ = read_port_b();
 
@@ -513,22 +514,22 @@ void Via::raise_irq(uint8_t irq) {
   // Ignore if it's already raised
   if (TST_FLG(ifr_, irq)) return;
 
-  spdlog::get(via_name_)->debug("raise_irq({:08b}) raised", irq);
+  logger_->debug("raise_irq({:08b}) raised", irq);
   ifr_ |= (irq | IRQ_IRQ);
 }
 
 bool Via::has_irq() const {
   bool has = ((ifr_ & ier_ & 0x7f) != 0);
-  spdlog::get(via_name_)->info("has_irq() (== {})", has);
-  spdlog::get(via_name_)->info("          ifr : {:08b} {}", ifr_, (ifr_ != 0) ? "Interrupts present" : "");
-  spdlog::get(via_name_)->info("          ier : {:08b} {}", ier_, (ier_ != 0) ? "Interrupts enabled" : "");
-  spdlog::get(via_name_)->info("          trg : {:08b}", ier_ & ifr_);
+  logger_->debug("has_irq() (== {})", has);
+  logger_->debug("          ifr : {:08b} {}", ifr_, (ifr_ != 0) ? "Interrupts present" : "");
+  logger_->debug("          ier : {:08b} {}", ier_, (ier_ != 0) ? "Interrupts enabled" : "");
+  logger_->debug("          trg : {:08b}", ier_ & ifr_);
   return has;
 }
 
 void Via::clear_irq(uint8_t irq) {
   if (!TST_FLG(ifr_, irq)) return;
-  spdlog::get(via_name_)->debug("clear_irq({:08b}) cleared", irq);
+  logger_->debug("clear_irq({:08b}) cleared", irq);
   ifr_ &= ~irq;
   if (ifr_ == IRQ_IRQ) ifr_ = 0;
 }
@@ -582,7 +583,7 @@ void Via::check_ca1() {
   for (const auto &provider : ca1_providers_) {
     if (provider->has_data()) {
       auto data = provider->data();
-      spdlog::get(via_name_)->debug("CA1 data arrived : 0x{:02x}", data);
+      logger_->debug("CA1 data arrived : 0x{:02x}", data);
       set_ca1(data);
     }
   }

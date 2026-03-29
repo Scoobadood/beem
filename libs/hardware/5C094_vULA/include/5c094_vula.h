@@ -85,6 +85,8 @@ class VideoUla {
 
   std::shared_ptr<Clock> clock_;
   std::shared_ptr<Crtc> crtc_;
+  std::shared_ptr<spdlog::logger> logger_;
+  std::shared_ptr<spdlog::logger> bus_dance_logger_;
 };
 
 #endif // BEEB_HARDWARE_5C095_VULA_H

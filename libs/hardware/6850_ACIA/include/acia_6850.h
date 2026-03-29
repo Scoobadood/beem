@@ -8,6 +8,7 @@
 #include "bus.h"
 #include "data_connectors.h"
 #include <cstdint>
+#include <spdlog/spdlog.h>
 
 class Acia {
  public:
@@ -108,6 +109,7 @@ class Acia {
   bool cts_;
 
   bool dcd_;
+  std::shared_ptr<spdlog::logger> logger_;
 };
 
 #endif // BEEB_HARDWARE_ACIA_6850_H_
