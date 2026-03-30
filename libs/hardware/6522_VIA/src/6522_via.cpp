@@ -72,6 +72,7 @@ Via::Via(uint16_t base_address) //
     , prev_cb1_{0} //
     , ier_{0} //
     , ifr_{0} //
+    , irq_active_{false} //
     , acr_{0} //
     , pcr_{0} //
     , ca1_pos_active_edge_{false} //
@@ -306,6 +307,7 @@ void Via::write_irq_enable(uint8_t data) {
                                ((ier_ ^ old_ier) & IRQ_CA2) ? (TST_CA2(ier_) ? "CA2 enabled" : "CA2 disabled")
                                                             : "CA2 unchanged"
   );
+  update_irq_cache();
 }
 
 void Via::write_acr(uint8_t data) {
@@ -513,21 +515,21 @@ void Via::set_cb1(uint8_t state) {
 /* Private convenience method to centralise raising IRQs in IFR
  * from 6522 activities.
  * */
+void Via::update_irq_cache() {
+  irq_active_ = ((ifr_ & ier_ & 0x7f) != 0);
+}
+
 void Via::raise_irq(uint8_t irq) {
   // Ignore if it's already raised
   if (TST_FLG(ifr_, irq)) return;
 
   logger_->debug("raise_irq({:08b}) raised", irq);
   ifr_ |= (irq | IRQ_IRQ);
+  update_irq_cache();
 }
 
 bool Via::has_irq() const {
-  bool has = ((ifr_ & ier_ & 0x7f) != 0);
-  logger_->debug("has_irq() (== {})", has);
-  logger_->debug("          ifr : {:08b} {}", ifr_, (ifr_ != 0) ? "Interrupts present" : "");
-  logger_->debug("          ier : {:08b} {}", ier_, (ier_ != 0) ? "Interrupts enabled" : "");
-  logger_->debug("          trg : {:08b}", ier_ & ifr_);
-  return has;
+  return irq_active_;
 }
 
 void Via::clear_irq(uint8_t irq) {
@@ -535,6 +537,7 @@ void Via::clear_irq(uint8_t irq) {
   logger_->debug("clear_irq({:08b}) cleared", irq);
   ifr_ &= ~irq;
   if (ifr_ == IRQ_IRQ) ifr_ = 0;
+  update_irq_cache();
 }
 
 /**

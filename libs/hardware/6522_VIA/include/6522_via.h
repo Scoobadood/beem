@@ -56,6 +56,8 @@ private:
 
   void write_irq_enable(uint8_t data);
 
+  void update_irq_cache();
+
   void write_pcr(uint8_t data);
 
   void write_acr(uint8_t data);
@@ -113,6 +115,8 @@ private:
   std::set<data_provider_8_bit_ptr> port_b_providers_;
   std::set<data_provider_8_bit_ptr> ca2_providers_;
   std::set<data_provider_8_bit_ptr> ca1_providers_;
+
+  bool irq_active_;
 
   // My name (to distinguish multiple VIAs)
   std::string via_name_;
