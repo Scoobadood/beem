@@ -83,12 +83,14 @@ Via::Via(uint16_t base_address) //
     , pb7_{0} //
 {
   via_name_ = fmt::format("VIA@{:04x}", base_address);
-  try {
-    auto logger = spdlog::basic_logger_mt(via_name_, "logs/" + via_name_ + ".txt", true);
-    logger->flush_on(spdlog::level::err);
-  }
-  catch (const spdlog::spdlog_ex &ex) {
-    spdlog::error("Log init failed: {}", ex.what());
+  if (!spdlog::get(via_name_)) {
+    try {
+      auto logger = spdlog::basic_logger_mt(via_name_, "logs/" + via_name_ + ".txt", true);
+      logger->flush_on(spdlog::level::err);
+    }
+    catch (const spdlog::spdlog_ex &ex) {
+      spdlog::error("Log init failed: {}", ex.what());
+    }
   }
   logger_ = spdlog::get(via_name_);
 }
@@ -151,6 +153,7 @@ void Via::mmio_read(const std::shared_ptr<Bus> &bus, uint8_t reg) {
 
     case T1C_L:
       logger_->info("Read T1C_L");
+      clear_irq(IRQ_T1);
       break;
     case T1C_H:
       logger_->info("Read T1C_H");
@@ -214,7 +217,7 @@ uint8_t Via::read_port_a() {
     }
   }
   if (data_fetched == 0) {
-    out = (ora_ | ~ddra_) & ira_;
+    out = (ora_ & ddra_) | (ira_ & ~ddra_);
   }
   if (data_fetched > 1) {
     spdlog::error("Via6522: Multiple data providers read from PortA");
@@ -260,7 +263,7 @@ uint8_t Via::read_port_b() {
     }
   }
   if (data_fetched == 0) {
-    out = (orb_ | ~ddrb_) & irb_;
+    out = (orb_ & ddrb_) | (irb_ & ~ddrb_);
   }
   if (data_fetched > 1) {
     spdlog::error("{}: Multiple data providers read from PortB", via_name_);
@@ -463,7 +466,7 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
  */
 void Via::set_ca1(uint8_t state) {
   state &= 0x01;
-  if (state == prev_ca1_) return;
+  if (state == ca1_) return;
 
   prev_ca1_ = ca1_;
   ca1_ = state;
@@ -493,11 +496,11 @@ void Via::set_ca1(uint8_t state) {
  */
 void Via::set_cb1(uint8_t state) {
   state &= 0x01;
-  if (state == prev_cb1_) return;
+  if (state == cb1_) return;
   prev_cb1_ = cb1_;
   cb1_ = state;
 
-  if (cb1_ == (pcr_ & PCR_CB1_IRQ_CTL)) {
+  if (cb1_ == ((pcr_ >> 4) & 0x01)) {
     // CB1 went active. Generate IRQ and latch data if enabled
     logger_->info("  CB1 went active");
     if (acr_ & ACR_PB_LATCH)
