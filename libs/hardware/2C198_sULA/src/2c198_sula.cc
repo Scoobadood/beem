@@ -139,6 +139,9 @@ SerialUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       acia_->raise_cts();
     }
   }
+
+  if (cassette_player_)
+    cassette_player_->set_motor(is_motor_on());
 }
 
 uint8_t
@@ -165,6 +168,8 @@ void SerialUla::maybe_tx_clock_tick() {
   tx_clock_counter_ = 13 * tx_clock_divider_;
   if (acia_) {
     acia_->tx_clock();
+    if (cassette_player_ && !is_rs423_selected())
+      cassette_player_->tx_bit(acia_->tx_pin());
   }
 }
 
@@ -172,10 +177,25 @@ void SerialUla::maybe_rx_clock_tick() {
   if (--rx_clock_counter_ != 0) return;
   rx_clock_counter_ = 13 * rx_clock_divider_;
   if (acia_) {
+    if (cassette_player_ && !is_rs423_selected()) {
+      acia_->set_rx_data(cassette_player_->rx_data());
+      if (cassette_player_->has_carrier())
+        acia_->clear_dcd();
+      else
+        acia_->raise_dcd();
+    }
     acia_->rx_clock();
   }
 }
 
+bool SerialUla::is_rs423_selected() const {
+  return (serial_control_register_ & 0x40) != 0;
+}
+
 void SerialUla::set_acia(const std::shared_ptr<Acia> &acia) {
   acia_ = acia;
+}
+
+void SerialUla::set_cassette_player(ICassettePlayer* player) {
+  cassette_player_ = player;
 }

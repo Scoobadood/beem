@@ -10,3 +10,15 @@ target_link_libraries(2C198_sULA
         Core
         Acia
 )
+
+add_executable(test_sula
+        test/main.cpp
+        test/test_sula.cpp)
+
+target_include_directories(test_sula
+        PRIVATE test)
+
+target_link_libraries(test_sula
+        PRIVATE
+        2C198_sULA
+        gtest)
