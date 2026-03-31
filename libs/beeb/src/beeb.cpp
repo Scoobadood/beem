@@ -2,9 +2,9 @@
 #include "rom.h"
 #include "clock.h"
 
-#include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <fstream>
+#include <memory>
 
 /* Memory Map constants */
 const uint16_t DRAM_BASE = 0x0000;

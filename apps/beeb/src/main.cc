@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
   QApplication a(argc, argv);
 
   auto breakpoint_manager = new BreakpointManager();
-  auto beeb_worker = std::make_unique<BeebWorker>(0, breakpoint_manager);
+  auto beeb_worker = std::make_unique<BeebWorker>(0);
   auto worker_thread = init_worker(beeb_worker);
 
   // Memory window
@@ -75,13 +75,19 @@ int main(int argc, char *argv[]) {
   auto debugger_window = new DebuggerWindow(breakpoint_manager);
 
   // Main window
-  auto crt_window = new CrtWindow(beeb_worker->beeb());
+  auto crt_window = new CrtWindow(beeb_worker->board());
 
   // Cassette window
   auto cassette_window = new CassetteWindow();
 
   config_memory_window(crt_window, memory_window);
   config_debugger_window(beeb_worker, crt_window, debugger_window);
+
+  // Wire BreakpointManager UI signals to the execution engine.
+  QObject::connect(breakpoint_manager, &BreakpointManager::breakpoint_set,
+      [&](uint16_t bp) { beeb_worker->engine().add_breakpoint(bp); });
+  QObject::connect(breakpoint_manager, &BreakpointManager::breakpoint_cleared,
+      [&](uint16_t bp) { beeb_worker->engine().remove_breakpoint(bp); });
 
   auto window_mediator = new WindowMediator(breakpoint_manager, crt_window,
                                             debugger_window, memory_window,

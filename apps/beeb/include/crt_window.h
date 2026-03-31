@@ -13,7 +13,7 @@ class CrtWindow : public QMainWindow {
  Q_OBJECT
 
  public:
-  explicit CrtWindow(std::shared_ptr<Beeb> beeb, QWidget *parent = nullptr);
+  explicit CrtWindow(Beeb& beeb, QWidget *parent = nullptr);
 
   ~CrtWindow() override;
 
@@ -23,7 +23,7 @@ class CrtWindow : public QMainWindow {
  public slots:
 
  private:
-  std::shared_ptr<Beeb> beeb_;
+  Beeb& beeb_;
   LedLabelWidget * cassette_drive_led_;
 
   VduView *vdu_;

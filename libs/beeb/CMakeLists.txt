@@ -1,5 +1,6 @@
 add_library(Beeb SHARED
-        src/beeb.cpp)
+        src/beeb.cpp
+        src/execution_engine.cpp)
 
 target_include_directories(Beeb
         PUBLIC
@@ -34,6 +35,20 @@ target_include_directories(test_beeb
         PRIVATE test)
 
 target_link_libraries(test_beeb
+        PRIVATE
+        Beeb
+        gtest
+)
+
+add_executable(test_execution_engine
+        test/main.cpp
+        test/test_execution_engine.cpp
+)
+
+target_include_directories(test_execution_engine
+        PRIVATE test)
+
+target_link_libraries(test_execution_engine
         PRIVATE
         Beeb
         gtest
