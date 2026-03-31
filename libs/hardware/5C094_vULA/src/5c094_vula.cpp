@@ -119,27 +119,6 @@ bool VideoUla::time_to_shift() {
   return (--shift_countdown_ == 0);
 }
 
-void VideoUla::process_data() {
-  uint8_t logical_colour =
-      ((curr_data_ & 0x80) >> 4) | ((curr_data_ & 0x20) >> 3) |
-          ((curr_data_ & 0x08) >> 2) | ((curr_data_ & 0x02) >> 1);
-  auto actual_colour = palette_[logical_colour];
-  red_ = 255 * (actual_colour & 0x01);
-  grn_ = 255 * ((actual_colour & 0x02) >> 1);
-  blu_ = 255 * ((actual_colour & 0x04) >> 2);
-  bool flash = (actual_colour & 0x08);
-  if (!(flash && (vula_ctl_ & 0x01))) {
-    red_ = 255 - red_;
-    grn_ = 255 - grn_;
-    blu_ = 255 - blu_;
-  }
-  if (crtc_->cursor_enabled()) {
-    red_ = 255 - red_;
-    grn_ = 255 - grn_;
-    blu_ = 255 - blu_;
-  }
-  // trace: process_data logical_colour, actual_colour, red_, grn_, blu_
-}
 
 void VideoUla::reset_shift_clk() {
   switch (shift_clk_) {
@@ -174,24 +153,8 @@ void VideoUla::maybe_drive_crtc(const std::shared_ptr<Bus> &dram_bus) {
  * @param dram_bus
  */
 void VideoUla::latch_new_data(const std::shared_ptr<Bus> &dram_bus) {
-  bus_dance_logger_->debug("VULA: Latching data from CRTC from DRAM bus {:04x} {:02x} {} {}",
-                                 dram_bus->get_address(),
-                                 dram_bus->get_data(),
-                                 dram_bus->tst_RW() ? "R" : "W",
-                                 dram_bus->tst_SYNC() ? "SYN" : "   ",
-                                 dram_bus->tst_RST() ? "RST" : "");
   curr_data_ = dram_bus->get_data();
   last_latched_data_ = curr_data_;
-
-  logger_->debug("Latched new data {:02x} from DRAM {:04x}", curr_data_,
-                             dram_bus->get_address());
-
-  logger_->trace("Clks: 4Mhz {}, 2MHz {}, 2MHzE {}, 1Mhz {}",
-                             clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                             clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                             clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                             clock_->is_high(CLK_1_MHZ) ? "H" : "L");
-
   last_latched_addr_ = dram_bus->get_address();
   if (crtc_->last_generated_address() != last_latched_addr_) {
     spdlog::error("VULA: Latched address does not match last generated address");
@@ -229,18 +192,33 @@ void VideoUla::tick(const std::shared_ptr<Bus> &main_bus,
   if (time_to_shift()) {
     curr_data_ = ((curr_data_ << 1) & 0xfe) | 0x01;
     num_shifts_++;
-    logger_->trace("Shift at clks: 4Mhz {}, 2MHz {}, 2MHzE {}, 1Mhz {}",
-                               clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                               clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                               clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                               clock_->is_high(CLK_1_MHZ) ? "H" : "L");
     reset_shift_clk();
   }
 }
 
+void VideoUla::process_data() {
+  uint8_t logical_colour =
+      ((curr_data_ & 0x80) >> 4) | ((curr_data_ & 0x20) >> 3) |
+          ((curr_data_ & 0x08) >> 2) | ((curr_data_ & 0x02) >> 1);
+  auto actual_colour = palette_[logical_colour];
+  red_ = 255 * (actual_colour & 0x01);
+  grn_ = 255 * ((actual_colour & 0x02) >> 1);
+  blu_ = 255 * ((actual_colour & 0x04) >> 2);
+  bool flash = (actual_colour & 0x08);
+  if (!(flash && (vula_ctl_ & 0x01))) {
+    red_ = 255 - red_;
+    grn_ = 255 - grn_;
+    blu_ = 255 - blu_;
+  }
+  if (crtc_->cursor_enabled()) {
+    red_ = 255 - red_;
+    grn_ = 255 - grn_;
+    blu_ = 255 - blu_;
+  }
+}
+
 uint32_t VideoUla::rgb() const {
-  auto rgb = ((red_ << 16) | (grn_ << 8) | blu_) & 0xffffff;
-  return rgb;
+  return ((uint32_t(red_) << 16) | (uint32_t(grn_) << 8) | blu_) & 0xffffff;
 }
 
 void VideoUla::dump(std::shared_ptr<spdlog::logger> &logger) {

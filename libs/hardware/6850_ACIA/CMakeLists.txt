@@ -8,6 +8,5 @@ target_include_directories(Acia
 
 target_link_libraries(Acia
         PUBLIC
-        Bus
-        Common
+        Core
         )

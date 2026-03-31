@@ -1,8 +1,6 @@
 add_library(Beeb SHARED
         src/beeb.cpp)
 
-include_directories(Hardware/Common)
-
 target_include_directories(Beeb
         PUBLIC
         include
@@ -22,7 +20,7 @@ target_link_libraries(Beeb
         Adc
         5C094_vULA
         6845_CRTC
-        Common
+        Core
         Crt
 )
 

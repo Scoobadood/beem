@@ -48,6 +48,13 @@ public:
     return memory_;
   }
 
+  /**
+   * Return raw pointer to the first byte of DRAM (for O(1) page-table dispatch).
+   */
+  inline uint8_t* raw_ptr() {
+    return memory_->data();
+  }
+
 private:
   /* Address on the bus */
   uint16_t bus_address_;

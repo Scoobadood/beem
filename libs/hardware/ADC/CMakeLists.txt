@@ -6,5 +6,5 @@ target_include_directories(Adc
 
 target_link_libraries(Adc
         PUBLIC
-        Bus
+        Core
         )

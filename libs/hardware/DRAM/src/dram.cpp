@@ -65,32 +65,9 @@ void DRAM::tick(const std::shared_ptr<Bus> &bus) {
   if (bus->tst_RW()) {
     auto data = memory_->at(addr - bus_address_);
     bus->set_data(data);
-
-    bus_dance_logger_->debug("DRAM: R 0x{:04x} -> {:02x}", addr, data);
-
-    logger_->debug(" : R 0x{:04x} -> {:02x}  16:{}  8:{}  4:{}  2E:{}  2:{}  1:{}", addr, data,
-                        clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_1_MHZ) ? "H" : "L"
-    );
   } else {
     auto data = bus->get_data();
     memory_->at(addr - bus_address_) = data;
-
-    bus_dance_logger_->debug("DRAM: W 0x{:02x} -> {:04x}", data, addr);
-
-    logger_->debug(" W {:02x} -> 0x{:04x}  16:{}  8:{}  4:{}  2E:{}  2:{}  1:{}", data, addr,
-                        clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_1_MHZ) ? "H" : "L"
-    );
-
   }
 }
 

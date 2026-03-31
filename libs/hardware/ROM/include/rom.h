@@ -26,6 +26,13 @@ public:
     return memory_;
   }
 
+  /**
+   * Return raw pointer to the first byte of ROM (for O(1) page-table dispatch).
+   */
+  inline const uint8_t* raw_ptr() const {
+    return memory_->data();
+  }
+
 private:
   uint16_t bus_address_;
   std::shared_ptr<std::vector<uint8_t>> memory_;

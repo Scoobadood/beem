@@ -7,18 +7,22 @@
 
 #include "bus.h"
 #include "data_connectors.h"
+#include "i_bus_device.h"
 #include <cstdint>
 #include <spdlog/spdlog.h>
 
-class Acia {
+class Acia : public IBusDevice {
  public:
   explicit Acia(uint16_t base_addr);
 
-  void tick(const std::shared_ptr<Bus> &bus);
+  void tick(const std::shared_ptr<Bus>& bus) override;
+  [[nodiscard]] bool decodes(uint16_t addr) const override { return addr >= base_addr_ && addr <= base_addr_ + 7; }
+  [[nodiscard]] bool is_1mhz_device() const override { return true; }
+  // IRQ is active low
+  [[nodiscard]] bool has_irq() const override { return !irq_; }
+
   void tx_clock();
   void rx_clock();
-  // IRQ is active low
-  [[nodiscard]] inline bool has_irq() const { return !irq_; }
 
   void clear_cts();
   void raise_cts();

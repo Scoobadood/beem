@@ -50,10 +50,6 @@ Keyboard::Keyboard(uint8_t dips) //
  * BUT ROW 0 is not scanned.
  */
 void Keyboard::tick() {
-  logger_->debug("tick (AS:{})",
-                             auto_scan_enabled_
-                             ? fmt::format("Y {}", scan_col_)
-                             : "N");
   check_leds();
   check_we();
 

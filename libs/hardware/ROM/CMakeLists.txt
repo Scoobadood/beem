@@ -7,5 +7,5 @@ target_include_directories(ROM PUBLIC
         )
 
 target_link_libraries(ROM PUBLIC
-        Bus
+        Core
         )

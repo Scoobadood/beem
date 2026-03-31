@@ -7,7 +7,6 @@ target_include_directories(2C198_sULA
 
 target_link_libraries(2C198_sULA
         PUBLIC
-        Bus
-        Common
+        Core
         Acia
 )

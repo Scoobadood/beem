@@ -4,6 +4,7 @@
 #include "6845_crtc.h"
 #include "5c094_vula.h"
 #include <spdlog/spdlog.h>
+#include <chrono>
 
 using Renderer = std::function<void(int32_t w, int32_t h, const std::vector<uint8_t> &scr_data)>;
 
@@ -29,6 +30,9 @@ private:
   bool last_hs_;
   bool even_frame_;
   std::shared_ptr<spdlog::logger> logger_;
+
+  uint32_t fps_frame_count_;
+  std::chrono::steady_clock::time_point fps_last_time_;
 };
 
 #endif // BEEB_HARDWARE_CRT_INCLUDE_H

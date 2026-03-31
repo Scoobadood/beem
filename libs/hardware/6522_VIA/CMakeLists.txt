@@ -9,8 +9,7 @@ target_include_directories(Via
 
 target_link_libraries(Via
         PUBLIC
-        Bus
-        Common
+        Core
         )
 
 # ---------------------------------------------------------------------------

@@ -528,10 +528,6 @@ void Via::raise_irq(uint8_t irq) {
   update_irq_cache();
 }
 
-bool Via::has_irq() const {
-  return irq_active_;
-}
-
 void Via::clear_irq(uint8_t irq) {
   if (!TST_FLG(ifr_, irq)) return;
   logger_->debug("clear_irq({:08b}) cleared", irq);
@@ -595,12 +591,13 @@ void Via::check_ca1() {
   }
 }
 
-void Via::tick(const std::shared_ptr<Bus> &bus) {
+void Via::tick_timers() {
   check_timers();
-
   check_ca1();
   check_ca2();
+}
 
+void Via::tick(const std::shared_ptr<Bus> &bus) {
   check_mmio(bus);
 }
 

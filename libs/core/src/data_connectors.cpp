@@ -18,4 +18,3 @@ void notify_subscribers(const std::set<data_subscriber_8_bit_ptr> &subs,
     }
   }
 }
-

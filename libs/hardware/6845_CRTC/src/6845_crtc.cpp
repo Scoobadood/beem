@@ -390,7 +390,6 @@ void Crtc::handle_cursor() {
  */
 void Crtc::wrap_output_addr(uint16_t &addr) {
   auto c0c1 = hw_scroll_addr_->data() >> 4;
-  logger_->debug("Output address is {:04x}, correcting by c0c1 {:02x}", addr, c0c1);
   uint16_t subtrahend = 0;
   switch (c0c1) {
     case 0x00:
@@ -411,7 +410,6 @@ void Crtc::wrap_output_addr(uint16_t &addr) {
       break;
   }
   addr = (addr - subtrahend);
-  logger_->debug("   corrected to {:04x}", addr);
 }
 
 void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
@@ -436,7 +434,6 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
     }
   }
 
-  logger_->debug("Wrote address {:04x} to DRAM Address bus. Set RW", output_addr);
   dram_bus->set_address(output_addr);
   dram_bus->set_RW();
 
@@ -467,12 +464,6 @@ void Crtc::latch_address(const std::shared_ptr<Bus> &dram_bus) {
 
   last_generated_address_ = output_addr;
 
-  bus_dance_logger_->debug("CRTC: Writing vram address, expects to own bus. DRAM bus {:04x} {:02x} {} {}",
-                                 dram_bus->get_address(),
-                                 dram_bus->get_data(),
-                                 dram_bus->tst_RW() ? "R" : "W",
-                                 dram_bus->tst_SYNC() ? "SYN" : "   ",
-                                 dram_bus->tst_RST() ? "RST" : "");
 }
 
 /**

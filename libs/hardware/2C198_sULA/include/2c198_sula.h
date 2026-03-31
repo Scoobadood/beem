@@ -18,6 +18,7 @@
 #include "bus.h"
 #include "data_connectors.h"
 #include "acia_6850.h"
+#include "i_bus_device.h"
 
 class AbstractSula {
  public :
@@ -25,13 +26,16 @@ class AbstractSula {
   virtual ~AbstractSula() = default;
 };
 
-class SerialUla : public AbstractSula {
+class SerialUla : public AbstractSula, public IBusDevice {
  public:
   explicit SerialUla(uint16_t base_addr);
   ~SerialUla() override = default;
 
+  void tick(const std::shared_ptr<Bus>& bus) override;
+  [[nodiscard]] bool decodes(uint16_t addr) const override { return addr >= base_addr_ && addr <= base_addr_ + 0x0f; }
+  [[nodiscard]] bool is_1mhz_device() const override { return true; }
+
   void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
-  void tick(const std::shared_ptr<Bus> &bus);
   void tick_16mhz();
 
   void set_acia(const std::shared_ptr<Acia>& acia);

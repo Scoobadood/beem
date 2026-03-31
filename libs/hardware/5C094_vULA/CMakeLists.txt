@@ -7,7 +7,7 @@ target_include_directories(5C094_vULA
 
 target_link_libraries(5C094_vULA
         PUBLIC
-        Bus
+        Core
         6845_CRTC)
 
 
