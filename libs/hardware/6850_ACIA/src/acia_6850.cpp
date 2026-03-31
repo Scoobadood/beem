@@ -137,14 +137,23 @@ Acia::Acia(uint16_t base_addr) //
     , tdr_is_full_{false}//
     , tx_shift_count_{0} //
     , parity_bit_{0} //
+    , out_{1}       // TX line idle = mark (1)
+    , tx_clock_ticks_{1} //
     , state_{IDLE} //
+    , tx_break_{false} //
     , cts_{true}                        // inactive or at least tied to RS423
-    , dcd_{true} //
+    , dcd_{false} // active low (carrier present / cassette connected)
+    , rx_data_{true}  // idle (mark)
     , rdr_{0} //
     , rdr_is_full_{false} //
+    , rdr_was_read_{false} //
     , parity_error_{false} //
     , overrun_error_pending_{false} //
     , overrun_error_{false}//
+    , rx_state_{RX_IDLE} //
+    , rx_shift_count_{0} //
+    , rx_clock_count_{0} //
+    , rx_parity_calc_{0} //
     , irq_{true}                       // inactive high
     , sr2_high_wait_for_sr_read_{false} //
     , sr2_high_wait_for_data_read_{false} //
@@ -169,7 +178,7 @@ Acia::Acia(uint16_t base_addr) //
   }
 
   status_register_ = 0;
-  SR_CLR_CTS(status_register_);
+  SR_SET_CTS(status_register_); // CTS starts inactive (high) → status bit = 1
   logger_ = spdlog::get("ACIA");
 }
 
@@ -212,6 +221,14 @@ void Acia::perform_master_reset() {
   SR_CLR_RDRF(status_register_);
   SR_CLR_TDRE(status_register_);
 
+  rdr_is_full_ = false;
+  rdr_was_read_ = false;
+  overrun_error_pending_ = false;
+  overrun_error_ = false;
+  sr2_high_wait_for_sr_read_ = false;
+  sr2_high_wait_for_data_read_ = false;
+  rx_state_ = RX_IDLE;
+
   // CTS is active low
   if( !cts_) {
     SR_SET_TDRE(status_register_);
@@ -253,7 +270,10 @@ void Acia::write_ctl(uint8_t data) {
   }
 
   if (bits == 3) {
-    /* TODO: Transmit a break level */
+    tx_break_ = true;
+    out_ = 0; // TX line immediately held low
+  } else {
+    tx_break_ = false;
   }
 
   if (RX_INT_ENBL(data)) {
@@ -364,29 +384,38 @@ void Acia::read_status(const std::shared_ptr<Bus> &bus) {
  * bus when a Read Data command is received from the MPU.
  */
 void Acia::read_rdr(const std::shared_ptr<Bus> &bus) {
-  if (!rdr_is_full_ || rdr_was_read_) return;
-  bus->set_data(rdr_);
-  /* 6850 datasheet
-   * Receive Data Register Full indicates that received data has been transferred to the Receive Data Register.
-   * RDRF is cleared after an MPU read of the Receive Data Register or by a master reset.
-   * The cleared or empty state indicates that the contents of the Receive Data Register are not current.
-   * Data Carrier Detect being high also causes RDR to indicate empty.
-   */
-  rdr_was_read_ = true;
-  if (overrun_error_pending_) {
-    overrun_error_ = true;
-    overrun_error_pending_ = false;
-  } else if (overrun_error_) {
-    overrun_error_ = false;
-  }
-
-  // To clear SR2, the CPU must read the contents of the status register and then the contents of the data register.
-  // This has been done now.
+  // DCD clear sequence: status must have been read first; any RDR read (even empty) completes the sequence.
   if (sr2_high_wait_for_data_read_) {
     sr2_high_wait_for_data_read_ = false;
     SR_CLR_DCD(status_register_);
   }
 
+  if (!rdr_is_full_) return;
+  bus->set_data(rdr_);
+  rdr_is_full_ = false;
+  rdr_was_read_ = true;
+
+  SR_CLR_RDRF(status_register_);
+  SR_CLR_FE(status_register_);
+  SR_CLR_PE(status_register_);
+
+  // Clear IRQ, then re-evaluate remaining sources.
+  // The 6850 IRQ pin is level-sensitive: if TDRE + TX interrupt is still
+  // asserted it must remain active even though we just consumed RDRF.
+  SR_CLR_IRQ(status_register_);
+  irq_ = true;
+  if (tx_int_enabled_ && SR_TDRE(status_register_)) {
+    raise_interrupt();
+  }
+
+  if (overrun_error_pending_) {
+    overrun_error_pending_ = false;
+    overrun_error_ = true;
+    SR_SET_OVRN(status_register_);
+  } else if (overrun_error_) {
+    overrun_error_ = false;
+    SR_CLR_OVRN(status_register_);
+  }
 }
 
 void Acia::mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus) {
@@ -556,6 +585,7 @@ void Acia::dcd_went_inactive_high() {
 }
 
 void Acia::tdr_went_empty() {
+  if (is_in_power_on_reset_) return;
   // CTS active high, inhibits TDRE
   if (cts_) return;
   logger_->info("  Set TDRE");
@@ -567,6 +597,7 @@ void Acia::tdr_went_empty() {
 
 void Acia::cts_went_active_low() {
   logger_->info("CTS went active low");
+  SR_CLR_CTS(status_register_);
   if (!tdr_is_full_) {
     logger_->info("  No data in TDR");
     tdr_went_empty();
@@ -577,6 +608,7 @@ void Acia::cts_went_active_low() {
 
 void Acia::cts_went_inactive_high() {
   logger_->info("CTS went inactive high");
+  SR_SET_CTS(status_register_);
   SR_CLR_TDRE(status_register_);
 }
 
@@ -615,12 +647,134 @@ void Acia::tx_clock() {
   if (cts_) return;
   if (--tx_clock_ticks_ != 0) return;
 
-  shift_out_data();
+  if (tx_break_) {
+    out_ = 0;
+  } else {
+    shift_out_data();
+  }
   tx_clock_ticks_ = clk_divisor_;
 }
 
-void Acia::rx_clock() {
+void Acia::rx_receive_data_bit() {
+  auto bit = rx_data_ ? 1 : 0;
+  rx_shift_register_ |= static_cast<uint8_t>(bit << rx_shift_count_);
+  if (parity_ != 0) rx_parity_calc_ ^= static_cast<uint8_t>(bit);
+  rx_shift_count_++;
+  if (rx_shift_count_ == word_length_) {
+    rx_clock_count_ = 0;
+    rx_state_ = (parity_ != 0) ? RX_PARITY : RX_STOP;
+  }
+}
 
+void Acia::rx_receive_parity_bit() {
+  auto received = rx_data_ ? 1 : 0;
+  // even parity (parity_==2): expected parity bit = rx_parity_calc_
+  // odd  parity (parity_==1): expected parity bit = rx_parity_calc_ ^ 1
+  auto expected = (parity_ == 1) ? (rx_parity_calc_ ^ 1) : rx_parity_calc_;
+  parity_error_ = (received != static_cast<int>(expected));
+  rx_clock_count_ = 0;
+  rx_state_ = RX_STOP;
+}
+
+void Acia::rx_receive_stop_bit() {
+  bool framing_error = !rx_data_; // stop bit must be mark (1)
+
+  if (rdr_is_full_) {
+    // Overrun: second character arrived before first was read
+    overrun_error_pending_ = true;
+    rx_state_ = RX_IDLE;
+    return;
+  }
+
+  rdr_ = rx_shift_register_;
+  rdr_is_full_ = true;
+  rdr_was_read_ = false;
+
+  if (framing_error) SR_SET_FE(status_register_);
+  if (parity_ != 0 && parity_error_) SR_SET_PE(status_register_);
+  SR_SET_RDRF(status_register_);
+
+  if (rx_int_enabled_) raise_interrupt();
+
+  rx_state_ = RX_IDLE;
+}
+
+void Acia::rx_clock() {
+  switch (rx_state_) {
+    case RX_IDLE:
+      if (!rx_data_) {
+        rx_clock_count_ = 1;
+        if (clk_divisor_ == 1) {
+          // ÷1: start bit confirmed immediately; next clock is first data bit
+          rx_shift_register_ = 0;
+          rx_shift_count_ = 0;
+          rx_parity_calc_ = 0;
+          parity_error_ = false;
+          rx_state_ = RX_DATA_STATE;
+        } else {
+          rx_state_ = RX_START;
+        }
+      }
+      break;
+
+    case RX_START:
+      // False start bit deletion: need clk_divisor_/2 consecutive lows before accepting.
+      rx_clock_count_++;
+      if (rx_data_) {
+        // Line returned high before centre — reject glitch
+        rx_state_ = RX_IDLE;
+      } else if (rx_clock_count_ >= clk_divisor_ / 2) {
+        // Centre of start bit confirmed — begin data reception
+        rx_shift_register_ = 0;
+        rx_shift_count_ = 0;
+        rx_parity_calc_ = 0;
+        parity_error_ = false;
+        rx_clock_count_ = 0; // data bit sample at +clk_divisor_ from here
+        rx_state_ = RX_DATA_STATE;
+      }
+      break;
+
+    case RX_DATA_STATE:
+      if (clk_divisor_ == 1) {
+        rx_receive_data_bit();
+      } else {
+        if (++rx_clock_count_ >= clk_divisor_) {
+          rx_clock_count_ = 0;
+          rx_receive_data_bit();
+        }
+      }
+      break;
+
+    case RX_PARITY:
+      if (clk_divisor_ == 1) {
+        rx_receive_parity_bit();
+      } else {
+        if (++rx_clock_count_ >= clk_divisor_) {
+          rx_clock_count_ = 0;
+          rx_receive_parity_bit();
+        }
+      }
+      break;
+
+    case RX_STOP:
+      if (clk_divisor_ == 1) {
+        rx_receive_stop_bit();
+      } else {
+        if (++rx_clock_count_ >= clk_divisor_) {
+          rx_clock_count_ = 0;
+          rx_receive_stop_bit();
+        }
+      }
+      break;
+  }
+}
+
+void Acia::set_rx_data(bool bit) {
+  rx_data_ = bit;
+}
+
+bool Acia::tx_pin() const {
+  return out_ != 0;
 }
 
 void Acia::clear_cts() {

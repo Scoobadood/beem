@@ -24,6 +24,14 @@ class Acia : public IBusDevice {
   void tx_clock();
   void rx_clock();
 
+  // Set the RX data line state (called by the cassette player / sULA each
+  // rx_clock tick before calling rx_clock()).
+  void set_rx_data(bool bit);
+
+  // Current TX output pin state (read by sULA / cassette player each
+  // tx_clock tick).
+  [[nodiscard]] bool tx_pin() const;
+
   void clear_cts();
   void raise_cts();
   void clear_dcd();
@@ -49,6 +57,9 @@ class Acia : public IBusDevice {
   void cts_went_inactive_high();
   void dcd_went_active_low();
   void dcd_went_inactive_high();
+  void rx_receive_data_bit();
+  void rx_receive_parity_bit();
+  void rx_receive_stop_bit();
 
   void mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus);
   void read_rdr(const std::shared_ptr<Bus> &bus);
@@ -86,14 +97,21 @@ class Acia : public IBusDevice {
     SEND_STOP_BIT_2 = 5
   } state_;
 
+  bool tx_break_;
+
   /*
    * Receiving data
    */
+  bool rx_data_;     // current state of the RX data input line
   bool rdr_is_full_;
   bool rdr_was_read_;
   bool parity_error_;
   bool overrun_error_pending_;
   bool overrun_error_;
+  enum RxState { RX_IDLE, RX_START, RX_DATA_STATE, RX_PARITY, RX_STOP } rx_state_;
+  uint8_t rx_shift_count_;
+  uint8_t rx_clock_count_;
+  uint8_t rx_parity_calc_;
   bool sr2_high_wait_for_sr_read_;
   bool sr2_high_wait_for_data_read_;
 
