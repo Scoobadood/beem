@@ -38,6 +38,7 @@ void TestVia::TearDown() {
 // ---------------------------------------------------------------------------
 
 void TestVia::write_reg(uint8_t reg, uint8_t value) {
+  via_->tick_timers();           // advance timers first (matches original tick() order)
   bus_->clr_RW();
   bus_->set_address(VIA_BASE + reg);
   bus_->set_data(value);
@@ -47,6 +48,7 @@ void TestVia::write_reg(uint8_t reg, uint8_t value) {
 }
 
 uint8_t TestVia::read_reg(uint8_t reg) {
+  via_->tick_timers();           // advance timers first (matches original tick() order)
   bus_->set_RW();
   bus_->set_address(VIA_BASE + reg);
   via_->tick(bus_);
@@ -56,10 +58,8 @@ uint8_t TestVia::read_reg(uint8_t reg) {
 }
 
 void TestVia::tick_n(int n) {
-  bus_->set_RW();
-  bus_->set_address(0x0000);
   for (int i = 0; i < n; ++i)
-    via_->tick(bus_);
+    via_->tick_timers();
 }
 
 void TestVia::load_t1(uint16_t count) {

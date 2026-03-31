@@ -56,6 +56,7 @@ struct OurVia {
 
   // Timer tick first, then register write — matches Via::tick() order
   void write_reg(uint8_t reg, uint8_t val) {
+    via->tick_timers();
     bus->clr_RW();
     bus->set_address(BASE + reg);
     bus->set_data(val);
@@ -66,6 +67,7 @@ struct OurVia {
 
   // Timer tick first, then register read — matches Via::tick() order
   uint8_t read_reg(uint8_t reg) {
+    via->tick_timers();
     bus->set_RW();
     bus->set_address(BASE + reg);
     via->tick(bus);
@@ -76,9 +78,7 @@ struct OurVia {
 
   // Pure timer ticks, no MMIO
   void tick_n(int n) {
-    bus->set_RW();
-    bus->set_address(0x0000);
-    for (int i = 0; i < n; ++i) via->tick(bus);
+    for (int i = 0; i < n; ++i) via->tick_timers();
   }
 
   bool has_irq() const { return via->has_irq(); }
