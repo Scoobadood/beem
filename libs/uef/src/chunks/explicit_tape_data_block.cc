@@ -8,14 +8,11 @@ ExplicitTapeDataBlock::ExplicitTapeDataBlock(std::unique_ptr<std::istream> &uef_
 
   uint8_t ignored_bit_count;
   uef_stream->get(reinterpret_cast<char&>(ignored_bit_count));
-  num_bits_ = chunk_length * 8 - ignored_bit_count;
-  auto data_length_bytes = (num_bits_ + 7) % 8;
+  uint32_t data_bytes = chunk_length - 1;
+  num_bits_ = data_bytes * 8 - ignored_bit_count;
 
-  auto *data = new uint8_t[data_length_bytes];
-  uef_stream->read(reinterpret_cast<char *>(data), chunk_length);
-
-  bytes_.insert(bytes_.end(), data, data + chunk_length);
-  delete[] data;
+  bytes_.resize(data_bytes);
+  uef_stream->read(reinterpret_cast<char *>(bytes_.data()), data_bytes);
 }
 
 std::string

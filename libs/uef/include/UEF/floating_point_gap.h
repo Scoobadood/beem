@@ -11,6 +11,7 @@ class FloatingPointGap : public Chunk {
   ~FloatingPointGap() override = default;
 
   std::string Description() const override;
+  float Duration() const { return duration_; }
 
  private:
   float duration_;

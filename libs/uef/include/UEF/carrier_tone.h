@@ -20,6 +20,7 @@ class CarrierTone : public Chunk {
   ~CarrierTone() override = default;
 
   std::string Description() const override;
+  uint16_t CycleCount() const { return cycle_count_; }
 
  private:
   uint16_t cycle_count_;

@@ -29,6 +29,7 @@ class ExplicitTapeDataBlock : public TapeDataChunk {
   ~ExplicitTapeDataBlock() override = default;
 
   const std::vector<uint8_t> &Data() const override;
+  uint32_t NumBits() const { return num_bits_; }
 
   std::string Description() const override;
  private:
