@@ -9,6 +9,7 @@
 #include "i_bus_device.h"
 
 #include <cstdint>
+#include <spdlog/spdlog.h>
 
 class Adc : public IBusDevice {
  public:
@@ -22,6 +23,8 @@ class Adc : public IBusDevice {
   uint16_t base_address_;
   uint8_t channel_;
   uint8_t mode_;
+  std::string adc_name_;
+  std::shared_ptr<spdlog::logger> logger_;
 };
 
 #endif // BEEB_HARDWARE_ADC_H_
