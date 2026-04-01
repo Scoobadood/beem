@@ -20,7 +20,7 @@ class ITapeStream {
   // Accept an incoming bit (recording path).
   virtual void write_bit(bool bit) = 0;
 
-  // True while a carrier tone is present (drives ICassettePlayer::has_carrier).
+  // True while a carrier tone is present (drives ICassettePort::has_carrier).
   virtual bool at_carrier() = 0;
 
   // True when all data has been consumed.

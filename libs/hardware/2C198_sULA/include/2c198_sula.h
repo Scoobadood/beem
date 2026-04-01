@@ -19,7 +19,7 @@
 #include "data_connectors.h"
 #include "acia_6850.h"
 #include "i_bus_device.h"
-#include "i_cassette_player.h"
+#include "i_cassette_port.h"
 
 class AbstractSula {
  public :
@@ -40,7 +40,7 @@ class SerialUla : public AbstractSula, public IBusDevice {
   void tick_16mhz();
 
   void set_acia(const std::shared_ptr<Acia>& acia);
-  void set_cassette_player(ICassettePlayer* player);
+  void set_cassette_port(ICassettePort* port);
 
   uint8_t serial_control_register() const;
   bool is_motor_on() const;
@@ -67,7 +67,7 @@ class SerialUla : public AbstractSula, public IBusDevice {
   uint16_t rx_clock_divider_;
 
   std::shared_ptr<Acia> acia_;
-  ICassettePlayer* cassette_player_{nullptr};
+  ICassettePort* cassette_port_{nullptr};
 };
 
 #endif // BEEB_HARDWARE_2C198_SULA_H

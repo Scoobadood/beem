@@ -1,9 +1,9 @@
 add_library(Cassette SHARED
         src/raw_bytes_tape_stream.cpp
-        src/cassette_player.cpp
+        src/cassette_port.cpp
         include/i_tape_stream.h
         include/raw_bytes_tape_stream.h
-        include/cassette_player.h
+        include/cassette_port.h
 )
 
 target_include_directories(Cassette
@@ -15,7 +15,7 @@ target_link_libraries(Cassette
 add_executable(test_cassette
         test/main.cpp
         test/test_raw_bytes_tape_stream.cpp
-        test/test_cassette_player.cpp)
+        test/test_cassette_port.cpp)
 
 target_link_libraries(test_cassette
         PRIVATE

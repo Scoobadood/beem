@@ -2,7 +2,7 @@
 #include "2c198_sula.h"
 #include "acia_6850.h"
 #include "bus.h"
-#include "i_cassette_player.h"
+#include "i_cassette_port.h"
 #include <memory>
 #include <vector>
 
@@ -15,7 +15,7 @@ static constexpr uint16_t ACIA_BASE = 0xFE08;
 static constexpr uint16_t SULA_BASE = 0xFE10;
 
 // ── Mock cassette player ─────────────────────────────────────────────────────
-class MockCassettePlayer : public ICassettePlayer {
+class MockCassettePort : public ICassettePort {
  public:
   // Configurable return values
   bool rx_data_value{true};       // default: mark (idle line)
@@ -41,7 +41,7 @@ class SulaTest : public ::testing::Test {
     acia_ = std::make_shared<Acia>(ACIA_BASE);
     sula_ = std::make_unique<SerialUla>(SULA_BASE);
     sula_->set_acia(acia_);
-    sula_->set_cassette_player(&player_);
+    sula_->set_cassette_port(&player_);
   }
 
   // Write to the Serial ULA control register at SHEILA &FE10
@@ -77,7 +77,7 @@ class SulaTest : public ::testing::Test {
   std::shared_ptr<Bus>       bus_;
   std::shared_ptr<Acia>      acia_;
   std::unique_ptr<SerialUla> sula_;
-  MockCassettePlayer         player_;
+  MockCassettePort         player_;
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -309,19 +309,19 @@ TEST_F(SulaTest, motor_called_regardless_of_rs423_selection) {
 // ════════════════════════════════════════════════════════════════════════════
 
 TEST_F(SulaTest, no_crash_without_player_rx_tick) {
-  sula_->set_cassette_player(nullptr);
+  sula_->set_cassette_port(nullptr);
   write_scr(0x00);
   EXPECT_NO_FATAL_FAILURE(tick_n(13));
 }
 
 TEST_F(SulaTest, no_crash_without_player_tx_tick) {
-  sula_->set_cassette_player(nullptr);
+  sula_->set_cassette_port(nullptr);
   write_scr(0x00);
   EXPECT_NO_FATAL_FAILURE(tick_n(13));
 }
 
 TEST_F(SulaTest, no_crash_without_player_scr_write) {
-  sula_->set_cassette_player(nullptr);
+  sula_->set_cassette_port(nullptr);
   EXPECT_NO_FATAL_FAILURE(write_scr(0x80));
 }
 
