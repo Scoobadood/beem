@@ -1,3 +1,6 @@
+bd .fsCharacterJustReadOrCharToWrite
+bf .tapeChecksumHigh
+c0 .fsGotACharacterToReadOrWriteFlag
 ea .rs423TimeoutCounter
 eb .tapeCritical
 c787 .vdu31EntryPoint
@@ -549,6 +552,9 @@ f61e .checkEOFEntryPoint
 f631 .searchForFile
 f637 .searchForSpecifiedBlock
 f674 .fileNotFoundError
+f773 .clearChecksumTapeProgress
+f77b .readBlockHeader
+f797 .readByteFromTapeOrROM
 f7b0 .updateCRC
 f7d7 .setCharAThenProgressState4OrReset
 f7ec .saveABlockToTape
