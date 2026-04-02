@@ -142,7 +142,7 @@ Acia::Acia(uint16_t base_addr) //
     , state_{IDLE} //
     , tx_break_{false} //
     , cts_{true}                        // inactive or at least tied to RS423
-    , dcd_{false} // active low (carrier present / cassette connected)
+    , dcd_{false}  // no carrier tone at startup; DCD* starts low
     , rx_data_{true}  // idle (mark)
     , rdr_{0} //
     , rdr_is_full_{false} //
@@ -160,7 +160,7 @@ Acia::Acia(uint16_t base_addr) //
 {
   try {
     auto logger = spdlog::basic_logger_mt("ACIA", "logs/ACIA.txt", true);
-    logger->flush_on(spdlog::level::err);
+    logger->flush_on(spdlog::level::info);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
@@ -179,6 +179,7 @@ Acia::Acia(uint16_t base_addr) //
 
   status_register_ = 0;
   SR_SET_CTS(status_register_); // CTS starts inactive (high) → status bit = 1
+  // DCD starts 0: no carrier tone present at startup
   logger_ = spdlog::get("ACIA");
 }
 
@@ -345,6 +346,11 @@ void Acia::disable_tx_interrupts() {
 
 void Acia::enable_rx_interrupts() {
   rx_int_enabled_ = true;
+  // Backfill: if RDRF (or OVRN) is already set, raise IRQ immediately so the
+  // CPU is notified even if the byte arrived before CR7 was written.
+  if (rdr_is_full_ || SR_OVRN(status_register_)) {
+    raise_interrupt();
+  }
 }
 
 void Acia::disable_rx_interrupts() {
@@ -384,28 +390,39 @@ void Acia::read_status(const std::shared_ptr<Bus> &bus) {
  * bus when a Read Data command is received from the MPU.
  */
 void Acia::read_rdr(const std::shared_ptr<Bus> &bus) {
-  // DCD clear sequence: status must have been read first; any RDR read (even empty) completes the sequence.
+  bus->set_data(rdr_);
+  logger_->info("Read_RDR: {} to bus : {}", rdr_is_full_ ? "Full" : "Partial" , rdr_);
+
+  // DCD clear sequence: status must have been read first; any RDR read completes the sequence.
+  // Per datasheet: if DCD* input remains high after the sequence, the interrupt is cleared but
+  // the status bit stays high and follows the input.
   if (sr2_high_wait_for_data_read_) {
     sr2_high_wait_for_data_read_ = false;
-    SR_CLR_DCD(status_register_);
+    if (!dcd_) {
+      // DCD* has since gone low (carrier ended) — clear the status bit
+      SR_CLR_DCD(status_register_);
+      logger_->info("Read_RDR: DCD latch cleared, carrier gone");
+    } else {
+      logger_->info("Read_RDR: DCD latch cleared, carrier still present, bit stays high");
+    }
   }
 
-  if (!rdr_is_full_) return;
-  bus->set_data(rdr_);
-  rdr_is_full_ = false;
-  rdr_was_read_ = true;
+  if ( rdr_is_full_) {
+    rdr_is_full_ = false;
+    rdr_was_read_ = true;
 
-  SR_CLR_RDRF(status_register_);
-  SR_CLR_FE(status_register_);
-  SR_CLR_PE(status_register_);
+    SR_CLR_RDRF(status_register_);
+    SR_CLR_FE(status_register_);
+    SR_CLR_PE(status_register_);
 
-  // Clear IRQ, then re-evaluate remaining sources.
-  // The 6850 IRQ pin is level-sensitive: if TDRE + TX interrupt is still
-  // asserted it must remain active even though we just consumed RDRF.
-  SR_CLR_IRQ(status_register_);
-  irq_ = true;
-  if (tx_int_enabled_ && SR_TDRE(status_register_)) {
-    raise_interrupt();
+    // Clear IRQ, then re-evaluate remaining sources.
+    // The 6850 IRQ pin is level-sensitive: if TDRE + TX interrupt is still
+    // asserted it must remain active even though we just consumed RDRF.
+    SR_CLR_IRQ(status_register_);
+    irq_ = true;
+    if (tx_int_enabled_ && SR_TDRE(status_register_)) {
+      raise_interrupt();
+    }
   }
 
   if (overrun_error_pending_) {
@@ -568,17 +585,38 @@ void Acia::shift_out_data() {
 }
 
 void Acia::dcd_went_active_low() {
+  // DCD* returned active-low (carrier present again).
+  // SR2 is still latched high.  Per datasheet, the CPU must now read SR then
+  // read RDR to clear it.  Arm the two-step sequence here, at carrier-return,
+  // not at carrier-loss — so read_status + read_rdr while DCD* was never
+  // restored cannot prematurely clear SR2.
+  sr2_high_wait_for_sr_read_ = true;
 }
 
 void Acia::dcd_went_inactive_high() {
-  /* 6850 data sheet
-   * A low-to-high transition of the Data Carrier Detect initiates an interrupt to the MPU
-   * to indicate the occurrence of a loss of carrier when the Receive Interrupt Enable bit is set.
+  /* 6850 datasheet:
+   * A low-to-high transition of DCD* initiates an interrupt when Receive Interrupt Enable is set.
+   * SR2 is latched high and remains set until carrier returns and the CPU reads SR then RDR.
+   * "Data Carrier Detect being high also causes RDRF to indicate empty."
    */
-  /* Note that SR2 remains set even if the DCD* input later returns active-low. */
   SR_SET_DCD(status_register_);
   SR_CLR_RDRF(status_register_);
-  sr2_high_wait_for_sr_read_ = true;
+
+  // Abort any in-progress latch clear sequence (DCD may have bounced before the CPU serviced it).
+  sr2_high_wait_for_sr_read_ = false;
+  sr2_high_wait_for_data_read_ = false;
+
+  // Reset receiver: no carrier means any in-progress byte is garbage.
+  rdr_is_full_ = false;
+  overrun_error_pending_ = false;
+  overrun_error_ = false;
+  rx_state_ = RX_IDLE;
+  rx_shift_count_ = 0;
+  rx_clock_count_ = 0;
+  SR_CLR_FE(status_register_);
+  SR_CLR_OVRN(status_register_);
+  SR_CLR_PE(status_register_);
+
   if (rx_int_enabled_) {
     raise_interrupt();
   }
@@ -690,6 +728,10 @@ void Acia::rx_receive_stop_bit() {
   rdr_is_full_ = true;
   rdr_was_read_ = false;
 
+  logger_->info("RX: {:02x}{}{}", rdr_,
+                framing_error ? " FE" : "",
+                (parity_ != 0 && parity_error_) ? " PE" : "");
+
   if (framing_error) SR_SET_FE(status_register_);
   if (parity_ != 0 && parity_error_) SR_SET_PE(status_register_);
   SR_SET_RDRF(status_register_);
@@ -700,6 +742,7 @@ void Acia::rx_receive_stop_bit() {
 }
 
 void Acia::rx_clock() {
+  if (dcd_) return; // receiver held idle while DCD* is high (no carrier)
   switch (rx_state_) {
     case RX_IDLE:
       if (!rx_data_) {

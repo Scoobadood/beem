@@ -114,9 +114,9 @@ unzip_file_to_stream(std::unique_ptr<std::ifstream> &uef_file) {
   std::vector<uint8_t> output;
   decompress_gzip(buffer, output);
 
-  std::cout << "  uncompressed length: "  << std::dec << file_size << " bytes"
+  std::cout << "  uncompressed length: "  << std::dec << output.size() << " bytes"
             << "(0x" << std::hex << std::setw(10) << std::setfill('0')
-            << file_size << ")" << std::endl;
+            << output.size() << ")" << std::endl;
 
   // Wrap the output into a stream and return it
   std::string str(output.begin(), output.end());

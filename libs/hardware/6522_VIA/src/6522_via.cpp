@@ -295,6 +295,7 @@ void Via::write_port_b(uint8_t data) {
 
 void Via::write_irq_enable(uint8_t data) {
   logger_->info("Writing ({:02x}) to IER", data);
+  logger_->flush();
   auto old_ier = ier_;
   if (data & 0x80) {
     ier_ |= data;
@@ -307,6 +308,7 @@ void Via::write_irq_enable(uint8_t data) {
                                ((ier_ ^ old_ier) & IRQ_CA2) ? (TST_CA2(ier_) ? "CA2 enabled" : "CA2 disabled")
                                                             : "CA2 unchanged"
   );
+  logger_->flush();
   update_irq_cache();
 }
 
@@ -399,6 +401,7 @@ void Via::mmio_write(const std::shared_ptr<Bus> &bus, uint8_t reg) {
       timer1_count_ = timer1_latch_;
       if (ACR_T1_PB7(acr_)) pb7_ = 0;
       clear_irq(IRQ_T1);
+      { static bool t1_logged = false; if (!t1_logged) { t1_logged = true; logger_->flush(); logger_->info("DIAG T1C_H write: latch={:04x} count={:04x}", timer1_latch_, timer1_count_); logger_->flush(); } }
       break;
 
     case T1L_L:

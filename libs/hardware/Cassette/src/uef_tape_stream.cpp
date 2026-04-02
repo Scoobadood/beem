@@ -73,9 +73,13 @@ void UefTapeStream::build_segments(const UefData& uef) {
     // All other chunk types are silently skipped
   }
 
-  // Initialise last_carrier_ from the first non-empty segment
+  // Initialise last_carrier_ from the first non-empty segment.
+  // Mirrors next_bit(): true for CARRIER and DATA, false for GAP/empty.
+  // On real BBC hardware the carrier-detect circuit stays locked during FSK
+  // data — it only drops on silence (GAP). DCD* should remain low throughout
+  // leader + data; it only goes high in the inter-block gaps.
   last_carrier_ = !segments_.empty() &&
-                  segments_[0].kind == Segment::Kind::CARRIER;
+                  segments_[0].kind != Segment::Kind::GAP;
 }
 
 UefTapeStream::UefTapeStream(const UefData& uef) {
@@ -109,7 +113,11 @@ bool UefTapeStream::next_bit() {
   const Segment& seg = segments_[seg_idx_];
 
   // Record carrier state for this bit; at_carrier() will reflect this value.
-  last_carrier_ = (seg.kind == Segment::Kind::CARRIER);
+  // DCD* is held low (carrier present) for both CARRIER and DATA segments.
+  // On real hardware the carrier-detect circuit remains locked during FSK
+  // data — it only releases on silence (GAP). AUG §14.2.5: "the carrier
+  // detection circuit is used to detect the gaps between blocks."
+  last_carrier_ = (seg.kind != Segment::Kind::GAP);
 
   bool bit = (seg.kind == Segment::Kind::DATA) ? seg.bits[bit_pos_] : true;
 

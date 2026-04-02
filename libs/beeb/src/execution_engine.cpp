@@ -18,12 +18,20 @@ void ExecutionEngine::tick_one_instruction() {
 }
 
 void ExecutionEngine::fire_callback() {
-  if (!callback_) return;
   const auto& cpu = beeb_->cpu();
-  auto pc = cpu->PC();
-  uint32_t mem4 = 0;
+  const auto pc   = cpu->PC();
+  uint32_t mem4   = 0;
   beeb_->get_memory_contents(pc, 4, reinterpret_cast<uint8_t*>(&mem4));
-  callback_(pc, cpu->A(), cpu->X(), cpu->Y(), cpu->flags(), cpu->SP(), mem4);
+
+  // Always record to ring buffer
+  history_buf_[history_head_] = {pc, cpu->A(), cpu->X(), cpu->Y(),
+                                  cpu->SP(), cpu->flags(), mem4};
+  history_head_ = (history_head_ + 1) % HISTORY_CAPACITY;
+  if (history_count_ < HISTORY_CAPACITY) ++history_count_;
+
+  if (callback_) {
+    callback_(pc, cpu->A(), cpu->X(), cpu->Y(), cpu->flags(), cpu->SP(), mem4);
+  }
 }
 
 // ─── public interface ────────────────────────────────────────────────────────
@@ -35,6 +43,8 @@ void ExecutionEngine::step_instruction() {
 }
 
 void ExecutionEngine::run() {
+  last_watch_trigger_.reset();
+
   while (true) {
     tick_one_instruction();
     fire_callback();
@@ -53,6 +63,14 @@ void ExecutionEngine::run() {
     // Check for breakpoint (fires when the NEXT instruction about to be
     // fetched matches a set address).
     if (is_breakpoint(beeb_->bus()->get_address())) {
+      state_.store(PAUSED, std::memory_order_release);
+      break;
+    }
+
+    // Check watch breakpoints.
+    auto triggered = check_watches();
+    if (triggered) {
+      last_watch_trigger_ = triggered;
       state_.store(PAUSED, std::memory_order_release);
       break;
     }
@@ -102,10 +120,61 @@ const std::set<uint16_t>& ExecutionEngine::breakpoints() const {
   return breakpoints_;
 }
 
+// ─── watches ─────────────────────────────────────────────────────────────────
+
+void ExecutionEngine::add_watch(uint16_t addr) {
+  uint8_t current{0};
+  beeb_->get_memory_contents(addr, 1, &current);
+  watches_[addr] = current;
+}
+
+void ExecutionEngine::remove_watch(uint16_t addr) {
+  watches_.erase(addr);
+}
+
+bool ExecutionEngine::is_watch(uint16_t addr) const {
+  return watches_.count(addr) != 0;
+}
+
+const std::unordered_map<uint16_t, uint8_t>& ExecutionEngine::watches() const {
+  return watches_;
+}
+
+std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> ExecutionEngine::last_watch_trigger() const {
+  return last_watch_trigger_;
+}
+
+std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> ExecutionEngine::check_watches() {
+  for (auto& [addr, shadow] : watches_) {
+    uint8_t current{0};
+    beeb_->get_memory_contents(addr, 1, &current);
+    if (current != shadow) {
+      const uint8_t old_val = shadow;
+      shadow = current;
+      return std::make_tuple(addr, old_val, current);
+    }
+  }
+  return std::nullopt;
+}
+
 // ─── callback ────────────────────────────────────────────────────────────────
 
 void ExecutionEngine::set_instruction_callback(InstructionCallback cb) {
   callback_ = std::move(cb);
+}
+
+// ─── instruction history ─────────────────────────────────────────────────────
+
+std::vector<ExecutionEngine::InsnRecord> ExecutionEngine::instruction_history() const {
+  std::vector<InsnRecord> result;
+  result.reserve(history_count_);
+  // When not full, oldest entry is at index 0.
+  // When full, oldest entry is at history_head_ (the slot about to be overwritten).
+  const size_t start = (history_count_ < HISTORY_CAPACITY) ? 0 : history_head_;
+  for (size_t i = 0; i < history_count_; ++i) {
+    result.push_back(history_buf_[(start + i) % HISTORY_CAPACITY]);
+  }
+  return result;
 }
 
 // ─── board / state accessors ─────────────────────────────────────────────────

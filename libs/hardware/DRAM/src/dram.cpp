@@ -22,7 +22,7 @@ DRAM::DRAM(uint16_t sz, uint16_t bus_addr, std::shared_ptr<Clock> clk)
   memory_ = std::make_shared<std::vector<uint8_t>>(sz);
 
   try {
-    auto logger = spdlog::basic_logger_mt("DRAM", "logs/dram-log.txt", true);
+    auto logger = spdlog::basic_logger_mt("DRAM", "logs/DRAM.txt", true);
     logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {

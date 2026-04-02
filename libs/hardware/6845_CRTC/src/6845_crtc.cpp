@@ -101,7 +101,7 @@ Crtc::Crtc(uint16_t base_addr) //
 {
   hw_scroll_addr_ = std::make_shared<data_subscriber_8_bit>(0x30);
   try {
-    auto logger = spdlog::basic_logger_mt("CRTC", "logs/crtc-log.txt", true);
+    auto logger = spdlog::basic_logger_mt("CRTC", "logs/CRTC.txt", true);
     logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {

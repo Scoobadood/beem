@@ -19,6 +19,7 @@ class CassetteWindow : public QMainWindow {
   signals:
   void close_cassette_window();
   void load_cassette_file(const std::shared_ptr<TapeFile>&);
+  void tape_inserted(std::shared_ptr<UefData> uef);
 
  private:
   void load_uef_file();

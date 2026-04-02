@@ -49,6 +49,10 @@ void BeebWorker::start_beeb() {
     }
     engine_->run();
     emit_cpu_state();
+    if (auto t = engine_->last_watch_trigger()) {
+      auto [addr, old_val, new_val] = *t;
+      emit watch_triggered(addr, old_val, new_val);
+    }
     emit paused();
   }
   emit finished();
@@ -57,6 +61,20 @@ void BeebWorker::start_beeb() {
 void BeebWorker::load_code(std::vector<uint8_t> code, uint16_t address) {
   /* TODO: this is hacky and not threadsafe. remove once tapeloader proper is done */
   engine_->board().load_data(code, address);
+}
+
+void BeebWorker::load_tape(std::shared_ptr<UefData> uef) {
+  // Disconnect the old port before destroying it.
+  engine_->board().set_cassette_port(nullptr);
+  tape_stream_.reset();
+  cassette_port_.reset();
+  tape_data_.reset();
+
+  tape_data_     = std::move(uef);
+  tape_stream_   = std::make_unique<UefTapeStream>(*tape_data_);
+  cassette_port_ = std::make_unique<CassettePort>();
+  cassette_port_->set_stream(tape_stream_.get());
+  engine_->board().set_cassette_port(cassette_port_.get());
 }
 
 void BeebWorker::enable_tracing() {

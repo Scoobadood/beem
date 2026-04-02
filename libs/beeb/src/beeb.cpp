@@ -291,6 +291,10 @@ void Beeb::tick() {
 
     auto addr = bus_->get_address();
     if ((addr & 0xff00) == 0xfe00) {
+      // Watch for VIA Timer 1 and IER writes specifically
+      if (!bus_->tst_RW() && (addr == 0xfe45 || addr == 0xfe4e)) {
+        spdlog::info("SHEILA VIA key write: addr={:04x} data={:02x}", addr, bus_->get_data());
+      }
       for (auto* dev : sheila_devices_) {
         if (dev->decodes(addr)) { dev->tick(bus_); break; }
       }
@@ -301,6 +305,16 @@ void Beeb::tick() {
     // Update IRQ cache after all 1MHz device ticks — IRQ state can only change here.
     cached_irq_ = false;
     for (auto* dev : irq_devices_) cached_irq_ |= dev->has_irq();
+
+    // Step 6 diagnostic: log first IRQ delivery and which device raised it.
+    static bool first_irq_logged = false;
+    if (!first_irq_logged && cached_irq_) {
+      first_irq_logged = true;
+      spdlog::info("BEEB: First IRQ — sysvia={} uservia={} acia={}",
+                   irq_devices_[0]->has_irq(),
+                   irq_devices_[1]->has_irq(),
+                   irq_devices_[2]->has_irq());
+    }
 
     // notify listeners of stuff
     auto scm = s_ula_->is_motor_on();
@@ -430,4 +444,11 @@ void Beeb::load_data(const std::vector<uint8_t> &data, uint16_t address) {
 
 void Beeb::add_cassette_listener(const std::function<void(bool)> &listener) {
   cassette_listeners_.push_back(listener);
+}
+
+void Beeb::set_cassette_port(ICassettePort* port) {
+  s_ula_->set_cassette_port(port);
+  // Sync current motor state so the port doesn't start cold.
+  if (port)
+    port->set_motor(s_ula_->is_motor_on());
 }

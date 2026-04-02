@@ -19,6 +19,7 @@
 #include "crt.h"
 #include "clock.h"
 #include "../../hardware/2C198_sULA/include/2c198_sula.h"
+#include "../../hardware/2C198_sULA/include/i_cassette_port.h"
 #include "i_bus_device.h"
 #include <vector>
 
@@ -50,6 +51,10 @@ public:
   void load_data(const std::vector<uint8_t>& data, uint16_t address);
 
   void add_cassette_listener(const std::function<void(bool)>& listener);
+
+  // Plug a cassette port device into the machine's serial port connector.
+  // Ownership stays with the caller. Pass nullptr to disconnect.
+  void set_cassette_port(ICassettePort* port);
 
  private:
   bool cpu_has_address_bus();

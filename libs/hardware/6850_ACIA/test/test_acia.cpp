@@ -238,13 +238,24 @@ TEST_F(AciaTest, dcd_status_latches_after_dcd_returns_active) {
   EXPECT_TRUE(read_status() & SR_DCD); // still latched
 }
 
-// Clearing the DCD latch requires: 1. read status, 2. read data register.
+// Clearing the DCD latch requires: DCD* returns low, then 1. read status, 2. read data register.
+// The latch clear sequence is armed by clear_dcd() (carrier return), not raise_dcd().
 TEST_F(AciaTest, dcd_status_cleared_by_read_status_then_read_data) {
   init();
-  acia_->raise_dcd();
-  read_status(); // step 1
-  read_rdr();    // step 2 (RDR may be empty — the read still clears the latch)
+  acia_->raise_dcd();  // carrier lost → SR[2]=1, sequence NOT yet armed
+  acia_->clear_dcd();  // carrier returns → latch sequence armed, SR[2] stays 1
+  read_status();       // step 1
+  read_rdr();          // step 2; DCD* is now low → SR[2] cleared
   EXPECT_FALSE(read_status() & SR_DCD);
+}
+
+// If DCD* remains asserted after read-status + read-data, SR[2] stays high (datasheet §).
+TEST_F(AciaTest, dcd_status_remains_high_if_dcd_still_asserted_after_read_sequence) {
+  init();
+  acia_->raise_dcd();  // carrier still present throughout
+  read_status();
+  read_rdr();
+  EXPECT_TRUE(read_status() & SR_DCD);
 }
 
 // Reading only the status register is not enough.
@@ -261,6 +272,67 @@ TEST_F(AciaTest, dcd_status_not_cleared_by_data_read_alone) {
   acia_->raise_dcd();
   read_rdr(); // no prior status read
   EXPECT_TRUE(read_status() & SR_DCD);
+}
+
+// Latch clear sequence is not armed until carrier returns (clear_dcd).
+// read_status + read_rdr while carrier has never returned must not clear SR2.
+TEST_F(AciaTest, dcd_latch_not_armed_until_carrier_returns) {
+  init();
+  acia_->raise_dcd(); // carrier lost — sequence NOT armed
+  // deliberately do NOT call clear_dcd()
+  read_status();
+  read_rdr();
+  EXPECT_TRUE(read_status() & SR_DCD);
+}
+
+// raise_dcd() while a character is mid-reception aborts the state machine.
+// Subsequent rx_clock() calls (with DCD* high) must not complete the byte.
+TEST_F(AciaTest, raise_dcd_aborts_in_progress_reception) {
+  init();
+  rx_bit(false);         // start bit
+  rx_bit(true);          // d0
+  rx_bit(false);         // d1
+  rx_bit(true);          // d2
+  acia_->raise_dcd();    // carrier lost mid-byte
+  rx_bit(false);         // d3 — should be blocked
+  rx_bit(true);          // d4
+  rx_bit(false);         // d5
+  rx_bit(true);          // d6
+  rx_bit(false);         // d7
+  rx_bit(true);          // stop bit
+  EXPECT_FALSE(read_status() & SR_RDRF);
+}
+
+// rx_clock() does not advance the receiver while DCD* is high.
+TEST_F(AciaTest, rx_clock_blocked_while_dcd_high) {
+  init();
+  acia_->raise_dcd();
+  rx_byte(0x42); // send a complete frame — should have no effect
+  EXPECT_FALSE(read_status() & SR_RDRF);
+}
+
+// Normal reception resumes after DCD* returns low (carrier restored).
+TEST_F(AciaTest, rx_resumes_after_dcd_returns_low) {
+  init();
+  acia_->raise_dcd();
+  acia_->clear_dcd();
+  rx_byte(0x55);
+  EXPECT_TRUE(read_status() & SR_RDRF);
+  EXPECT_EQ(read_rdr(), 0x55);
+}
+
+// raise_dcd() clears error flags (FE, PE, OVRN) left from a previous receive.
+TEST_F(AciaTest, raise_dcd_clears_error_flags) {
+  init();
+  // Generate a framing error: send all-zero frame including stop bit.
+  rx_bit(false);
+  for (int i = 0; i < 8; i++) rx_bit(false);
+  rx_bit(false); // stop bit should be 1 — framing error
+  ASSERT_TRUE(read_status() & SR_FE);
+  acia_->raise_dcd();
+  EXPECT_FALSE(read_status() & SR_FE);
+  EXPECT_FALSE(read_status() & SR_OVRN);
+  EXPECT_FALSE(read_status() & SR_PE);
 }
 
 // ════════════════════════════════════════════════════════════════════════════

@@ -150,11 +150,14 @@ TEST(UefTapeStream, IntegerGap_ExactDuration) {
 // Group 4 — Data block (0x0100), 8N1 framing
 // ===========================================================================
 
-TEST(UefTapeStream, DataBlock_AtCarrierFalse) {
+TEST(UefTapeStream, DataBlock_AtCarrierTrue) {
+  // On real BBC hardware the carrier-detect circuit stays locked during FSK
+  // data — DCD* only releases on silence (GAP). AUG §14.2.5 confirms the
+  // circuit detects gaps between blocks, not the carrier→data transition.
   auto uef = make_uef({data_chunk({0x00})});
   UefTapeStream s(uef);
   s.next_bit();
-  EXPECT_FALSE(s.at_carrier());
+  EXPECT_TRUE(s.at_carrier());
 }
 
 TEST(UefTapeStream, DataBlock_StartBitIsZero) {
@@ -230,10 +233,10 @@ TEST(UefTapeStream, Sequence_AtCarrier_TransitionsCorrectly) {
     s.next_bit();
     EXPECT_TRUE(s.at_carrier()) << "after carrier bit " << i;
   }
-  // Next 10 bits: data (not carrier)
+  // Next 10 bits: data — DCD stays asserted (carrier-detect remains locked)
   for (int i = 0; i < 10; ++i) {
     s.next_bit();
-    EXPECT_FALSE(s.at_carrier()) << "after data bit " << i;
+    EXPECT_TRUE(s.at_carrier()) << "after data bit " << i;
   }
   // Final 3 bits: carrier again.  After the very last bit the tape ends,
   // so only check at_carrier() after the first two post-carrier bits.
@@ -256,8 +259,8 @@ TEST(UefTapeStream, Sequence_AtCarrierMatchesLastBit) {
   EXPECT_TRUE(s.at_carrier());
   s.next_bit();              // carrier bit 1 (last carrier bit)
   EXPECT_TRUE(s.at_carrier());
-  s.next_bit();              // first data bit (start)
-  EXPECT_FALSE(s.at_carrier());
+  s.next_bit();              // first data bit (start) — DCD stays asserted
+  EXPECT_TRUE(s.at_carrier());
 }
 
 // ===========================================================================
@@ -310,8 +313,9 @@ TEST(UefTapeStream, CarrierWithDummyByte_Structure) {
     EXPECT_TRUE(s.at_carrier());
   }
   // 10 data bits for 0xAA: start(0) 0,1,0,1,0,1,0,1 stop(1)
+  // DCD stays asserted through the data segment (carrier-detect remains locked).
   EXPECT_FALSE(s.next_bit());  // start
-  EXPECT_FALSE(s.at_carrier());
+  EXPECT_TRUE(s.at_carrier());
   EXPECT_FALSE(s.next_bit());  // d0=0
   EXPECT_TRUE (s.next_bit());  // d1=1
   EXPECT_FALSE(s.next_bit());  // d2=0
@@ -321,7 +325,7 @@ TEST(UefTapeStream, CarrierWithDummyByte_Structure) {
   EXPECT_FALSE(s.next_bit());  // d6=0
   EXPECT_TRUE (s.next_bit());  // d7=1
   EXPECT_TRUE (s.next_bit());  // stop
-  EXPECT_FALSE(s.at_carrier());
+  EXPECT_TRUE(s.at_carrier());
   // 2 post-carrier bits (tape ends after last one)
   EXPECT_TRUE(s.next_bit());   // post-carrier bit 0
   EXPECT_TRUE(s.at_carrier());
@@ -338,6 +342,9 @@ TEST(UefTapeStream, CarrierWithDummyByte_Structure) {
 //   carrier (4) → data byte 0x0F (10 bits) → carrier trailer (2)
 //
 // Total bits: 5 + 10 + 3 + 4 + 10 + 2 = 34
+//
+// DCD*/at_carrier() behaviour (AUG §14.2.5):
+//   CARRIER → true   DATA → true   GAP → false
 // ===========================================================================
 
 static UefData make_realistic_tape() {
@@ -374,9 +381,10 @@ TEST(UefTapeStream, Integration_CarrierDataTransitions) {
     EXPECT_TRUE(s.at_carrier()) << "carrier leader bit " << i;
   }
   // 10 data bits (0x42 = 0100_0010, start=0, d0-d7 lsb-first, stop=1)
+  // DCD stays asserted — carrier-detect remains locked during FSK data.
   for (int i = 0; i < 10; ++i) {
     s.next_bit();
-    EXPECT_FALSE(s.at_carrier()) << "first data byte bit " << i;
+    EXPECT_TRUE(s.at_carrier()) << "first data byte bit " << i;
   }
   // 3 gap bits
   for (int i = 0; i < 3; ++i) {
@@ -388,10 +396,10 @@ TEST(UefTapeStream, Integration_CarrierDataTransitions) {
     s.next_bit();
     EXPECT_TRUE(s.at_carrier()) << "mid carrier bit " << i;
   }
-  // 10 data bits (0x0F)
+  // 10 data bits (0x0F) — DCD stays asserted
   for (int i = 0; i < 10; ++i) {
     s.next_bit();
-    EXPECT_FALSE(s.at_carrier()) << "second data byte bit " << i;
+    EXPECT_TRUE(s.at_carrier()) << "second data byte bit " << i;
   }
   // 2 carrier trailer bits (last bit ends tape)
   s.next_bit();

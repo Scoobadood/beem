@@ -52,6 +52,7 @@ class SerialUla : public AbstractSula, public IBusDevice {
   void maybe_tx_clock_tick();
   void maybe_rx_clock_tick();
   [[nodiscard]] bool is_rs423_selected() const;
+  [[nodiscard]] uint16_t effective_rx_divider() const;
 
   uint16_t tx_baud_;
   uint16_t rx_baud_;
@@ -65,6 +66,11 @@ class SerialUla : public AbstractSula, public IBusDevice {
 
   uint32_t rx_clock_counter_;
   uint16_t rx_clock_divider_;
+
+  // Tape bit buffer: next_bit() is called once per baud period (every
+  // clk_divisor rx_clock() ticks) and the result held stable between advances.
+  uint32_t rx_tape_counter_{0};
+  bool current_rx_bit_{true};  // idle / mark
 
   std::shared_ptr<Acia> acia_;
   ICassettePort* cassette_port_{nullptr};

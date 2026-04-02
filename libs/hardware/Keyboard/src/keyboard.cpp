@@ -35,7 +35,7 @@ Keyboard::Keyboard(uint8_t dips) //
   sl_led_src_ = std::make_shared<data_subscriber_8_bit>(0x80);
 
   try {
-    auto logger = spdlog::basic_logger_mt("KEYB", "logs/keyboard.txt", true);
+    auto logger = spdlog::basic_logger_mt("KEYB", "logs/KEYB.txt", true);
     logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {

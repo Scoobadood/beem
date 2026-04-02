@@ -32,6 +32,10 @@ class Acia : public IBusDevice {
   // tx_clock tick).
   [[nodiscard]] bool tx_pin() const;
 
+  // Returns the current RX clock divisor (1, 16, or 64).
+  // Used by the sULA to advance the tape at the correct baud rate.
+  [[nodiscard]] uint8_t clk_divisor() const { return clk_divisor_; }
+
   void clear_cts();
   void raise_cts();
   void clear_dcd();

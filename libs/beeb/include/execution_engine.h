@@ -1,14 +1,30 @@
 #pragma once
 
 #include "beeb.h"
+#include <array>
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <set>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 class ExecutionEngine {
  public:
   explicit ExecutionEngine(std::unique_ptr<Beeb> beeb);
+
+  // ── Instruction history ───────────────────────────────────────────────────
+  struct InsnRecord {
+    uint16_t pc{0};
+    uint8_t  a{0}, x{0}, y{0}, sp{0}, flags{0};
+    uint32_t mem4{0};  // 4 bytes at PC (little-endian) for disassembly
+  };
+  static constexpr size_t HISTORY_CAPACITY = 100;
+
+  // Returns up to HISTORY_CAPACITY records in execution order (oldest first).
+  std::vector<InsnRecord> instruction_history() const;
 
   // Execute exactly one instruction (SYNC-boundary to SYNC-boundary).
   // Fires the callback if one is installed.  Always leaves state == PAUSED.
@@ -33,6 +49,17 @@ class ExecutionEngine {
   void remove_breakpoint(uint16_t addr);
   bool is_breakpoint(uint16_t addr) const;
   const std::set<uint16_t>& breakpoints() const;
+
+  // Watch breakpoints ———————————————————————————————————————————
+  // Stops execution when the watched address is written with a new value.
+  void add_watch(uint16_t addr);
+  void remove_watch(uint16_t addr);
+  bool is_watch(uint16_t addr) const;
+  const std::unordered_map<uint16_t, uint8_t>& watches() const;
+
+  // If the most recent run() paused due to a watch, returns {addr, old, new}.
+  // Cleared by the next call to run() or resume().
+  std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> last_watch_trigger() const;
 
   // Observation callback ————————————————————————————————————————
   // Fires after each completed instruction with: pc, A, X, Y, flags, SP,
@@ -59,9 +86,19 @@ class ExecutionEngine {
   static constexpr int32_t STEPPING_OUT = 1;
   static constexpr int32_t RUNNING      = 2;
 
+  // Checks each watched address against its shadow.  Returns {addr, old, new}
+  // for the first address whose value has changed, and updates the shadow.
+  std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> check_watches();
+
   std::unique_ptr<Beeb>    beeb_;
   std::atomic<int32_t>     state_{PAUSED};
   std::set<uint16_t>       breakpoints_;
+  std::unordered_map<uint16_t, uint8_t> watches_;   // addr → shadow value
+  std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> last_watch_trigger_;
   uint16_t                 step_out_target_{0};
   InstructionCallback      callback_;
+
+  std::array<InsnRecord, HISTORY_CAPACITY> history_buf_{};
+  size_t history_head_{0};
+  size_t history_count_{0};
 };

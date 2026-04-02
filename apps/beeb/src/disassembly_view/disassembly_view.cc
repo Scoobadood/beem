@@ -25,6 +25,7 @@ struct ColourScheme {
   QColor oper_colour = QColorConstants::DarkMagenta;
   QColor bytes_colour = QColorConstants::LightGray;
   QColor bp_marker_colour = QColorConstants::Red;
+  QColor watch_marker_colour = QColor{200, 100, 0};   // orange
   QColor bg_colour = QColorConstants::White;
   QColor pc_colour = QColor{186, 231, 255};
 };
@@ -32,6 +33,7 @@ struct ColourScheme {
 const int32_t LS_LABEL = 0x20000;
 const int32_t LS_OPCOD = 0x10000;
 const int32_t LS_BRKPT = 0x40000;
+const int32_t LS_WATCH = 0x80000;
 
 DisassemblyView::DisassemblyView(BreakpointManager *breakpoint_manager, QWidget *parent) //
     : DataDisplayWidget(parent) //
@@ -71,6 +73,9 @@ DisassemblyView::DisassemblyView(BreakpointManager *breakpoint_manager, QWidget 
                  &DisassemblyView::breakpoints_changed));
   assert(connect(breakpoint_manager_, &BreakpointManager::breakpoint_set, this, &DisassemblyView::breakpoints_changed));
 
+  assert(connect(breakpoint_manager_, &BreakpointManager::watch_set,     this, &DisassemblyView::watches_changed));
+  assert(connect(breakpoint_manager_, &BreakpointManager::watch_cleared,  this, &DisassemblyView::watches_changed));
+
   layout->addWidget(te_disassembly_);
   layout->addWidget(sb_disassembly_);
   setLayout(layout);
@@ -81,6 +86,10 @@ DisassemblyView::DisassemblyView(BreakpointManager *breakpoint_manager, QWidget 
 DisassemblyView::~DisassemblyView() = default;
 
 void DisassemblyView::breakpoints_changed() {
+  layout_disassembly();
+}
+
+void DisassemblyView::watches_changed() {
   layout_disassembly();
 }
 
@@ -274,7 +283,7 @@ DisassemblyView::FormattedOperation DisassemblyView::format_for_display(const Op
  */
 void DisassemblyView::redraw(QTextCursor cursor, bool is_pc) {
   cursor.movePosition(QTextCursor::StartOfLine, QTextCursor::MoveAnchor);
-  cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 1);
+  cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 2);  // skip 2-char marker
 
   QTextCharFormat fmt{};
   fmt.setBackground(QBrush{is_pc ? colour_scheme_->pc_colour : QColorConstants::White});
@@ -360,12 +369,17 @@ void DisassemblyView::layout_disassembly() {
     auto formatted_op = format_for_display(op);
     auto line_state = LS_OPCOD;
     te_disassembly_->moveCursor(QTextCursor::End, QTextCursor::MoveAnchor);
-    if (breakpoint_manager_->is_breakpoint(op.address)) {
-      te_disassembly_->setTextColor(colour_scheme_->bp_marker_colour);
-      te_disassembly_->insertPlainText("*");
-      line_state |= LS_BRKPT;
-    } else {
-      te_disassembly_->insertPlainText(" ");
+    {
+      bool has_bp    = breakpoint_manager_->is_breakpoint(op.address);
+      bool has_watch = breakpoint_manager_->is_watch(op.address);
+      te_disassembly_->setTextColor(has_bp ? colour_scheme_->bp_marker_colour
+                                           : colour_scheme_->bg_colour);
+      te_disassembly_->insertPlainText(has_bp ? "*" : " ");
+      if (has_bp)    line_state |= LS_BRKPT;
+      te_disassembly_->setTextColor(has_watch ? colour_scheme_->watch_marker_colour
+                                              : colour_scheme_->bg_colour);
+      te_disassembly_->insertPlainText(has_watch ? "W" : " ");
+      if (has_watch) line_state |= LS_WATCH;
     }
 
     if (op.address == current_pc_) {
@@ -421,32 +435,34 @@ void DisassemblyView::mousePressEvent(QMouseEvent *e) {
 //                 (line_state & LS_BRKPT) ? "with a breakpoint." : "");
 //  }
 
+  // line_state >> 16 encodes the type flags:
+  //   LS_OPCOD=1  LS_BRKPT=4  LS_WATCH=8  LS_LABEL=2
+  // Clicking always toggles the breakpoint on the address.
   switch (line_state >> 16) {
-    // Label, do nothing
-    case 2:
+    case 2:  // label row — do nothing
       break;
 
-    case 1: {
+    case 1:   // opcode, no BP, no watch → set BP
+    case 9: { // opcode + watch, no BP   → set BP
       auto op_idx = line_state & 0xffff;
       auto op = disassembly_.at(op_idx);
-      auto addr = op.address;
       set_brkpt_formatting(cursor);
-      breakpoint_manager_->set_breakpoint(addr);
-    }
+      breakpoint_manager_->set_breakpoint(op.address);
       break;
+    }
 
-    case 5: {
+    case 5:   // opcode + BP, no watch → clear BP
+    case 13: { // opcode + BP + watch  → clear BP
       auto op_idx = line_state & 0xffff;
       auto op = disassembly_.at(op_idx);
-      auto addr = op.address;
       clear_brkpt_formatting(cursor);
-      breakpoint_manager_->clear_breakpoint(addr);
-      emit breakpoint_cleared(addr);
+      breakpoint_manager_->clear_breakpoint(op.address);
+      emit breakpoint_cleared(op.address);
+      break;
     }
-      break;
-    default:
-      spdlog::info("That's odd. line state shouldn't be  {:07x}", line_state);
-      break;
 
+    default:
+      spdlog::info("Unexpected line state {:07x}", line_state);
+      break;
   }
 }

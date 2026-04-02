@@ -11,8 +11,8 @@ std::vector<std::shared_ptr<AcornBlock>> parse_blocks(const std::vector<uint8_t>
   while (idx < data.size()) {
     auto blk_data_size = data.size() - idx;
     if (blk_data_size < 19) {
-      spdlog::error("A data block reported as tape data is too short, {} bytes", blk_data_size);
-      return {};
+      // Short trailing bytes (e.g. sync/padding) are normal on BBC Micro tapes.
+      break;
     }
     blocks.push_back(std::make_shared<AcornBlock>(data, idx, blk_size));
     idx += blk_size;

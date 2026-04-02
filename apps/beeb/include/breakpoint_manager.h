@@ -3,6 +3,9 @@
 
 #include <QObject>
 #include <set>
+#include <fstream>
+#include <sstream>
+#include <string>
 class BreakpointManager : public QObject {
  Q_OBJECT
 
@@ -37,12 +40,71 @@ class BreakpointManager : public QObject {
     return breakpoints_.count(bp);
   }
 
+  // Watch breakpoints ——————————————————————————————————————————
+  [[nodiscard]] const std::set<uint16_t> &watches() const { return watches_; }
+
+  bool set_watch(uint16_t addr) {
+    if (watches_.count(addr)) return false;
+    watches_.emplace(addr);
+    emit watch_set(addr);
+    return true;
+  }
+
+  bool clear_watch(uint16_t addr) {
+    if (!watches_.count(addr)) return false;
+    watches_.erase(addr);
+    emit watch_cleared(addr);
+    return true;
+  }
+
+  void clear_all_watches() {
+    for (auto it = watches_.begin(); it != watches_.end(); ) {
+      auto addr = *it;
+      it = watches_.erase(it);
+      emit watch_cleared(addr);
+    }
+  }
+
+  bool is_watch(uint16_t addr) {
+    return watches_.count(addr);
+  }
+
+  // ── file I/O ──────────────────────────────────────────────────────────────
+  void save_to_file(const std::string& path) const {
+    std::ofstream f(path);
+    for (auto bp : breakpoints_)
+      f << "BP " << std::hex << std::uppercase << bp << "\n";
+    for (auto w : watches_)
+      f << "W "  << std::hex << std::uppercase << w  << "\n";
+  }
+
+  bool load_from_file(const std::string& path) {
+    std::ifstream f(path);
+    if (!f.is_open()) return false;
+    std::string line;
+    while (std::getline(f, line)) {
+      if (line.empty() || line[0] == '#') continue;
+      std::istringstream ss(line);
+      std::string type, addr_str;
+      if (!(ss >> type >> addr_str)) continue;
+      uint16_t addr{0};
+      try { addr = static_cast<uint16_t>(std::stoul(addr_str, nullptr, 16)); }
+      catch (...) { continue; }
+      if      (type == "BP") set_breakpoint(addr);
+      else if (type == "W")  set_watch(addr);
+    }
+    return true;
+  }
+
  signals:
   void breakpoint_set(uint16_t bp);
   void breakpoint_cleared(uint16_t bp);
+  void watch_set(uint16_t addr);
+  void watch_cleared(uint16_t addr);
 
  private:
   std::set<uint16_t> breakpoints_;
+  std::set<uint16_t> watches_;
 };
 
 #endif // BEEB_INCLUDE_BREAKPOINT_MANAGER_H_

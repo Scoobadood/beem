@@ -89,6 +89,14 @@ int main(int argc, char *argv[]) {
   QObject::connect(breakpoint_manager, &BreakpointManager::breakpoint_cleared,
       [&](uint16_t bp) { beeb_worker->engine().remove_breakpoint(bp); });
 
+  // Wire watch breakpoint signals to the execution engine and debugger window.
+  QObject::connect(breakpoint_manager, &BreakpointManager::watch_set,
+      [&](uint16_t addr) { beeb_worker->engine().add_watch(addr); });
+  QObject::connect(breakpoint_manager, &BreakpointManager::watch_cleared,
+      [&](uint16_t addr) { beeb_worker->engine().remove_watch(addr); });
+  QObject::connect(beeb_worker.get(), &BeebWorker::watch_triggered,
+      debugger_window, &DebuggerWindow::watch_triggered);
+
   auto window_mediator = new WindowMediator(breakpoint_manager, crt_window,
                                             debugger_window, memory_window,
                                             cassette_window,

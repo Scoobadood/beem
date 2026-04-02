@@ -89,8 +89,10 @@ void CassetteWindow::load_uef_file() {
     if (!fileNames.isEmpty()) {
       QString fileName = fileNames.first();
       try {
-        cassette_data_ = load_tape_data_from_uef(fileName.toStdString());
+        auto uef = std::make_shared<UefData>(UefData::FromFile(fileName.toStdString()));
+        cassette_data_ = load_tape_data_from_uef(*uef);
         populate_tape_data(cassette_data_);
+        emit tape_inserted(uef);
       } catch (std::exception &e) {//catch
         auto msg = fmt::format("Could not open file {},  :{}", fileName.toStdString(), e.what());
         QMessageBox::warning(this, "Error", QString::fromStdString(msg));
