@@ -215,6 +215,17 @@ TEST_F(SulaTest, motor_state_accessible_via_accessor) {
   EXPECT_FALSE(sula_->is_motor_on());
 }
 
+// Motor off means no tape movement = no carrier.
+// The sULA must immediately call raise_dcd() so the ACIA receiver is disabled.
+// Initial ACIA state has dcd_=false (DCD* LOW = carrier present); motor-off must
+// trigger the false→true transition → SR2 = 1.
+TEST_F(SulaTest, motor_off_raises_dcd) {
+  write_acia_ctl(0x03);  // release ACIA power-on reset
+  write_scr(0x80);       // motor on, cassette (dcd_ still false from init)
+  write_scr(0x00);       // motor off → sULA calls raise_dcd()
+  EXPECT_TRUE(read_acia_status() & SR_DCD);
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Group 4 — Cassette player RX wiring
 // ════════════════════════════════════════════════════════════════════════════
@@ -236,38 +247,44 @@ TEST_F(SulaTest, has_carrier_polled_each_rx_tick) {
   EXPECT_EQ(player_.has_carrier_call_count, 2);
 }
 
-// SR_DCD is clear when no carrier is detected (BBC: carrier present = SR_DCD=1).
-TEST_F(SulaTest, acia_dcd_clear_when_no_carrier_detected) {
-  player_.has_carrier_value = false;  // no carrier
+// Per BBC AUG §14.2.5: the sULA asserts DCD* LOW (calls clear_dcd) when carrier IS
+// present.  In the 6850, DCD* LOW = receiver enabled, SR2 = 0.
+// Initial ACIA state: dcd_=false (DCD* LOW).  Carrier present → clear_dcd is a no-op
+// → SR2 stays 0.
+TEST_F(SulaTest, acia_dcd_clear_when_carrier_detected) {
+  player_.has_carrier_value = true;   // carrier present
   write_scr(0x00);
   tick_n(832);
   EXPECT_FALSE(read_acia_status() & SR_DCD);
 }
 
-// SR_DCD is set when carrier is detected.
-TEST_F(SulaTest, acia_dcd_set_when_carrier_detected) {
-  player_.has_carrier_value = true;  // carrier present
+// No carrier → sULA calls raise_dcd (DCD* HIGH = inactive).
+// dcd_went_inactive_high() fires the dcd_=false→true transition → SR2 = 1.
+TEST_F(SulaTest, acia_dcd_set_when_no_carrier_detected) {
+  player_.has_carrier_value = false;  // no carrier
   write_scr(0x00);
-  tick_n(832);  // sULA calls acia_->raise_dcd()
+  tick_n(832);
   EXPECT_TRUE(read_acia_status() & SR_DCD);
 }
 
-// After the 6850 DCD latch is set (carrier arrives then leaves), reading status
-// then reading RDR clears it.
+// 6850 DCD latch: SR2 is set on carrier loss and stays latched even after carrier
+// returns.  It is cleared only by the CPU performing read-SR then read-RDR while
+// DCD* is LOW (carrier present).
 TEST_F(SulaTest, acia_dcd_latch_clears_after_status_and_rdr_read) {
   write_scr(0x00);
 
-  // Carrier present — raise_dcd() arms the latch (SR_DCD=1).
-  player_.has_carrier_value = true;
-  tick_n(832);
-
-  // Carrier ends — clear_dcd() called; latch still pending so SR_DCD stays 1.
+  // No carrier — raise_dcd() fires the dcd_=false→true transition → SR2 = 1.
   player_.has_carrier_value = false;
   tick_n(832);
-  ASSERT_TRUE(read_acia_status() & SR_DCD);
+  ASSERT_TRUE(read_acia_status() & SR_DCD);  // latched; this read is step 1 of clear
 
-  // read_acia_status() above advanced the latch to wait-for-data-read.
-  // Reading RDR (ACIA base+1) now clears SR_DCD (dcd_ is false = no carrier).
+  // Carrier returns — clear_dcd() fires dcd_=true→false → dcd_went_active_low()
+  // arms the two-step latch-clear sequence.  SR2 stays 1 until RDR is read.
+  player_.has_carrier_value = true;
+  tick_n(832);
+  ASSERT_TRUE(read_acia_status() & SR_DCD);  // still latched; this is step 1 of clear
+
+  // Step 2: read RDR.  dcd_=false (carrier present) → !dcd_=true → SR2 cleared.
   bus_->set_address(ACIA_BASE + 1);
   bus_->set_RW();
   acia_->tick(bus_);
@@ -495,4 +512,113 @@ TEST_F(SulaTest, enable_rx_irq_after_rdrf_set_backfills_irq) {
   bus_->set_address(0xFE08); bus_->set_data(0xD5); bus_->clr_RW(); acia_->tick(bus_);
 
   EXPECT_TRUE(acia_->has_irq()) << "enabling CR7=1 with RDRF already set must assert /IRQ";
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// Group 10 — Inter-block DCD and latch behaviour
+//
+// Simulates the real cassette inter-block scenario:
+//   carrier → byte → gap (DCD loss + IRQ) → carrier returns →
+//   CPU latch-clear (read-SR + read-RDR) → second byte received.
+//
+// SeqPort hardcodes has_carrier()=true, so a separate GapAwarePort models
+// the per-bit carrier state needed to distinguish data blocks from silent gaps.
+// ════════════════════════════════════════════════════════════════════════════
+
+// Per-bit tape model: each bit carries its own carrier state so that data
+// blocks can be separated by gap sections where has_carrier() == false.
+struct GapAwarePort : ICassettePort {
+  struct TapeBit { bool value; bool carrier; };
+  std::vector<TapeBit> tape;
+  size_t idx{0};
+
+  void push_carrier(size_t n) {
+    for (size_t i = 0; i < n; ++i) tape.push_back({true,  true});
+  }
+  void push_gap(size_t n) {
+    for (size_t i = 0; i < n; ++i) tape.push_back({true,  false});
+  }
+  void push_byte(uint8_t b) {
+    tape.push_back({false, true});  // start bit
+    for (int i = 0; i < 8; ++i) tape.push_back({bool((b >> i) & 1), true});
+    tape.push_back({true,  true});  // stop bit
+  }
+
+  bool rx_data()    override { return idx < tape.size() ? tape[idx++].value : true; }
+  bool has_carrier() override { return idx > 0 && tape[idx - 1].carrier; }
+  void tx_bit(bool) override {}
+  void set_motor(bool) override {}
+};
+
+// Helper: configure ACIA + sULA for 1200-baud cassette RX with RX IRQ enabled.
+static void setup_cassette_1200_irq(
+    std::shared_ptr<Bus>&       bus,
+    std::shared_ptr<Acia>&      acia,
+    std::unique_ptr<SerialUla>& sula)
+{
+  bus->set_address(0xFE08); bus->set_data(0x03); bus->clr_RW(); acia->tick(bus);  // master reset
+  acia->clear_cts();
+  bus->set_address(0xFE08); bus->set_data(0xD5); bus->clr_RW(); acia->tick(bus);  // ÷16 8N1 RX IRQ on
+  bus->set_address(0xFE10); bus->set_data(0x80); bus->clr_RW(); sula->tick(bus);  // motor on, cassette
+}
+
+// A gap following a received byte must raise SR2 (DCD latched) and assert IRQ.
+TEST_F(SulaTest, inter_block_gap_raises_dcd_and_irq) {
+  GapAwarePort seq;
+  seq.push_carrier(2);   // preamble
+  seq.push_byte(0x42);   // 10 bits
+  seq.push_gap(5);       // inter-block silence
+
+  sula_->set_cassette_port(&seq);
+  setup_cassette_1200_irq(bus_, acia_, sula_);
+
+  const uint32_t tpb = 16u * 832u;  // ticks per tape bit at 1200 baud / ÷16
+  tick_n((2u + 10u + 5u) * tpb);    // through carrier + frame + gap
+
+  EXPECT_TRUE(read_acia_status() & SR_DCD) << "SR2 must be set during inter-block gap";
+  EXPECT_TRUE(acia_->has_irq())            << "IRQ must be asserted after gap (RDRF or DCD loss)";
+}
+
+// Full inter-block sequence: after latch-clear, the second byte is received correctly.
+TEST_F(SulaTest, inter_block_second_byte_received_after_latch_clear) {
+  GapAwarePort seq;
+  seq.push_carrier(2);    // block 1 preamble
+  seq.push_byte(0x42);    // first byte (10 bits)
+  seq.push_gap(5);        // inter-block gap  (positions 12–16, has_carrier=false)
+  seq.push_carrier(2);    // block 2 preamble (positions 17–18, has_carrier=true)
+  seq.push_byte(0x55);    // second byte      (positions 19–28)
+
+  sula_->set_cassette_port(&seq);
+  setup_cassette_1200_irq(bus_, acia_, sula_);
+
+  const uint32_t tpb = 16u * 832u;
+
+  // ── Phase 1: receive 0x42, enter gap ────────────────────────────────────
+  // 2 + 10 + 5 = 17 tape advances → idx=17 (last gap bit consumed).
+  tick_n((2u + 10u + 5u) * tpb);
+  ASSERT_TRUE(read_acia_status() & SR_DCD) << "SR2 must be set after inter-block gap";
+
+  // ── Phase 2: carrier returns → arms latch clear ─────────────────────────
+  // 2 more tape advances → idx=19 (both block-2 carrier bits consumed).
+  // has_carrier()=true → clear_dcd() → dcd_went_active_low() arms latch.
+  tick_n(2u * tpb);
+
+  // SR2 still latched; read-SR is step 1 of the two-step latch-clear sequence.
+  ASSERT_TRUE(read_acia_status() & SR_DCD) << "SR2 must remain latched after carrier returns";
+
+  // Read RDR: step 2 — dcd_=false (carrier present) → SR2 cleared, 0x42 consumed.
+  bus_->set_address(ACIA_BASE + 1); bus_->set_RW(); acia_->tick(bus_);
+  EXPECT_EQ(bus_->get_data(), 0x42u) << "RDR must contain first byte 0x42";
+
+  EXPECT_FALSE(read_acia_status() & SR_DCD) << "SR2 must be cleared after latch-clear sequence";
+
+  // ── Phase 3: receive second byte 0x55 ───────────────────────────────────
+  // 10 bits (frame) + 1 bit margin for stop-bit sampling.
+  tick_n((10u + 1u) * tpb);
+
+  bus_->set_address(ACIA_BASE);     bus_->set_RW(); acia_->tick(bus_);
+  ASSERT_TRUE(bus_->get_data() & 0x01) << "RDRF must be set for second byte";
+
+  bus_->set_address(ACIA_BASE + 1); bus_->set_RW(); acia_->tick(bus_);
+  EXPECT_EQ(bus_->get_data(), 0x55u) << "second byte must be 0x55";
 }

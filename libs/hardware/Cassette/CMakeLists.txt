@@ -18,7 +18,8 @@ add_executable(test_cassette
         test/main.cpp
         test/test_raw_bytes_tape_stream.cpp
         test/test_cassette_port.cpp
-        test/test_uef_tape_stream.cpp)
+        test/test_uef_tape_stream.cpp
+        test/test_cassette_integration.cpp)
 
 target_link_libraries(test_cassette
         PRIVATE

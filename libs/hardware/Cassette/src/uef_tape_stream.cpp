@@ -100,8 +100,12 @@ bool UefTapeStream::end_of_tape() const {
 
 bool UefTapeStream::at_carrier() {
   // Returns the carrier state of the bit most recently returned by next_bit().
-  // Returns false when the tape is exhausted.
-  return !end_of_tape() && last_carrier_;
+  // last_carrier_ is set during next_bit() before the position advances, so
+  // it correctly reflects the signal state of the bit that was just returned —
+  // even when that bit was the last one and end_of_tape() is now true.
+  // last_carrier_ becomes false only when next_bit() is called on an already-
+  // exhausted tape, which is when the carrier-detect circuit truly drops.
+  return last_carrier_;
 }
 
 bool UefTapeStream::next_bit() {

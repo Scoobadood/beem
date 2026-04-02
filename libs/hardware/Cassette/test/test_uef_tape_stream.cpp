@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "uef_tape_stream.h"
+#include "raw_bytes_tape_stream.h"
 
 #include <sstream>
 #include <cstring>
@@ -114,10 +115,21 @@ TEST(UefTapeStream, CarrierTone_ExactCycleCount) {
   EXPECT_TRUE(s.end_of_tape());
 }
 
-TEST(UefTapeStream, CarrierTone_AtCarrierFalseAfterExhausted) {
+// at_carrier() reflects the last consumed bit — still true right after exhaustion.
+TEST(UefTapeStream, CarrierTone_AtCarrierTrueForLastConsumedBit) {
   auto uef = make_uef({carrier_chunk(3)});
   UefTapeStream s(uef);
   for (int i = 0; i < 3; ++i) s.next_bit();
+  EXPECT_TRUE(s.end_of_tape());
+  EXPECT_TRUE(s.at_carrier());  // last bit was carrier — still reported as carrier
+}
+
+// Only after next_bit() is called on the already-exhausted tape does the
+// carrier drop (last_carrier_ set to false in the end_of_tape() branch).
+TEST(UefTapeStream, CarrierTone_AtCarrierFalseAfterCallPastEnd) {
+  auto uef = make_uef({carrier_chunk(3)});
+  UefTapeStream s(uef);
+  for (int i = 0; i < 4; ++i) s.next_bit();  // 3 real + 1 past end
   EXPECT_FALSE(s.at_carrier());
 }
 
@@ -238,15 +250,16 @@ TEST(UefTapeStream, Sequence_AtCarrier_TransitionsCorrectly) {
     s.next_bit();
     EXPECT_TRUE(s.at_carrier()) << "after data bit " << i;
   }
-  // Final 3 bits: carrier again.  After the very last bit the tape ends,
-  // so only check at_carrier() after the first two post-carrier bits.
-  for (int i = 0; i < 2; ++i) {
+  // Final 3 bits: carrier again.  at_carrier() is true for all 3, including
+  // the last one (even though end_of_tape() becomes true after consuming it).
+  for (int i = 0; i < 3; ++i) {
     s.next_bit();
     EXPECT_TRUE(s.at_carrier()) << "after post-carrier bit " << i;
   }
-  s.next_bit();  // last bit; tape now exhausted
   EXPECT_TRUE(s.end_of_tape());
-  EXPECT_FALSE(s.at_carrier());  // no carrier after tape ends
+  // Carrier drops only after next_bit() is called on the exhausted tape.
+  s.next_bit();
+  EXPECT_FALSE(s.at_carrier());
 }
 
 // at_carrier() after next_bit() should reflect the bit just emitted
@@ -331,6 +344,8 @@ TEST(UefTapeStream, CarrierWithDummyByte_Structure) {
   EXPECT_TRUE(s.at_carrier());
   EXPECT_TRUE(s.next_bit());   // post-carrier bit 1 — tape ends
   EXPECT_TRUE(s.end_of_tape());
+  EXPECT_TRUE(s.at_carrier());  // last bit was carrier — still reported as carrier
+  s.next_bit();                 // one call past exhaustion
   EXPECT_FALSE(s.at_carrier());
 }
 
@@ -425,4 +440,64 @@ TEST(UefTapeStream, Integration_FirstDataByte_0x42) {
   EXPECT_TRUE (s.next_bit());  // d6=1
   EXPECT_FALSE(s.next_bit());  // d7=0
   EXPECT_TRUE (s.next_bit());  // stop
+}
+
+// ===========================================================================
+// Group 9 — Round-trip: UefTapeStream → 8N1 decoder → bytes
+//
+// Feeds UefTapeStream output into RawBytesTapeStream::write_bit() to verify
+// that data bytes survive encode→stream→decode unchanged.
+// Carrier and gap mark bits are ignored by the decoder while it waits for a
+// start bit (0), so they do not produce spurious bytes.
+// ===========================================================================
+
+// Helper: drain all bits from a UefTapeStream into a RawBytesTapeStream
+// 8N1 decoder and return the recovered bytes.
+static std::vector<uint8_t> round_trip(UefTapeStream& s) {
+  RawBytesTapeStream sink({});
+  while (!s.end_of_tape())
+    sink.write_bit(s.next_bit());
+  return sink.recorded_bytes();
+}
+
+TEST(UefTapeStream, RoundTrip_SingleByte) {
+  auto uef = make_uef({data_chunk({0x42})});
+  UefTapeStream s(uef);
+  EXPECT_EQ((std::vector<uint8_t>{0x42}), round_trip(s));
+}
+
+TEST(UefTapeStream, RoundTrip_MultipleBytes) {
+  std::vector<uint8_t> original = {0x00, 0x55, 0xAA, 0xFF, 0x01, 0x80};
+  auto uef = make_uef({data_chunk(original)});
+  UefTapeStream s(uef);
+  EXPECT_EQ(original, round_trip(s));
+}
+
+TEST(UefTapeStream, RoundTrip_CarrierDoesNotDecodeToByte) {
+  // Pure carrier: mark bits should not be decoded as data bytes.
+  auto uef = make_uef({carrier_chunk(50)});
+  UefTapeStream s(uef);
+  EXPECT_TRUE(round_trip(s).empty());
+}
+
+TEST(UefTapeStream, RoundTrip_GapDoesNotDecodeToByte) {
+  // Pure gap: mark bits should not be decoded as data bytes.
+  auto uef = make_uef({gap_chunk(50)});
+  UefTapeStream s(uef);
+  EXPECT_TRUE(round_trip(s).empty());
+}
+
+TEST(UefTapeStream, RoundTrip_RealisticTape) {
+  // carrier(5) → data(0x42, 0x0F) → gap(3) → carrier(4) → data(0xAA) → carrier(2)
+  // Only the data bytes should be recovered; carrier and gap are transparent.
+  auto uef = make_uef({
+    carrier_chunk(5),
+    data_chunk({0x42, 0x0F}),
+    gap_chunk(3),
+    carrier_chunk(4),
+    data_chunk({0xAA}),
+    carrier_chunk(2),
+  });
+  UefTapeStream s(uef);
+  EXPECT_EQ((std::vector<uint8_t>{0x42, 0x0F, 0xAA}), round_trip(s));
 }

@@ -18,7 +18,7 @@ int main(int32_t argc, const char *argv[]) {
 
   auto uef = UefData::FromFile(argv[1]);
 
-  cout << "Version " << resetiosflags << uef.StringVersion() << endl;
+  cout << "Version " << uef.StringVersion() << endl;
   for( auto c : uef.Chunks()) {
     cout << *c;
   }
