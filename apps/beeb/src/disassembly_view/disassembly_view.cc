@@ -130,11 +130,6 @@ void DisassemblyView::resize(const QSize &size) {
  * @param event
  */
 void DisassemblyView::resizeEvent(QResizeEvent *event) {
-  spdlog::info("disasm resizeEvent()  {}x{}   TE is {}x{}",
-               event->size().width(), event->size().height(),
-               te_disassembly_->size().width(),
-               te_disassembly_->size().height()
-  );
   auto pt_size = event->size();
   displayed_rows_ = std::max(1, (pt_size.height() / row_height_));
 

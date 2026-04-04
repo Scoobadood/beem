@@ -1,7 +1,3 @@
-//
-// Created by Dave Durbin on 3/1/2023.
-//
-
 #include "acia_6850.h"
 
 #include "spdlog/spdlog.h"
@@ -27,8 +23,7 @@ const uint16_t RO_RDR = 1; // Receive Data Register
 const uint8_t SR_##name##_FLAG = (1 << bit); \
 inline auto SR_##name(uint8_t sr)  -> bool { return (sr & SR_##name##_FLAG);}\
 inline void SR_SET_##name(uint8_t &sr) { sr |= SR_##name##_FLAG;}    \
-inline void SR_CLR_##name(uint8_t &sr) { sr &= ~SR_##name##_FLAG;}    \
-
+inline void SR_CLR_##name(uint8_t &sr) { sr &= ~SR_##name##_FLAG;}
 /*
  * 6850 datasheet
  * The IRQ bit indicates the state of the IRQ output.
@@ -121,8 +116,8 @@ inline auto TX_CTL_BITS(uint8_t ctl) -> uint8_t { return ((ctl >> 5) & 0x03); }
 inline auto RX_INT_ENBL(uint8_t ctl) -> bool { return ((ctl & 0x80) == 0x80); }
 
 Acia::Acia(uint16_t base_addr) //
-    : base_addr_{base_addr} //
-    , is_in_power_on_reset_{true}//
+  : base_addr_{base_addr} //
+    , is_in_power_on_reset_{true} //
     , status_register_{0} //
     , control_register_{0} //
     , clk_divisor_{1} //
@@ -131,49 +126,47 @@ Acia::Acia(uint16_t base_addr) //
     , parity_{2} //
     , tx_int_enabled_{false} //
     , rx_int_enabled_{false} //
-    , rts_{true}                        // inactive
+    , rts_{true} // inactive
     , tdr_{0} //
     , tx_shift_register_{0} //
-    , tdr_is_full_{false}//
+    , tdr_is_full_{false} //
     , tx_shift_count_{0} //
     , parity_bit_{0} //
-    , out_{1}       // TX line idle = mark (1)
+    , out_{1} // TX line idle = mark (1)
     , tx_clock_ticks_{1} //
     , state_{IDLE} //
     , tx_break_{false} //
-    , cts_{true}                        // inactive or at least tied to RS423
-    , dcd_{false}  // no carrier tone at startup; DCD* starts low
-    , rx_data_{true}  // idle (mark)
+    , cts_{true} // inactive or at least tied to RS423
+    , carrier_present_{false} // no carrier tone at startup;
+    , rx_data_{true} // idle (mark)
     , rdr_{0} //
     , rdr_is_full_{false} //
     , rdr_was_read_{false} //
     , parity_error_{false} //
     , overrun_error_pending_{false} //
-    , overrun_error_{false}//
+    , overrun_error_{false} //
     , rx_state_{RX_IDLE} //
     , rx_shift_count_{0} //
     , rx_clock_count_{0} //
     , rx_parity_calc_{0} //
-    , irq_{true}                       // inactive high
+    , irq_{true} // inactive high
     , sr2_high_wait_for_sr_read_{false} //
     , sr2_high_wait_for_data_read_{false} //
 {
   try {
     auto logger = spdlog::basic_logger_mt("ACIA", "logs/ACIA.txt", true);
     logger->flush_on(spdlog::level::info);
-  }
-  catch (const spdlog::spdlog_ex &ex) {
+  } catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
   try {
     std::unique_ptr<spdlog::pattern_formatter> f(new spdlog::pattern_formatter("%v",
                                                                                spdlog::pattern_time_type::local,
-                                                                               std::string("")));  // disable eol
+                                                                               std::string(""))); // disable eol
     auto logger = spdlog::basic_logger_mt("ACIA_OUT", "logs/ACIA_OUT.txt", true);
     logger->set_formatter(std::move(f));
     logger->flush_on(spdlog::level::err);
-  }
-  catch (const spdlog::spdlog_ex &ex) {
+  } catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
 
@@ -222,18 +215,24 @@ void Acia::perform_master_reset() {
   SR_CLR_RDRF(status_register_);
   SR_CLR_TDRE(status_register_);
 
+  /* Reset read side */
   rdr_is_full_ = false;
   rdr_was_read_ = false;
+  rdr_ = 0;
+  rx_shift_register_ = 0;
+  rx_parity_calc_ = 0;
+  rx_shift_count_ = 0;
+
   overrun_error_pending_ = false;
   overrun_error_ = false;
   sr2_high_wait_for_sr_read_ = false;
   sr2_high_wait_for_data_read_ = false;
   rx_state_ = RX_IDLE;
 
-  // CTS is active low
-  if( !cts_) {
-    SR_SET_TDRE(status_register_);
-  }
+  SR_SET_TDRE(status_register_);
+  SR_CLR_RDRF(status_register_);
+  SR_CLR_IRQ(status_register_);
+  irq_ = true;
 }
 
 /********************************************************************************
@@ -285,8 +284,8 @@ void Acia::write_ctl(uint8_t data) {
 
   // Log changes
   logger_->info("  Clock divisor : {} ({} baud)",
-                            clk_divisor_,
-                            (clk_divisor_ == 64 ? "300" : (clk_divisor_ == 16 ? "1200" : "19200")));
+                clk_divisor_,
+                (clk_divisor_ == 64 ? "300" : (clk_divisor_ == 16 ? "1200" : "19200")));
   logger_->info("    Word length : {}", word_length_);
   logger_->info("         Parity : {}", parity_ == 0 ? "none" : (parity_ == 1 ? "odd" : "even"));
   logger_->info("      Stop bits : {}", stop_bits_);
@@ -364,17 +363,17 @@ void Acia::disable_rx_interrupts() {
  ********************************************************************************/
 void Acia::read_status(const std::shared_ptr<Bus> &bus) {
   static uint8_t last_status = 0xff;
-  if( last_status != status_register_) {
+  if (last_status != status_register_) {
     // Only log changes to status
     logger_->info("Status read (changed since last read) {}{}{}{}{}{}{}{}",
-                              SR_IRQ(status_register_) ? "I" : "i",
-                              SR_PE(status_register_) ? "P" : "p",
-                              SR_OVRN(status_register_) ? "O" : "o",
-                              SR_FE(status_register_) ? "F" : "f",
-                              SR_CTS(status_register_) ? "C" : "c",
-                              SR_DCD(status_register_) ? "D" : "d",
-                              SR_TDRE(status_register_) ? "T" : "t",
-                              SR_RDRF(status_register_) ? "R" : "r");
+                  SR_IRQ(status_register_) ? "I" : "i",
+                  SR_PE(status_register_) ? "P" : "p",
+                  SR_OVRN(status_register_) ? "O" : "o",
+                  SR_FE(status_register_) ? "F" : "f",
+                  SR_CTS(status_register_) ? "C" : "c",
+                  SR_DCD(status_register_) ? "D" : "d",
+                  SR_TDRE(status_register_) ? "T" : "t",
+                  SR_RDRF(status_register_) ? "R" : "r");
     last_status = status_register_;
   }
   bus->set_data(status_register_);
@@ -386,28 +385,32 @@ void Acia::read_status(const std::shared_ptr<Bus> &bus) {
 
 /**
  * 6850 datasheet
- * If the Receiver Data Register is full, the character is placed on the 8-bit AÇIA
- * bus when a Read Data command is received from the MPU.
+ * The character is placed on the 8-bit AÇIA bus when a Read Data command is received from the MPU.
  */
 void Acia::read_rdr(const std::shared_ptr<Bus> &bus) {
   bus->set_data(rdr_);
-  logger_->info("Read_RDR: {} to bus : {}", rdr_is_full_ ? "Full" : "Partial" , rdr_);
+  logger_->info("Read_RDR: {} to bus : {}", rdr_is_full_ ? "Full" : "Partial", rdr_);
 
-  // DCD clear sequence: status must have been read first; any RDR read completes the sequence.
-  // Per datasheet: if DCD* input remains high after the sequence, the interrupt is cleared but
-  // the status bit stays high and follows the input.
   if (sr2_high_wait_for_data_read_) {
+  // We are in DCD clear sequence
+  // Which means that the carrier dropped and we're waiting for status and data reads
+  // We've now had both
     sr2_high_wait_for_data_read_ = false;
-    if (!dcd_) {
-      // DCD* has since gone low (carrier ended) — clear the status bit
-      SR_CLR_DCD(status_register_);
-      logger_->info("Read_RDR: DCD latch cleared, carrier gone");
+
+    if (!carrier_present_) {
+      // If the carrier is still not present then we clear the interrupt but leave the DCD bit alone
+      assert( SR_DCD(status_register_) != 0 && "DCD was expected high but is not.");
+      clear_interrupt();
+      logger_->info("Read_RDR: DCD latch is still set, carrier still missing");
     } else {
-      logger_->info("Read_RDR: DCD latch cleared, carrier still present, bit stays high");
+      // Carrier has returned. We can safely clear DCD as well as IRQ
+      SR_CLR_DCD(status_register_);
+      clear_interrupt();
+      logger_->info("Read_RDR: DCD latch cleared, carrier has returned");
     }
   }
 
-  if ( rdr_is_full_) {
+  if (rdr_is_full_) {
     rdr_is_full_ = false;
     rdr_was_read_ = true;
 
@@ -418,8 +421,7 @@ void Acia::read_rdr(const std::shared_ptr<Bus> &bus) {
     // Clear IRQ, then re-evaluate remaining sources.
     // The 6850 IRQ pin is level-sensitive: if TDRE + TX interrupt is still
     // asserted it must remain active even though we just consumed RDRF.
-    SR_CLR_IRQ(status_register_);
-    irq_ = true;
+    clear_interrupt();
     if (tx_int_enabled_ && SR_TDRE(status_register_)) {
       raise_interrupt();
     }
@@ -535,8 +537,8 @@ void Acia::shift_out_data() {
     case SEND_BITS: {
       auto out_bit = tx_shift_register_ & 1;
       logger_->info("Shift state: SEND_BITS. Reg: {:02x} -> {}",
-                                tx_shift_register_,
-                                out_bit);
+                    tx_shift_register_,
+                    out_bit);
 
       if (parity_ != 0 && out_bit) {
         parity_bit_ = (parity_bit_ + 1) & 0x01;
@@ -551,12 +553,12 @@ void Acia::shift_out_data() {
       }
     }
 
-      break;
+    break;
 
     case SEND_PARITY:
       logger_->info("Shift state: SEND_PARITY. Reg: {:02x} -> {}",
-                                tx_shift_register_,
-                                parity_bit_);
+                    tx_shift_register_,
+                    parity_bit_);
       set_output(parity_bit_);
       state_ = SEND_STOP_BIT_1;
       break;
@@ -584,21 +586,21 @@ void Acia::shift_out_data() {
   }
 }
 
-void Acia::dcd_went_active_low() {
-  // DCD* returned active-low (carrier present again).
-  // SR2 is still latched high.  Per datasheet, the CPU must now read SR then
-  // read RDR to clear it.  Arm the two-step sequence here, at carrier-return,
-  // not at carrier-loss — so read_status + read_rdr while DCD* was never
-  // restored cannot prematurely clear SR2.
+void Acia::carrier_detected() {
+  logger_->info("Carrier detected");
+  carrier_present_ = true;
   sr2_high_wait_for_sr_read_ = true;
 }
 
-void Acia::dcd_went_inactive_high() {
+void Acia::carrier_dropped() {
   /* 6850 datasheet:
    * A low-to-high transition of DCD* initiates an interrupt when Receive Interrupt Enable is set.
    * SR2 is latched high and remains set until carrier returns and the CPU reads SR then RDR.
    * "Data Carrier Detect being high also causes RDRF to indicate empty."
    */
+  logger_->info("DCD* went inactive high");
+  carrier_present_ = false;
+
   SR_SET_DCD(status_register_);
   SR_CLR_RDRF(status_register_);
 
@@ -626,7 +628,7 @@ void Acia::tdr_went_empty() {
   if (is_in_power_on_reset_) return;
   // CTS active high, inhibits TDRE
   if (cts_) return;
-  logger_->info("  Set TDRE");
+  logger_->info("  Set TDRE ({})", tx_int_enabled_);
   SR_SET_TDRE(status_register_);
   if (tx_int_enabled_) {
     raise_interrupt();
@@ -652,13 +654,6 @@ void Acia::cts_went_inactive_high() {
 
 void Acia::tick(const std::shared_ptr<Bus> &bus) {
   maybe_rw(bus);
-
-//  if (!tdr_is_full_ && !cts_ && !SR_TDRE(status_register_)) {
-//    SR_SET_TDRE(status_register_);
-//    if (tx_int_enabled_) {
-//      raise_interrupt();
-//    }
-//  }
 }
 
 void Acia::set_output(uint8_t out) {
@@ -673,7 +668,7 @@ void Acia::raise_interrupt() {
   logger_->info("!! Raising IRQ");
 }
 
-void Acia::clear_interrupt(){
+void Acia::clear_interrupt() {
   SR_CLR_IRQ(status_register_);
   // IRQ is active low
   irq_ = true;
@@ -728,7 +723,8 @@ void Acia::rx_receive_stop_bit() {
   rdr_is_full_ = true;
   rdr_was_read_ = false;
 
-  logger_->info("RX: {:02x}{}{}", rdr_,
+  logger_->info("RX: {:02x}{}{}",
+                rdr_,
                 framing_error ? " FE" : "",
                 (parity_ != 0 && parity_error_) ? " PE" : "");
 
@@ -742,7 +738,7 @@ void Acia::rx_receive_stop_bit() {
 }
 
 void Acia::rx_clock() {
-  if (dcd_) return; // receiver held idle while DCD* is high (no carrier)
+  if (!carrier_present_) return; // receiver held idle while (no carrier)
   switch (rx_state_) {
     case RX_IDLE:
       if (!rx_data_) {
@@ -832,14 +828,12 @@ void Acia::raise_cts() {
   cts_went_inactive_high();
 }
 
-void Acia::clear_dcd() {
-  if (!dcd_) return;
-  dcd_ = false;
-  dcd_went_active_low();
+void Acia::drop_carrier() {
+  if (!carrier_present_) return;
+  carrier_dropped();
 }
 
-void Acia::raise_dcd() {
-  if (dcd_) return;
-  dcd_ = true;
-  dcd_went_inactive_high();
+void Acia::apply_carrier() {
+  if (carrier_present_) return;
+  carrier_detected();
 }

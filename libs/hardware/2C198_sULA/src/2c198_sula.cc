@@ -38,18 +38,8 @@ SerialUla::maybe_rw(const std::shared_ptr<Bus> &bus) {
 void
 SerialUla::tick(const std::shared_ptr<Bus> &bus) {
   maybe_rw(bus);
-
-  // Check for carrier detect
-  if (acia_) {
-    /* TODO: Hacky override to simulate the DCD - disabled in case FS calls are slowing shiz down.*/
-    //    std::ifstream dcd("dcd");
-    //    if (dcd.good()) {
-    //      acia_->raise_dcd();
-    //    } else {
-    //      acia_->clear_dcd();
-    //    }
-  }
 }
+
 void SerialUla::tick_16mhz() {
   maybe_tx_clock_tick();
   maybe_rx_clock_tick();
@@ -154,14 +144,13 @@ SerialUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
     if (acia_ && !is_rs423_selected()) {
       if (new_motor_state == 0) {
         // Motor off: no tape movement = no carrier. DCD* HIGH = receiver disabled.
-        acia_->raise_dcd();
+        acia_->apply_carrier();
         spdlog::get("sULA")->info("Motor off");
-      }
-      else {
+      } else {
         if (cassette_port_->has_carrier()) {
           // Carrier present: DCD* LOW = receiver enabled (active-low convention).
           spdlog::get("sULA")->info("Motor on, carrier detected");
-          acia_->clear_dcd();
+          acia_->drop_carrier();
         } else {
           spdlog::get("sULA")->info("Motor on, no carrier");
         }
@@ -202,26 +191,29 @@ void SerialUla::maybe_tx_clock_tick() {
 void SerialUla::maybe_rx_clock_tick() {
   if (--rx_clock_counter_ != 0) return;
   rx_clock_counter_ = 13 * effective_rx_divider();
-  if (acia_) {
-    if (cassette_port_ && !is_rs423_selected()) {
-      // The tape stream runs at the baud rate, not the ACIA external clock rate.
-      // Advance the tape only once per clk_divisor rx_clock() ticks so each
-      // bit stays stable for the full bit period (required by ACIA start-bit
-      // false-deletion: needs clk_divisor/2 consecutive matching samples).
-      if (++rx_tape_counter_ >= (uint32_t) acia_->clk_divisor()) {
-        rx_tape_counter_ = 0;
-        current_rx_bit_ = cassette_port_->rx_data();
-        // DCD* is active-low: carrier present → DCD* LOW → clear_dcd().
-        // No carrier (gap) → DCD* HIGH → raise_dcd(). AUG §14.2.5 / AUG p.445.
-        if (cassette_port_->has_carrier())
-          acia_->clear_dcd();
-        else
-          acia_->raise_dcd();
-      }
-      acia_->set_rx_data(current_rx_bit_);
-    }
-    acia_->rx_clock();
+
+  // TODO: Handle RS423 later.
+  if (!acia_ || is_rs423_selected() || !cassette_port_) {
+    return;
   }
+
+  // The tape stream runs at the baud rate, not the ACIA external clock rate.
+  // Advance the tape only once per clk_divisor rx_clock() ticks so each
+  // bit stays stable for the full bit period (required by ACIA start-bit
+  // false-deletion: needs clk_divisor/2 consecutive matching samples).
+  if (++rx_tape_counter_ >= (uint32_t) acia_->clk_divisor()) {
+    rx_tape_counter_ = 0;
+    current_rx_bit_ = cassette_port_->rx_data();
+
+    // DCD* is active-low: carrier present → DCD* LOW → clear_dcd().
+    // No carrier (gap) → DCD* HIGH → raise_dcd(). AUG §14.2.5 / AUG p.445.
+    if (cassette_port_->has_carrier())
+      acia_->drop_carrier();
+    else
+      acia_->apply_carrier();
+  }
+  acia_->set_rx_data(current_rx_bit_);
+  acia_->rx_clock();
 }
 
 bool SerialUla::is_rs423_selected() const {

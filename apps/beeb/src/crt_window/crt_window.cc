@@ -5,6 +5,7 @@
 #include <QMenuBar>
 #include <QCloseEvent>
 #include <QStatusBar>
+#include <QPushButton>
 #include <utility>
 
 CrtWindow::CrtWindow(Beeb& beeb, QWidget *parent)
@@ -33,6 +34,13 @@ CrtWindow::CrtWindow(Beeb& beeb, QWidget *parent)
   // And keyboard
   assert(connect(vdu_, &VduView::press_key, [&](uint8_t key) { beeb_.press_key(key); }));
   assert(connect(vdu_, &VduView::release_key, [&](uint8_t key) { beeb_.release_key(key); }));
+
+  // Break button in status bar
+  auto* break_btn = new QPushButton("Break", this);
+  break_btn->setFocusPolicy(Qt::NoFocus);
+  statusBar()->addPermanentWidget(break_btn);
+  assert(connect(break_btn, &QPushButton::clicked, this, &CrtWindow::break_pressed));
+
   resize(640, 512);
 }
 

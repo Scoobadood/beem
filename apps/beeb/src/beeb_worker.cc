@@ -38,11 +38,21 @@ void BeebWorker::run() {
   engine_->resume();
 }
 
+void BeebWorker::do_break() {
+  reset_requested_.store(true, std::memory_order_release);
+  engine_->pause();  // interrupt any in-progress run()
+}
+
 void BeebWorker::start_beeb() {
   engine_->board().reset();
   engine_->resume();
 
   while (!done_) {
+    if (reset_requested_.exchange(false, std::memory_order_acq_rel)) {
+      engine_->board().reset();
+      engine_->resume();
+      continue;
+    }
     if (engine_->is_paused()) {
       QThread::msleep(10);
       continue;

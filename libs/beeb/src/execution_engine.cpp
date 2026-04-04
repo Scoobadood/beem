@@ -122,10 +122,10 @@ const std::set<uint16_t>& ExecutionEngine::breakpoints() const {
 
 // ─── watches ─────────────────────────────────────────────────────────────────
 
-void ExecutionEngine::add_watch(uint16_t addr) {
+void ExecutionEngine::add_watch(uint16_t addr, std::optional<uint8_t> trigger_value) {
   uint8_t current{0};
   beeb_->get_memory_contents(addr, 1, &current);
-  watches_[addr] = current;
+  watches_[addr] = {current, trigger_value};
 }
 
 void ExecutionEngine::remove_watch(uint16_t addr) {
@@ -136,7 +136,7 @@ bool ExecutionEngine::is_watch(uint16_t addr) const {
   return watches_.count(addr) != 0;
 }
 
-const std::unordered_map<uint16_t, uint8_t>& ExecutionEngine::watches() const {
+const std::unordered_map<uint16_t, ExecutionEngine::WatchEntry>& ExecutionEngine::watches() const {
   return watches_;
 }
 
@@ -145,13 +145,15 @@ std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> ExecutionEngine::last_watc
 }
 
 std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> ExecutionEngine::check_watches() {
-  for (auto& [addr, shadow] : watches_) {
+  for (auto& [addr, entry] : watches_) {
     uint8_t current{0};
     beeb_->get_memory_contents(addr, 1, &current);
-    if (current != shadow) {
-      const uint8_t old_val = shadow;
-      shadow = current;
-      return std::make_tuple(addr, old_val, current);
+    if (current != entry.shadow) {
+      const uint8_t old_val = entry.shadow;
+      entry.shadow = current;
+      if (!entry.trigger_value || current == *entry.trigger_value) {
+        return std::make_tuple(addr, old_val, current);
+      }
     }
   }
   return std::nullopt;

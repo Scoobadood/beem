@@ -3,6 +3,7 @@
 #include <spdlog/cfg/env.h>
 #include <QApplication>
 #include <QThread>
+#include <optional>
 
 #include "crt_window.h"
 #include "beeb_worker.h"
@@ -83,6 +84,10 @@ int main(int argc, char *argv[]) {
   config_memory_window(crt_window, memory_window);
   config_debugger_window(beeb_worker, crt_window, debugger_window);
 
+  QObject::connect(crt_window, &CrtWindow::break_pressed,
+                   beeb_worker.get(), &BeebWorker::do_break,
+                   Qt::DirectConnection);
+
   // Wire BreakpointManager UI signals to the execution engine.
   QObject::connect(breakpoint_manager, &BreakpointManager::breakpoint_set,
       [&](uint16_t bp) { beeb_worker->engine().add_breakpoint(bp); });
@@ -91,7 +96,7 @@ int main(int argc, char *argv[]) {
 
   // Wire watch breakpoint signals to the execution engine and debugger window.
   QObject::connect(breakpoint_manager, &BreakpointManager::watch_set,
-      [&](uint16_t addr) { beeb_worker->engine().add_watch(addr); });
+      [&](uint16_t addr, std::optional<uint8_t> trigger) { beeb_worker->engine().add_watch(addr, trigger); });
   QObject::connect(breakpoint_manager, &BreakpointManager::watch_cleared,
       [&](uint16_t addr) { beeb_worker->engine().remove_watch(addr); });
   QObject::connect(beeb_worker.get(), &BeebWorker::watch_triggered,

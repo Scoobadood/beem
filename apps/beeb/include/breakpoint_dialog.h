@@ -1,6 +1,7 @@
 #ifndef BEEB_INCLUDE_BREAKPOINT_DIALOG_H_
 #define BEEB_INCLUDE_BREAKPOINT_DIALOG_H_
 
+#include <optional>
 #include <QObject>
 #include <QDialog>
 #include <QLineEdit>
@@ -32,6 +33,7 @@ class BreakpointDlg : public QDialog {
   void delete_all_watches();
 
   static QString addr_to_qstring(uint16_t addr);
+  static QString watch_to_qstring(uint16_t addr, std::optional<uint8_t> tv);
   static bool qstring_to_addr(const QString& s, uint16_t& addr);
 
   BreakpointManager * breakpoint_manager_;
@@ -43,7 +45,8 @@ class BreakpointDlg : public QDialog {
   QPushButton  *btn_remove_all_;
 
   // Watches tab widgets
-  QLineEdit    *te_new_watch_;
+  QLineEdit    *te_new_watch_;       // address input
+  QLineEdit    *te_new_watch_value_; // optional trigger value (empty = any)
   QListWidget  *lst_watch_;
   QPushButton  *btn_watch_remove_;
   QPushButton  *btn_watch_remove_all_;

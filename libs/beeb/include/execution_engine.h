@@ -51,11 +51,17 @@ class ExecutionEngine {
   const std::set<uint16_t>& breakpoints() const;
 
   // Watch breakpoints ———————————————————————————————————————————
-  // Stops execution when the watched address is written with a new value.
-  void add_watch(uint16_t addr);
+  // Stops execution when the watched address changes value.
+  // If trigger_value is set, only stops when the new value matches it.
+  struct WatchEntry {
+    uint8_t shadow{0};
+    std::optional<uint8_t> trigger_value;
+  };
+
+  void add_watch(uint16_t addr, std::optional<uint8_t> trigger_value = std::nullopt);
   void remove_watch(uint16_t addr);
   bool is_watch(uint16_t addr) const;
-  const std::unordered_map<uint16_t, uint8_t>& watches() const;
+  const std::unordered_map<uint16_t, WatchEntry>& watches() const;
 
   // If the most recent run() paused due to a watch, returns {addr, old, new}.
   // Cleared by the next call to run() or resume().
@@ -93,7 +99,7 @@ class ExecutionEngine {
   std::unique_ptr<Beeb>    beeb_;
   std::atomic<int32_t>     state_{PAUSED};
   std::set<uint16_t>       breakpoints_;
-  std::unordered_map<uint16_t, uint8_t> watches_;   // addr → shadow value
+  std::unordered_map<uint16_t, WatchEntry> watches_;
   std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> last_watch_trigger_;
   uint16_t                 step_out_target_{0};
   InstructionCallback      callback_;

@@ -38,8 +38,8 @@ class Acia : public IBusDevice {
 
   void clear_cts();
   void raise_cts();
-  void clear_dcd();
-  void raise_dcd();
+  void drop_carrier();
+  void apply_carrier();
 
  private:
   void perform_master_reset();
@@ -59,8 +59,8 @@ class Acia : public IBusDevice {
   void tdr_went_empty();
   void cts_went_active_low();
   void cts_went_inactive_high();
-  void dcd_went_active_low();
-  void dcd_went_inactive_high();
+  void carrier_detected();
+  void carrier_dropped();
   void rx_receive_data_bit();
   void rx_receive_parity_bit();
   void rx_receive_stop_bit();
@@ -134,7 +134,7 @@ class Acia : public IBusDevice {
   uint16_t base_addr_;
   bool cts_;
 
-  bool dcd_;
+  bool carrier_present_;
   std::shared_ptr<spdlog::logger> logger_;
 };
 

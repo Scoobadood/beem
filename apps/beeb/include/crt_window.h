@@ -20,7 +20,8 @@ class CrtWindow : public QMainWindow {
   void closeEvent(QCloseEvent *event) override;
   void data_requested(QWidget * source, uint16_t address, uint32_t num_bytes);
 
- public slots:
+ signals:
+  void break_pressed();
 
  private:
   Beeb& beeb_;

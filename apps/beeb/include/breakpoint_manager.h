@@ -2,6 +2,8 @@
 #define BEEB_INCLUDE_BREAKPOINT_MANAGER_H_
 
 #include <QObject>
+#include <map>
+#include <optional>
 #include <set>
 #include <fstream>
 #include <sstream>
@@ -41,12 +43,13 @@ class BreakpointManager : public QObject {
   }
 
   // Watch breakpoints ——————————————————————————————————————————
-  [[nodiscard]] const std::set<uint16_t> &watches() const { return watches_; }
+  // watches_ maps addr → optional trigger value (nullopt = any change)
+  [[nodiscard]] const std::map<uint16_t, std::optional<uint8_t>>& watches() const { return watches_; }
 
-  bool set_watch(uint16_t addr) {
+  bool set_watch(uint16_t addr, std::optional<uint8_t> trigger_value = std::nullopt) {
     if (watches_.count(addr)) return false;
-    watches_.emplace(addr);
-    emit watch_set(addr);
+    watches_.emplace(addr, trigger_value);
+    emit watch_set(addr, trigger_value);
     return true;
   }
 
@@ -59,7 +62,7 @@ class BreakpointManager : public QObject {
 
   void clear_all_watches() {
     for (auto it = watches_.begin(); it != watches_.end(); ) {
-      auto addr = *it;
+      auto addr = it->first;
       it = watches_.erase(it);
       emit watch_cleared(addr);
     }
@@ -74,8 +77,11 @@ class BreakpointManager : public QObject {
     std::ofstream f(path);
     for (auto bp : breakpoints_)
       f << "BP " << std::hex << std::uppercase << bp << "\n";
-    for (auto w : watches_)
-      f << "W "  << std::hex << std::uppercase << w  << "\n";
+    for (auto& [addr, tv] : watches_) {
+      f << "W " << std::hex << std::uppercase << addr;
+      if (tv) f << " " << static_cast<unsigned>(*tv);
+      f << "\n";
+    }
   }
 
   bool load_from_file(const std::string& path) {
@@ -90,8 +96,17 @@ class BreakpointManager : public QObject {
       uint16_t addr{0};
       try { addr = static_cast<uint16_t>(std::stoul(addr_str, nullptr, 16)); }
       catch (...) { continue; }
-      if      (type == "BP") set_breakpoint(addr);
-      else if (type == "W")  set_watch(addr);
+      if (type == "BP") {
+        set_breakpoint(addr);
+      } else if (type == "W") {
+        std::string val_str;
+        std::optional<uint8_t> tv;
+        if (ss >> val_str) {
+          try { tv = static_cast<uint8_t>(std::stoul(val_str, nullptr, 16)); }
+          catch (...) {}
+        }
+        set_watch(addr, tv);
+      }
     }
     return true;
   }
@@ -99,12 +114,12 @@ class BreakpointManager : public QObject {
  signals:
   void breakpoint_set(uint16_t bp);
   void breakpoint_cleared(uint16_t bp);
-  void watch_set(uint16_t addr);
+  void watch_set(uint16_t addr, std::optional<uint8_t> trigger_value);
   void watch_cleared(uint16_t addr);
 
  private:
   std::set<uint16_t> breakpoints_;
-  std::set<uint16_t> watches_;
+  std::map<uint16_t, std::optional<uint8_t>> watches_;
 };
 
 #endif // BEEB_INCLUDE_BREAKPOINT_MANAGER_H_
