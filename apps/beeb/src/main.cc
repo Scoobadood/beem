@@ -14,7 +14,6 @@ QThread *init_worker(const std::unique_ptr<BeebWorker> &beeb_worker) {
   beeb_worker->moveToThread(worker_thread);
   QObject::connect(worker_thread, &QThread::started, beeb_worker.get(), &BeebWorker::start_beeb);
   QObject::connect(beeb_worker.get(), &BeebWorker::finished, worker_thread, &QThread::quit);
-  QObject::connect(beeb_worker.get(), &BeebWorker::finished, beeb_worker.get(), &BeebWorker::deleteLater);
   QObject::connect(worker_thread, &QThread::finished, worker_thread, &QThread::deleteLater);
   return worker_thread;
 }
@@ -102,6 +101,12 @@ int main(int argc, char *argv[]) {
   QObject::connect(beeb_worker.get(), &BeebWorker::watch_triggered,
       debugger_window, &DebuggerWindow::watch_triggered);
 
+  // Wire logpoint signals to the execution engine.
+  QObject::connect(breakpoint_manager, &BreakpointManager::logpoint_set,
+      [&](uint16_t pc, std::optional<uint16_t> mem) { beeb_worker->engine().add_logpoint(pc, mem); });
+  QObject::connect(breakpoint_manager, &BreakpointManager::logpoint_cleared,
+      [&](uint16_t pc) { beeb_worker->engine().remove_logpoint(pc); });
+
   auto window_mediator = new WindowMediator(breakpoint_manager, crt_window,
                                             debugger_window, memory_window,
                                             cassette_window,
@@ -111,12 +116,13 @@ int main(int argc, char *argv[]) {
 
   auto return_code = QApplication::exec();
 
+  beeb_worker->stop();   // sets done_=true and pauses engine; start_beeb() loop will exit
+
   // Flushes logs
   spdlog::shutdown();
 
   delete crt_window;
   delete debugger_window;
   delete memory_window;
-  delete worker_thread;
   return return_code;
 }

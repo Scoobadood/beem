@@ -117,7 +117,7 @@ inline auto RX_INT_ENBL(uint8_t ctl) -> bool { return ((ctl & 0x80) == 0x80); }
 
 Acia::Acia(uint16_t base_addr) //
   : base_addr_{base_addr} //
-    , is_in_power_on_reset_{true} //
+    , needs_power_on_reset_{true} //
     , status_register_{0} //
     , control_register_{0} //
     , clk_divisor_{1} //
@@ -149,7 +149,6 @@ Acia::Acia(uint16_t base_addr) //
     , rx_shift_count_{0} //
     , rx_clock_count_{0} //
     , rx_parity_calc_{0} //
-    , irq_{true} // inactive high
     , sr2_high_wait_for_sr_read_{false} //
     , sr2_high_wait_for_data_read_{false} //
 {
@@ -172,28 +171,50 @@ Acia::Acia(uint16_t base_addr) //
 
   status_register_ = 0;
   SR_SET_CTS(status_register_); // CTS starts inactive (high) → status bit = 1
-  // DCD starts 0: no carrier tone present at startup
   logger_ = spdlog::get("ACIA");
 }
 
 void Acia::perform_master_reset() {
-  /* 6850 datasheet
-   * During the first master reset, the IRQ* and RTS* outputs are held at level 1.
-   * On all other master resets, the RTS* output can be programmed high or low with the IRQ* output held high.
-   * IRQ is inactive high.
-   */
-  clear_interrupt();
+    /** During the first master reset, the IRQ and RTS outputs are held at level 1. */
+    clear_interrupt();
+    rts_ = false;
 
-  /* 6850 datasheet
-   * The power-on reset is released by means of the bus-programmed master reset which must be applied prior
-   * to operating the ACIA.
-   */
-  if (is_in_power_on_reset_) {
-    is_in_power_on_reset_ = false;
-    /*During the first master reset, the IRQ* and RTS* outputs are held at level 1.*/
-    rts_ = true;
-    return;
-  }
+
+  /* Alan Clements http://alanclements.org/serialio.html
+ * The IRQ bit is cleared by a read from the RDR, or by a write to the TDR, or by a software master reset.
+ * This operation clears all internal status bits, with the exception of the CTS and DCD bits of the status register
+ */
+  SR_CLR_FE(status_register_);
+  SR_CLR_OVRN(status_register_);
+  SR_CLR_PE(status_register_);
+  SR_CLR_RDRF(status_register_);
+
+  /* Master reset does not affect the Clear-to-Send status bit. */
+
+  // REady to go after a reset.
+  SR_SET_TDRE(status_register_);
+
+    /** Datasheet
+    * The Data Carrier Detect (2) ... remains high
+    * after the CD input is returned low until cleared by first,
+    * reading the Status Register and then the Data Register or
+    * until a master reset occurs.
+    * If the DCD input remains high after read status and read data or
+    * master reset has occurred, the interrupt is cleared,
+    * the DCD status bit remains high and will follow the DCD input.
+    */
+    if ( carrier_present_) {
+      SR_SET_DCD(status_register_);
+    } else {
+      SR_CLR_DCD(status_register_);
+    }
+
+    /* 6850 datasheet
+     * The power-on reset is released by means of the bus-programmed master reset which must be applied prior
+     * to operating the ACIA.
+     */
+    if ( needs_power_on_reset_ ) needs_power_on_reset_ = false;
+
 
   /* Star dot: https://stardot.org.uk/forums/viewtopic.php?p=361776#p361776
    * At the end of the sequence is a write of 03 to the ACIA control register, which is the master reset.
@@ -204,16 +225,6 @@ void Acia::perform_master_reset() {
   tdr_is_full_ = false;
   tx_shift_register_ = 0;
   state_ = IDLE;
-
-  /* Alan Clements http://alanclements.org/serialio.html
-   * The IRQ bit is cleared by a read from the RDR, or by a write to the TDR, or by a software master reset.
-   * This operation clears all internal status bits, with the exception of the CTS and DCD bits of the status register
-   */
-  SR_CLR_FE(status_register_);
-  SR_CLR_OVRN(status_register_);
-  SR_CLR_PE(status_register_);
-  SR_CLR_RDRF(status_register_);
-  SR_CLR_TDRE(status_register_);
 
   /* Reset read side */
   rdr_is_full_ = false;
@@ -228,11 +239,6 @@ void Acia::perform_master_reset() {
   sr2_high_wait_for_sr_read_ = false;
   sr2_high_wait_for_data_read_ = false;
   rx_state_ = RX_IDLE;
-
-  SR_SET_TDRE(status_register_);
-  SR_CLR_RDRF(status_register_);
-  SR_CLR_IRQ(status_register_);
-  irq_ = true;
 }
 
 /********************************************************************************
@@ -248,7 +254,7 @@ void Acia::write_ctl(uint8_t data) {
     perform_master_reset();
     return;
   }
-  if (is_in_power_on_reset_) return;
+  if (needs_power_on_reset_) return;
 
   control_register_ = data;
   clk_divisor_ = clock_divisor(data);
@@ -331,7 +337,7 @@ void Acia::configure_serial_protocol(uint8_t data) {
  * CR5 or CR6 or by the loss of CTS which inhibits the TDRE status bit.
  */
 void Acia::enable_tx_interrupts() {
-  if (is_in_power_on_reset_) return;
+  if (needs_power_on_reset_) return;
   tx_int_enabled_ = true;
   // Raise IRQ if TDRE is set
   if (SR_TDRE(status_register_)) {
@@ -376,7 +382,12 @@ void Acia::read_status(const std::shared_ptr<Bus> &bus) {
                   SR_RDRF(status_register_) ? "R" : "r");
     last_status = status_register_;
   }
-  bus->set_data(status_register_);
+
+  auto bus_data = status_register_;
+  if ( needs_power_on_reset_) {
+    SR_CLR_TDRE(bus_data);
+  }
+  bus->set_data(bus_data);
   if (sr2_high_wait_for_sr_read_) {
     sr2_high_wait_for_sr_read_ = false;
     sr2_high_wait_for_data_read_ = true;
@@ -625,7 +636,7 @@ void Acia::carrier_dropped() {
 }
 
 void Acia::tdr_went_empty() {
-  if (is_in_power_on_reset_) return;
+  if (needs_power_on_reset_) return;
   // CTS active high, inhibits TDRE
   if (cts_) return;
   logger_->info("  Set TDRE ({})", tx_int_enabled_);
@@ -662,17 +673,15 @@ void Acia::set_output(uint8_t out) {
 }
 
 void Acia::raise_interrupt() {
+  logger_->info("IRQ asserted");
+  irq_asserted_ = true;
   SR_SET_IRQ(status_register_);
-  // IRQ is active low
-  irq_ = false;
-  logger_->info("!! Raising IRQ");
 }
 
 void Acia::clear_interrupt() {
+  logger_->info("IRQ cleared");
+  irq_asserted_ = false;
   SR_CLR_IRQ(status_register_);
-  // IRQ is active low
-  irq_ = true;
-  logger_->info("Cleared IRQ");
 }
 
 void Acia::tx_clock() {

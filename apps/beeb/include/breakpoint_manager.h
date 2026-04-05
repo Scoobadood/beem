@@ -72,6 +72,34 @@ class BreakpointManager : public QObject {
     return watches_.count(addr);
   }
 
+  // Logpoints ——————————————————————————————————————————————————
+  // logpoints_ maps pc_addr → optional mem_addr to read and log
+  [[nodiscard]] const std::map<uint16_t, std::optional<uint16_t>>& logpoints() const { return logpoints_; }
+
+  bool set_logpoint(uint16_t pc_addr, std::optional<uint16_t> mem_addr = std::nullopt) {
+    if (logpoints_.count(pc_addr)) return false;
+    logpoints_.emplace(pc_addr, mem_addr);
+    emit logpoint_set(pc_addr, mem_addr);
+    return true;
+  }
+
+  bool clear_logpoint(uint16_t pc_addr) {
+    if (!logpoints_.count(pc_addr)) return false;
+    logpoints_.erase(pc_addr);
+    emit logpoint_cleared(pc_addr);
+    return true;
+  }
+
+  void clear_all_logpoints() {
+    for (auto it = logpoints_.begin(); it != logpoints_.end(); ) {
+      auto addr = it->first;
+      it = logpoints_.erase(it);
+      emit logpoint_cleared(addr);
+    }
+  }
+
+  bool is_logpoint(uint16_t pc_addr) { return logpoints_.count(pc_addr); }
+
   // ── file I/O ──────────────────────────────────────────────────────────────
   void save_to_file(const std::string& path) const {
     std::ofstream f(path);
@@ -80,6 +108,11 @@ class BreakpointManager : public QObject {
     for (auto& [addr, tv] : watches_) {
       f << "W " << std::hex << std::uppercase << addr;
       if (tv) f << " " << static_cast<unsigned>(*tv);
+      f << "\n";
+    }
+    for (auto& [pc_addr, mem_addr] : logpoints_) {
+      f << "LP " << std::hex << std::uppercase << pc_addr;
+      if (mem_addr) f << " " << *mem_addr;
       f << "\n";
     }
   }
@@ -106,6 +139,14 @@ class BreakpointManager : public QObject {
           catch (...) {}
         }
         set_watch(addr, tv);
+      } else if (type == "LP") {
+        std::string mem_str;
+        std::optional<uint16_t> mem_addr;
+        if (ss >> mem_str) {
+          try { mem_addr = static_cast<uint16_t>(std::stoul(mem_str, nullptr, 16)); }
+          catch (...) {}
+        }
+        set_logpoint(addr, mem_addr);
       }
     }
     return true;
@@ -116,10 +157,13 @@ class BreakpointManager : public QObject {
   void breakpoint_cleared(uint16_t bp);
   void watch_set(uint16_t addr, std::optional<uint8_t> trigger_value);
   void watch_cleared(uint16_t addr);
+  void logpoint_set(uint16_t pc_addr, std::optional<uint16_t> mem_addr);
+  void logpoint_cleared(uint16_t pc_addr);
 
  private:
   std::set<uint16_t> breakpoints_;
   std::map<uint16_t, std::optional<uint8_t>> watches_;
+  std::map<uint16_t, std::optional<uint16_t>> logpoints_;
 };
 
 #endif // BEEB_INCLUDE_BREAKPOINT_MANAGER_H_

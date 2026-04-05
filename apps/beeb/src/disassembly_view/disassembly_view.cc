@@ -26,14 +26,16 @@ struct ColourScheme {
   QColor bytes_colour = QColorConstants::LightGray;
   QColor bp_marker_colour = QColorConstants::Red;
   QColor watch_marker_colour = QColor{200, 100, 0};   // orange
+  QColor logpt_marker_colour = QColor{0, 160, 160};   // teal
   QColor bg_colour = QColorConstants::White;
   QColor pc_colour = QColor{186, 231, 255};
 };
 
-const int32_t LS_LABEL = 0x20000;
-const int32_t LS_OPCOD = 0x10000;
-const int32_t LS_BRKPT = 0x40000;
-const int32_t LS_WATCH = 0x80000;
+const int32_t LS_LABEL = 0x020000;
+const int32_t LS_OPCOD = 0x010000;
+const int32_t LS_BRKPT = 0x040000;
+const int32_t LS_WATCH = 0x080000;
+const int32_t LS_LOGPT = 0x100000;
 
 DisassemblyView::DisassemblyView(BreakpointManager *breakpoint_manager, QWidget *parent) //
     : DataDisplayWidget(parent) //
@@ -76,6 +78,9 @@ DisassemblyView::DisassemblyView(BreakpointManager *breakpoint_manager, QWidget 
   assert(connect(breakpoint_manager_, &BreakpointManager::watch_set,     this, &DisassemblyView::watches_changed));
   assert(connect(breakpoint_manager_, &BreakpointManager::watch_cleared,  this, &DisassemblyView::watches_changed));
 
+  assert(connect(breakpoint_manager_, &BreakpointManager::logpoint_set,     this, &DisassemblyView::logpoints_changed));
+  assert(connect(breakpoint_manager_, &BreakpointManager::logpoint_cleared, this, &DisassemblyView::logpoints_changed));
+
   layout->addWidget(te_disassembly_);
   layout->addWidget(sb_disassembly_);
   setLayout(layout);
@@ -90,6 +95,10 @@ void DisassemblyView::breakpoints_changed() {
 }
 
 void DisassemblyView::watches_changed() {
+  layout_disassembly();
+}
+
+void DisassemblyView::logpoints_changed() {
   layout_disassembly();
 }
 
@@ -367,6 +376,7 @@ void DisassemblyView::layout_disassembly() {
     {
       bool has_bp    = breakpoint_manager_->is_breakpoint(op.address);
       bool has_watch = breakpoint_manager_->is_watch(op.address);
+      bool has_logpt = breakpoint_manager_->is_logpoint(op.address);
       te_disassembly_->setTextColor(has_bp ? colour_scheme_->bp_marker_colour
                                            : colour_scheme_->bg_colour);
       te_disassembly_->insertPlainText(has_bp ? "*" : " ");
@@ -375,6 +385,10 @@ void DisassemblyView::layout_disassembly() {
                                               : colour_scheme_->bg_colour);
       te_disassembly_->insertPlainText(has_watch ? "W" : " ");
       if (has_watch) line_state |= LS_WATCH;
+      te_disassembly_->setTextColor(has_logpt ? colour_scheme_->logpt_marker_colour
+                                              : colour_scheme_->bg_colour);
+      te_disassembly_->insertPlainText(has_logpt ? "L" : " ");
+      if (has_logpt) line_state |= LS_LOGPT;
     }
 
     if (op.address == current_pc_) {
@@ -431,9 +445,10 @@ void DisassemblyView::mousePressEvent(QMouseEvent *e) {
 //  }
 
   // line_state >> 16 encodes the type flags:
-  //   LS_OPCOD=1  LS_BRKPT=4  LS_WATCH=8  LS_LABEL=2
-  // Clicking always toggles the breakpoint on the address.
-  switch (line_state >> 16) {
+  //   LS_OPCOD=1  LS_BRKPT=4  LS_WATCH=8  LS_LABEL=2  LS_LOGPT=16
+  // Clicking always toggles the breakpoint; mask LS_LOGPT so it doesn't
+  // change click behaviour.
+  switch ((line_state >> 16) & ~0x10) {
     case 2:  // label row — do nothing
       break;
 

@@ -32,8 +32,14 @@ class BreakpointDlg : public QDialog {
   void delete_current_watches();
   void delete_all_watches();
 
+  // Logpoint tab slots
+  void add_logpoint();
+  void delete_current_logpoints();
+  void delete_all_logpoints();
+
   static QString addr_to_qstring(uint16_t addr);
   static QString watch_to_qstring(uint16_t addr, std::optional<uint8_t> tv);
+  static QString logpoint_to_qstring(uint16_t pc_addr, std::optional<uint16_t> mem_addr);
   static bool qstring_to_addr(const QString& s, uint16_t& addr);
 
   BreakpointManager * breakpoint_manager_;
@@ -50,6 +56,13 @@ class BreakpointDlg : public QDialog {
   QListWidget  *lst_watch_;
   QPushButton  *btn_watch_remove_;
   QPushButton  *btn_watch_remove_all_;
+
+  // Logpoints tab widgets
+  QLineEdit    *te_new_logpt_pc_;    // PC address to log at
+  QLineEdit    *te_new_logpt_mem_;   // optional memory address to read
+  QListWidget  *lst_logpt_;
+  QPushButton  *btn_logpt_remove_;
+  QPushButton  *btn_logpt_remove_all_;
 
   QTabWidget        *tab_widget_;
   QDialogButtonBox  *btn_box_;

@@ -32,6 +32,17 @@ void ExecutionEngine::fire_callback() {
   if (callback_) {
     callback_(pc, cpu->A(), cpu->X(), cpu->Y(), cpu->flags(), cpu->SP(), mem4);
   }
+
+  // Check logpoints — fire callback without pausing.
+  auto lp_it = logpoints_.find(pc);
+  if (lp_it != logpoints_.end() && logpoint_callback_) {
+    uint8_t mem_val = 0;
+    if (lp_it->second) {
+      beeb_->get_memory_contents(*lp_it->second, 1, &mem_val);
+    }
+    logpoint_callback_(pc, cpu->A(), cpu->X(), cpu->Y(), cpu->flags(), cpu->SP(),
+                       mem4, lp_it->second, mem_val);
+  }
 }
 
 // ─── public interface ────────────────────────────────────────────────────────
@@ -163,6 +174,24 @@ std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> ExecutionEngine::check_wat
 
 void ExecutionEngine::set_instruction_callback(InstructionCallback cb) {
   callback_ = std::move(cb);
+}
+
+// ─── logpoints ───────────────────────────────────────────────────────────────
+
+void ExecutionEngine::set_logpoint_callback(LogpointCallback cb) {
+  logpoint_callback_ = std::move(cb);
+}
+
+void ExecutionEngine::add_logpoint(uint16_t pc_addr, std::optional<uint16_t> mem_addr) {
+  logpoints_[pc_addr] = mem_addr;
+}
+
+void ExecutionEngine::remove_logpoint(uint16_t pc_addr) {
+  logpoints_.erase(pc_addr);
+}
+
+bool ExecutionEngine::is_logpoint(uint16_t pc_addr) const {
+  return logpoints_.count(pc_addr) != 0;
 }
 
 // ─── instruction history ─────────────────────────────────────────────────────

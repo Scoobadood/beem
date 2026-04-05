@@ -21,6 +21,13 @@ QString BreakpointDlg::watch_to_qstring(uint16_t addr, std::optional<uint8_t> tv
   return s;
 }
 
+// Format: "&XXXX" or "&XXXX -> &YYYY"
+QString BreakpointDlg::logpoint_to_qstring(uint16_t pc_addr, std::optional<uint16_t> mem_addr) {
+  auto s = addr_to_qstring(pc_addr);
+  if (mem_addr) s += QString(" -> &%1").arg(*mem_addr, 4, 16, QChar('0')).toUpper();
+  return s;
+}
+
 bool BreakpointDlg::qstring_to_addr(const QString& s, uint16_t& addr) {
   if (s.isNull() || s.isEmpty()) return false;
   bool ok;
@@ -105,6 +112,39 @@ void BreakpointDlg::setup_ui() {
 
   tab_widget_->addTab(watch_tab, "Watches");
 
+  // Logpoints tab — PC address + optional memory address to log
+  auto* logpt_tab = new QWidget(tab_widget_);
+  auto* logpt_grid = new QGridLayout(logpt_tab);
+
+  auto* logpt_row = new QWidget(logpt_tab);
+  auto* logpt_hbox = new QHBoxLayout(logpt_row);
+  logpt_hbox->setContentsMargins(0, 0, 0, 0);
+  te_new_logpt_pc_ = new QLineEdit(logpt_row);
+  te_new_logpt_pc_->setInputMask(QString::fromUtf8("hhhh"));
+  te_new_logpt_pc_->setPlaceholderText("pc");
+  logpt_hbox->addWidget(te_new_logpt_pc_);
+  logpt_hbox->addWidget(new QLabel("->", logpt_row));
+  te_new_logpt_mem_ = new QLineEdit(logpt_row);
+  te_new_logpt_mem_->setInputMask(QString::fromUtf8("hhhh"));
+  te_new_logpt_mem_->setMaximumWidth(60);
+  te_new_logpt_mem_->setPlaceholderText("addr");
+  logpt_hbox->addWidget(te_new_logpt_mem_);
+  logpt_row->setLayout(logpt_hbox);
+  logpt_grid->addWidget(logpt_row, 0, 0, 1, 2);
+
+  lst_logpt_ = new QListWidget(logpt_tab);
+  logpt_grid->addWidget(lst_logpt_, 1, 0, 3, 2);
+
+  btn_logpt_remove_     = new QPushButton("Remove",     logpt_tab);
+  btn_logpt_remove_->setFocusPolicy(Qt::NoFocus);
+  btn_logpt_remove_all_ = new QPushButton("Remove All", logpt_tab);
+  btn_logpt_remove_all_->setFocusPolicy(Qt::NoFocus);
+  logpt_grid->addWidget(btn_logpt_remove_,     4, 0, 1, 1);
+  logpt_grid->addWidget(btn_logpt_remove_all_, 4, 1, 1, 1);
+  logpt_tab->setLayout(logpt_grid);
+
+  tab_widget_->addTab(logpt_tab, "Logpoints");
+
   vbox->addWidget(tab_widget_);
 
   btn_box_ = new QDialogButtonBox(this);
@@ -123,6 +163,11 @@ void BreakpointDlg::setup_ui() {
   assert(connect(btn_watch_remove_,     &QPushButton::clicked, this, &BreakpointDlg::delete_current_watches));
   assert(connect(btn_watch_remove_all_, &QPushButton::clicked, this, &BreakpointDlg::delete_all_watches));
   assert(connect(te_new_watch_,         &QLineEdit::editingFinished, this, &BreakpointDlg::add_watch));
+
+  // Logpoint tab connections
+  assert(connect(btn_logpt_remove_,     &QPushButton::clicked, this, &BreakpointDlg::delete_current_logpoints));
+  assert(connect(btn_logpt_remove_all_, &QPushButton::clicked, this, &BreakpointDlg::delete_all_logpoints));
+  assert(connect(te_new_logpt_pc_,      &QLineEdit::editingFinished, this, &BreakpointDlg::add_logpoint));
 
   assert(connect(btn_box_, &QDialogButtonBox::accepted, this, qOverload<>(&QDialog::accept)));
 }
@@ -147,6 +192,13 @@ BreakpointDlg::BreakpointDlg(BreakpointManager* breakpoint_manager, QWidget* par
   lst_watch_->sortItems();
   te_new_watch_->clear();
   te_new_watch_value_->clear();
+
+  for (auto& [pc_addr, mem_addr] : breakpoint_manager_->logpoints()) {
+    lst_logpt_->addItem(logpoint_to_qstring(pc_addr, mem_addr));
+  }
+  lst_logpt_->sortItems();
+  te_new_logpt_pc_->clear();
+  te_new_logpt_mem_->clear();
 }
 
 BreakpointDlg::~BreakpointDlg() = default;
@@ -219,4 +271,43 @@ void BreakpointDlg::delete_current_watches() {
 void BreakpointDlg::delete_all_watches() {
   breakpoint_manager_->clear_all_watches();
   lst_watch_->clear();
+}
+
+// ─── logpoint slots ───────────────────────────────────────────────────────────
+
+void BreakpointDlg::add_logpoint() {
+  bool ok;
+  uint16_t pc_addr = static_cast<uint16_t>(te_new_logpt_pc_->text().toUInt(&ok, 16));
+  if (!ok) {
+    te_new_logpt_pc_->selectAll();
+    return;
+  }
+  std::optional<uint16_t> mem_addr;
+  const auto mem_text = te_new_logpt_mem_->text().trimmed();
+  if (!mem_text.isEmpty()) {
+    bool mem_ok;
+    uint16_t v = static_cast<uint16_t>(mem_text.toUInt(&mem_ok, 16));
+    if (mem_ok) mem_addr = v;
+  }
+  if (breakpoint_manager_->set_logpoint(pc_addr, mem_addr)) {
+    te_new_logpt_pc_->clear();
+    te_new_logpt_mem_->clear();
+    lst_logpt_->addItem(logpoint_to_qstring(pc_addr, mem_addr));
+    lst_logpt_->sortItems();
+  }
+}
+
+void BreakpointDlg::delete_current_logpoints() {
+  auto* item = lst_logpt_->currentItem();
+  if (!item) return;
+  uint16_t pc_addr;
+  if (qstring_to_addr(item->text(), pc_addr)) {
+    breakpoint_manager_->clear_logpoint(pc_addr);
+    delete lst_logpt_->takeItem(lst_logpt_->row(item));
+  }
+}
+
+void BreakpointDlg::delete_all_logpoints() {
+  breakpoint_manager_->clear_all_logpoints();
+  lst_logpt_->clear();
 }

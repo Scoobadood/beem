@@ -7,6 +7,7 @@
 #include "cassette_port.h"
 #include "uef_tape_stream.h"
 #include <UEF/uef.h>
+#include <Disassembler/disassembler.h>
 #include <atomic>
 #include <memory>
 #include <string>
@@ -35,6 +36,7 @@ class BeebWorker : public QObject {
   void step_out();
   void run();
   void do_break();
+  void stop();
 
  signals:
   void finished();
@@ -51,13 +53,15 @@ class BeebWorker : public QObject {
   void emit_cpu_state();
 
   std::unique_ptr<ExecutionEngine> engine_;
-  bool done_;
+  std::atomic<bool> done_{false};
   std::atomic<bool> reset_requested_{false};
 
   // Currently loaded tape — owned here, plugged into Beeb via set_cassette_port().
   std::unique_ptr<CassettePort>  cassette_port_;
   std::unique_ptr<UefTapeStream> tape_stream_;
   std::shared_ptr<UefData>       tape_data_;
+
+  Disassembler logpoint_disasm_;
 };
 
 #endif // BEEB_WORKER_H_

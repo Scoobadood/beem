@@ -3,11 +3,39 @@
 #include <QThread>
 #include <QDebug>
 #include <QCoreApplication>
+#include <Disassembler/operation_formatter.h>
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
 
-BeebWorker::BeebWorker(int32_t mode)
-    : done_{false} //
-{
+BeebWorker::BeebWorker(int32_t mode) {
   engine_ = std::make_unique<ExecutionEngine>(std::make_unique<Beeb>(mode));
+
+  spdlog::drop("logpoint");
+  auto lp_logger = spdlog::basic_logger_mt("logpoint", "logs/logpoints.txt", true);
+  lp_logger->set_level(spdlog::level::info);
+  lp_logger->flush_on(spdlog::level::info);
+
+  engine_->set_logpoint_callback([this](
+      uint16_t pc, uint8_t a, uint8_t x, uint8_t y,
+      uint8_t flags, uint8_t sp, uint32_t mem4,
+      std::optional<uint16_t> mem_addr, uint8_t mem_val) {
+    logpoint_disasm_.set_base_address(pc);
+    uint8_t err = 0;
+    uint16_t offset = 0;
+    auto op = logpoint_disasm_.disassemble_one(
+        reinterpret_cast<const uint8_t*>(&mem4), 4, offset, err);
+    auto insn   = format_single_line(op, {});
+    auto fl     = format_flags(flags);
+    auto logger = spdlog::get("logpoint");
+    if (!logger) return;
+    if (mem_addr) {
+      logger->info("A:{:02X} X:{:02X} Y:{:02X} SP:{:02X}  {}  {}  [&{:04X}]={:02X}",
+                   a, x, y, sp, insn, fl, *mem_addr, mem_val);
+    } else {
+      logger->info("A:{:02X} X:{:02X} Y:{:02X} SP:{:02X}  {}  {}",
+                   a, x, y, sp, insn, fl);
+    }
+  });
 }
 
 Beeb& BeebWorker::board() {
@@ -41,6 +69,11 @@ void BeebWorker::run() {
 void BeebWorker::do_break() {
   reset_requested_.store(true, std::memory_order_release);
   engine_->pause();  // interrupt any in-progress run()
+}
+
+void BeebWorker::stop() {
+  done_.store(true, std::memory_order_release);
+  engine_->pause();  // break out of any in-progress engine_->run()
 }
 
 void BeebWorker::start_beeb() {

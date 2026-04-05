@@ -19,7 +19,7 @@ class Acia : public IBusDevice {
   [[nodiscard]] bool decodes(uint16_t addr) const override { return addr >= base_addr_ && addr <= base_addr_ + 7; }
   [[nodiscard]] bool is_1mhz_device() const override { return true; }
   // IRQ is active low
-  [[nodiscard]] bool has_irq() const override { return !irq_; }
+  [[nodiscard]] bool has_irq() const override { return irq_asserted_; }
 
   void tx_clock();
   void rx_clock();
@@ -72,7 +72,9 @@ class Acia : public IBusDevice {
   void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
   void write_tdr(uint8_t data);
 
-  bool is_in_power_on_reset_;
+  bool irq_asserted_ = false;
+
+  bool needs_power_on_reset_;
 
   /* Control register */
   uint32_t tx_clock_ticks_;
@@ -119,8 +121,6 @@ class Acia : public IBusDevice {
   bool sr2_high_wait_for_sr_read_;
   bool sr2_high_wait_for_data_read_;
 
-  /* IRQ */
-  bool irq_;
  protected:
   void write_ctl(uint8_t data);
 

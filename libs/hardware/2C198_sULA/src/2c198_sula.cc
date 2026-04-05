@@ -143,14 +143,14 @@ SerialUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
     cassette_port_->set_motor(new_motor_state);
     if (acia_ && !is_rs423_selected()) {
       if (new_motor_state == 0) {
-        // Motor off: no tape movement = no carrier. DCD* HIGH = receiver disabled.
-        acia_->apply_carrier();
+        // Motor off: no tape movement = no carrier.
+        acia_->drop_carrier();
         spdlog::get("sULA")->info("Motor off");
       } else {
         if (cassette_port_->has_carrier()) {
-          // Carrier present: DCD* LOW = receiver enabled (active-low convention).
+          // Carrier present: enable receiver.
           spdlog::get("sULA")->info("Motor on, carrier detected");
-          acia_->drop_carrier();
+          acia_->apply_carrier();
         } else {
           spdlog::get("sULA")->info("Motor on, no carrier");
         }
@@ -205,12 +205,11 @@ void SerialUla::maybe_rx_clock_tick() {
     rx_tape_counter_ = 0;
     current_rx_bit_ = cassette_port_->rx_data();
 
-    // DCD* is active-low: carrier present → DCD* LOW → clear_dcd().
-    // No carrier (gap) → DCD* HIGH → raise_dcd(). AUG §14.2.5 / AUG p.445.
+    // Carrier present → apply_carrier(); no carrier (gap) → drop_carrier(). AUG §14.2.5 / AUG p.445.
     if (cassette_port_->has_carrier())
-      acia_->drop_carrier();
-    else
       acia_->apply_carrier();
+    else
+      acia_->drop_carrier();
   }
   acia_->set_rx_data(current_rx_bit_);
   acia_->rx_clock();

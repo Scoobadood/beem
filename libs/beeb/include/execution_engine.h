@@ -76,6 +76,19 @@ class ExecutionEngine {
            uint8_t flags, uint8_t sp, uint32_t mem4)>;
   void set_instruction_callback(InstructionCallback cb);
 
+  // Logpoints ————————————————————————————————————
+  // When PC hits a logpoint, fires callback with current CPU state plus the
+  // optional memory address and its current value.  Execution is NOT paused.
+  using LogpointCallback = std::function<
+      void(uint16_t pc, uint8_t a, uint8_t x, uint8_t y,
+           uint8_t flags, uint8_t sp, uint32_t mem4,
+           std::optional<uint16_t> mem_addr, uint8_t mem_val)>;
+  void set_logpoint_callback(LogpointCallback cb);
+
+  void add_logpoint(uint16_t pc_addr, std::optional<uint16_t> mem_addr = std::nullopt);
+  void remove_logpoint(uint16_t pc_addr);
+  bool is_logpoint(uint16_t pc_addr) const;
+
   // Board access ————————————————————————————————————————————————
   Beeb& board();
   const Beeb& board() const;
@@ -103,6 +116,8 @@ class ExecutionEngine {
   std::optional<std::tuple<uint16_t, uint8_t, uint8_t>> last_watch_trigger_;
   uint16_t                 step_out_target_{0};
   InstructionCallback      callback_;
+  LogpointCallback         logpoint_callback_;
+  std::unordered_map<uint16_t, std::optional<uint16_t>> logpoints_;
 
   std::array<InsnRecord, HISTORY_CAPACITY> history_buf_{};
   size_t history_head_{0};

@@ -40,6 +40,7 @@ class DisassemblyView : public DataDisplayWidget {
  public slots:
   void breakpoints_changed();
   void watches_changed();
+  void logpoints_changed();
 
  signals:
   void needs_data(QWidget *src, uint16_t start_addr, uint32_t num_bytes);
