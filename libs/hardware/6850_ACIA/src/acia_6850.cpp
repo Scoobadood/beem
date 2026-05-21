@@ -177,7 +177,7 @@ Acia::Acia(uint16_t base_addr) //
 void Acia::perform_master_reset() {
     /** During the first master reset, the IRQ and RTS outputs are held at level 1. */
     clear_interrupt();
-    rts_ = false;
+    rts_ = true;
 
 
   /* Alan Clements http://alanclements.org/serialio.html
@@ -192,7 +192,7 @@ void Acia::perform_master_reset() {
   /* Master reset does not affect the Clear-to-Send status bit. */
 
   // REady to go after a reset.
-  SR_SET_TDRE(status_register_);
+  // SR_SET_TDRE(status_register_);
 
     /** Datasheet
     * The Data Carrier Detect (2) ... remains high
@@ -213,7 +213,10 @@ void Acia::perform_master_reset() {
      * The power-on reset is released by means of the bus-programmed master reset which must be applied prior
      * to operating the ACIA.
      */
-    if ( needs_power_on_reset_ ) needs_power_on_reset_ = false;
+    if ( needs_power_on_reset_ ) {
+      needs_power_on_reset_ = false;
+      logger_->info( "POR cleared");
+    }
 
 
   /* Star dot: https://stardot.org.uk/forums/viewtopic.php?p=361776#p361776
@@ -401,6 +404,7 @@ void Acia::read_status(const std::shared_ptr<Bus> &bus) {
 void Acia::read_rdr(const std::shared_ptr<Bus> &bus) {
   bus->set_data(rdr_);
   logger_->info("Read_RDR: {} to bus : {}", rdr_is_full_ ? "Full" : "Partial", rdr_);
+  clear_interrupt();
 
   if (sr2_high_wait_for_data_read_) {
   // We are in DCD clear sequence
@@ -409,14 +413,9 @@ void Acia::read_rdr(const std::shared_ptr<Bus> &bus) {
     sr2_high_wait_for_data_read_ = false;
 
     if (!carrier_present_) {
-      // If the carrier is still not present then we clear the interrupt but leave the DCD bit alone
-      assert( SR_DCD(status_register_) != 0 && "DCD was expected high but is not.");
-      clear_interrupt();
       logger_->info("Read_RDR: DCD latch is still set, carrier still missing");
     } else {
-      // Carrier has returned. We can safely clear DCD as well as IRQ
       SR_CLR_DCD(status_register_);
-      clear_interrupt();
       logger_->info("Read_RDR: DCD latch cleared, carrier has returned");
     }
   }
@@ -429,10 +428,8 @@ void Acia::read_rdr(const std::shared_ptr<Bus> &bus) {
     SR_CLR_FE(status_register_);
     SR_CLR_PE(status_register_);
 
-    // Clear IRQ, then re-evaluate remaining sources.
     // The 6850 IRQ pin is level-sensitive: if TDRE + TX interrupt is still
     // asserted it must remain active even though we just consumed RDRF.
-    clear_interrupt();
     if (tx_int_enabled_ && SR_TDRE(status_register_)) {
       raise_interrupt();
     }
@@ -600,7 +597,9 @@ void Acia::shift_out_data() {
 void Acia::carrier_detected() {
   logger_->info("Carrier detected");
   carrier_present_ = true;
-  sr2_high_wait_for_sr_read_ = true;
+  if ( !sr2_high_wait_for_data_read_ && !sr2_high_wait_for_sr_read_ ) {
+    SR_SET_DCD(status_register_);
+  }
 }
 
 void Acia::carrier_dropped() {
@@ -615,10 +614,6 @@ void Acia::carrier_dropped() {
   SR_SET_DCD(status_register_);
   SR_CLR_RDRF(status_register_);
 
-  // Abort any in-progress latch clear sequence (DCD may have bounced before the CPU serviced it).
-  sr2_high_wait_for_sr_read_ = false;
-  sr2_high_wait_for_data_read_ = false;
-
   // Reset receiver: no carrier means any in-progress byte is garbage.
   rdr_is_full_ = false;
   overrun_error_pending_ = false;
@@ -629,6 +624,10 @@ void Acia::carrier_dropped() {
   SR_CLR_FE(status_register_);
   SR_CLR_OVRN(status_register_);
   SR_CLR_PE(status_register_);
+
+  // Abort any in-progress latch clear sequence (DCD may have bounced before the CPU serviced it).
+  sr2_high_wait_for_sr_read_ = true;
+  sr2_high_wait_for_data_read_ = false;
 
   if (rx_int_enabled_) {
     raise_interrupt();
@@ -673,12 +672,14 @@ void Acia::set_output(uint8_t out) {
 }
 
 void Acia::raise_interrupt() {
+  if ( irq_asserted_) return;
   logger_->info("IRQ asserted");
   irq_asserted_ = true;
   SR_SET_IRQ(status_register_);
 }
 
 void Acia::clear_interrupt() {
+  if ( !irq_asserted_) return;
   logger_->info("IRQ cleared");
   irq_asserted_ = false;
   SR_CLR_IRQ(status_register_);

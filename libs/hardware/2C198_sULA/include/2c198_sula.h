@@ -72,6 +72,12 @@ class SerialUla : public AbstractSula, public IBusDevice {
   uint32_t rx_tape_counter_{0};
   bool current_rx_bit_{true};  // idle / mark
 
+  // Carrier lock: counts consecutive carrier bits seen since motor-on.
+  // apply_carrier() is deferred until this reaches CARRIER_LOCK_THRESHOLD,
+  // matching the real hardware's need to lock onto the leader tone.
+  static constexpr uint32_t CARRIER_LOCK_THRESHOLD = 100;
+  uint32_t carrier_bit_count_{0};
+
   std::shared_ptr<Acia> acia_;
   ICassettePort* cassette_port_{nullptr};
 };

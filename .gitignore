@@ -9,6 +9,7 @@ logs/
 **CMakeLists.txt.user
 
 .qtc_clangd
+**/.DS_Store/
 
 /apps/debugger/Beeb.*
 apps/debugger/src/breakpoint_dlg.ui.autosave

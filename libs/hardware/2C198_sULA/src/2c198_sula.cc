@@ -144,16 +144,13 @@ SerialUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
     if (acia_ && !is_rs423_selected()) {
       if (new_motor_state == 0) {
         // Motor off: no tape movement = no carrier.
+        carrier_bit_count_ = 0;
         acia_->drop_carrier();
         spdlog::get("sULA")->info("Motor off");
       } else {
-        if (cassette_port_->has_carrier()) {
-          // Carrier present: enable receiver.
-          spdlog::get("sULA")->info("Motor on, carrier detected");
-          acia_->apply_carrier();
-        } else {
-          spdlog::get("sULA")->info("Motor on, no carrier");
-        }
+        // Carrier detection is handled by the tick loop — it must count
+        // CARRIER_LOCK_THRESHOLD consecutive carrier bits before apply_carrier().
+        spdlog::get("sULA")->info("Motor on, waiting for carrier lock");
       }
     }
   }
@@ -205,11 +202,18 @@ void SerialUla::maybe_rx_clock_tick() {
     rx_tape_counter_ = 0;
     current_rx_bit_ = cassette_port_->rx_data();
 
-    // Carrier present → apply_carrier(); no carrier (gap) → drop_carrier(). AUG §14.2.5 / AUG p.445.
-    if (cassette_port_->has_carrier())
-      acia_->apply_carrier();
-    else
-      acia_->drop_carrier();
+    if (cassette_port_->has_carrier()) {
+      // Count consecutive carrier bits; only assert DCD once locked on.
+      if (++carrier_bit_count_ == CARRIER_LOCK_THRESHOLD) {
+        spdlog::get("sULA")->info("Carrier lock acquired after {} bits", CARRIER_LOCK_THRESHOLD);
+        acia_->apply_carrier();
+      }
+    } else {
+      // Gap or end of tape — drop carrier and reset lock counter.
+      if (carrier_bit_count_ >= CARRIER_LOCK_THRESHOLD)
+        acia_->drop_carrier();
+      carrier_bit_count_ = 0;
+    }
   }
   acia_->set_rx_data(current_rx_bit_);
   acia_->rx_clock();
