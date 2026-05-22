@@ -9,6 +9,7 @@ add_executable(beeb
 
         src/disassembly_view/debugger_window.cc include/debugger_window.h
         src/disassembly_view/disassembly_view.cc include/disassembly_view.h
+        src/disassembly_view/history_window.cc include/history_window.h
         src/disassembly_view/register_view.cc include/register_view.h
 
         src/memory_view/memory_window.cc include/memory_window.h
@@ -31,6 +32,7 @@ target_include_directories(beeb
 target_link_libraries(beeb
         PRIVATE
         Beeb
+        Cassette
         Disassembler
         UEF
         Qt${QT_VERSION_MAJOR}::Core

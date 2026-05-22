@@ -3,6 +3,8 @@
 #include <sstream>
 #include <iomanip>
 
+#include "../../../../../../../../../Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/strstream"
+
 TapeDataBlock::TapeDataBlock(std::unique_ptr<std::istream> &uef_stream, uint32_t chunk_length)
     : TapeDataChunk("Tape Data Block") {
   auto *data = new uint8_t[chunk_length];
@@ -18,14 +20,26 @@ TapeDataBlock::Description() const {
 
   auto idx = 0;
   oss << "Data" << std::endl << "  ";
+
+  std::ostringstream hex;
+  std::ostringstream asc;
+
   for (auto b : bytes_) {
-    oss << "0x" << std::hex << std::setw(2) << std::setfill('0') << (uint32_t) b << " ";
+    hex << std::hex << std::setw(2) << std::setfill('0') << (uint32_t) b << " ";
+    asc << (isprint(b) ? ((char) b) : '.');
     idx++;
     if( idx % 8 == 0) {
+      oss << hex.str() << " | " << asc.str();
       oss << std::endl << "  ";
+      hex.str("");
+      asc.str("");
     }
   }
-  oss << std::endl;
+  auto h = hex.str();
+  if ( h.length() < 24) h.append(24 - h.length(), ' ');
+  oss << h;
+  oss << " | " << asc.str() << std::endl;
+
   return oss.str();
 }
 

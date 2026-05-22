@@ -34,11 +34,13 @@ VideoUla::VideoUla(uint16_t base_addr) //
 {
   try {
     auto logger = spdlog::basic_logger_mt("vULA", "logs/vULA.txt", true);
-    logger->flush_on(spdlog::level::trace);
+    logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
+  logger_ = spdlog::get("vULA");
+  bus_dance_logger_ = spdlog::get("BusDance");
 }
 
 /**
@@ -50,7 +52,7 @@ void VideoUla::write_palette(uint8_t data) {
   auto logical = (data >> 4) & 0xf;
   auto actual = data & 0xf;
   palette_[logical] = actual;
-  spdlog::get("vULA")->info("vULA: Set palette logical {:02x} to actual {}", logical, colour_name_[actual]);
+  logger_->info("vULA: Set palette logical {:02x} to actual {}", logical, colour_name_[actual]);
 }
 
 /*
@@ -92,15 +94,14 @@ void VideoUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       shift_clk_ = (1 << num_cols_flags) * 2;
       // Sets up the shift countdown
       reset_shift_clk();
-      auto logger = spdlog::get("vULA");
-      logger->info("vULA: Writing {:02x} to VULA_CTL", bus->get_data());
-      logger->info("      Flash colour {}", data & 0x01);
-      logger->info("      Teletext mode? {}", data & 0x02 ? "Yes" : "No");
-      logger->info("      {} characters per line", chars_per_line);
-      logger->info("      CRTC clk freq {}MHz", crtc_clk_ ? 2 : 1);
-      logger->info("      Cursor width in bytes {}", cursor_width_);
-      logger->info("      Master cursor width {}", (data & 0x80) ? "large" : "small");
-      logger->info("      Shift clock {}MHz", shift_clk_);
+      logger_->info("vULA: Writing {:02x} to VULA_CTL", bus->get_data());
+      logger_->info("      Flash colour {}", data & 0x01);
+      logger_->info("      Teletext mode? {}", data & 0x02 ? "Yes" : "No");
+      logger_->info("      {} characters per line", chars_per_line);
+      logger_->info("      CRTC clk freq {}MHz", crtc_clk_ ? 2 : 1);
+      logger_->info("      Cursor width in bytes {}", cursor_width_);
+      logger_->info("      Master cursor width {}", (data & 0x80) ? "large" : "small");
+      logger_->info("      Shift clock {}MHz", shift_clk_);
       break;
     }
 
@@ -118,29 +119,6 @@ bool VideoUla::time_to_shift() {
   return (--shift_countdown_ == 0);
 }
 
-void VideoUla::process_data() {
-  uint8_t logical_colour =
-      ((curr_data_ & 0x80) >> 4) | ((curr_data_ & 0x20) >> 3) |
-          ((curr_data_ & 0x08) >> 2) | ((curr_data_ & 0x02) >> 1);
-  auto actual_colour = palette_[logical_colour];
-  red_ = 255 * (actual_colour & 0x01);
-  grn_ = 255 * ((actual_colour & 0x02) >> 1);
-  blu_ = 255 * ((actual_colour & 0x04) >> 2);
-  bool flash = (actual_colour & 0x08);
-  if (!(flash && (vula_ctl_ & 0x01))) {
-    red_ = 255 - red_;
-    grn_ = 255 - grn_;
-    blu_ = 255 - blu_;
-  }
-  if (crtc_->cursor_enabled()) {
-    red_ = 255 - red_;
-    grn_ = 255 - grn_;
-    blu_ = 255 - blu_;
-  }
-  spdlog::get("vULA")->trace("process_data() : output logical colour {}, actual {}, RGB:{:02x} {:02x} {:02x}",
-                             logical_colour, actual_colour,
-                             red_, grn_, blu_);
-}
 
 void VideoUla::reset_shift_clk() {
   switch (shift_clk_) {
@@ -157,7 +135,7 @@ void VideoUla::reset_shift_clk() {
       shift_countdown_ = 8;
       break;
   }
-  spdlog::get("vULA")->trace("reset shift clock to {}", shift_countdown_);
+  // trace: reset shift clock to shift_countdown_
 }
 
 void VideoUla::maybe_drive_crtc(const std::shared_ptr<Bus> &dram_bus) {
@@ -175,24 +153,8 @@ void VideoUla::maybe_drive_crtc(const std::shared_ptr<Bus> &dram_bus) {
  * @param dram_bus
  */
 void VideoUla::latch_new_data(const std::shared_ptr<Bus> &dram_bus) {
-  spdlog::get("BusDance")->debug("VULA: Latching data from CRTC from DRAM bus {:04x} {:02x} {} {}",
-                                 dram_bus->get_address(),
-                                 dram_bus->get_data(),
-                                 dram_bus->tst_RW() ? "R" : "W",
-                                 dram_bus->tst_SYNC() ? "SYN" : "   ",
-                                 dram_bus->tst_RST() ? "RST" : "");
   curr_data_ = dram_bus->get_data();
   last_latched_data_ = curr_data_;
-
-  spdlog::get("vULA")->info("Latched new data {:02x} from DRAM {:04x}", curr_data_,
-                            dram_bus->get_address());
-
-  spdlog::get("vULA")->trace("Clks: 4Mhz {}, 2MHz {}, 2MHzE {}, 1Mhz {}",
-                             clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                             clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                             clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                             clock_->is_high(CLK_1_MHZ) ? "H" : "L");
-
   last_latched_addr_ = dram_bus->get_address();
   if (crtc_->last_generated_address() != last_latched_addr_) {
     spdlog::error("VULA: Latched address does not match last generated address");
@@ -230,19 +192,33 @@ void VideoUla::tick(const std::shared_ptr<Bus> &main_bus,
   if (time_to_shift()) {
     curr_data_ = ((curr_data_ << 1) & 0xfe) | 0x01;
     num_shifts_++;
-    spdlog::get("vULA")->trace("Shift at clks: 4Mhz {}, 2MHz {}, 2MHzE {}, 1Mhz {}",
-                               clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                               clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                               clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                               clock_->is_high(CLK_1_MHZ) ? "H" : "L");
     reset_shift_clk();
   }
 }
 
+void VideoUla::process_data() {
+  uint8_t logical_colour =
+      ((curr_data_ & 0x80) >> 4) | ((curr_data_ & 0x20) >> 3) |
+          ((curr_data_ & 0x08) >> 2) | ((curr_data_ & 0x02) >> 1);
+  auto actual_colour = palette_[logical_colour];
+  red_ = 255 * (actual_colour & 0x01);
+  grn_ = 255 * ((actual_colour & 0x02) >> 1);
+  blu_ = 255 * ((actual_colour & 0x04) >> 2);
+  bool flash = (actual_colour & 0x08);
+  if (!(flash && (vula_ctl_ & 0x01))) {
+    red_ = 255 - red_;
+    grn_ = 255 - grn_;
+    blu_ = 255 - blu_;
+  }
+  if (crtc_->cursor_enabled()) {
+    red_ = 255 - red_;
+    grn_ = 255 - grn_;
+    blu_ = 255 - blu_;
+  }
+}
+
 uint32_t VideoUla::rgb() const {
-  auto rgb = ((red_ << 16) | (grn_ << 8) | blu_) & 0xffffff;
-  spdlog::get("vULA")->trace("Data read #{:0x}", rgb);
-  return rgb;
+  return ((uint32_t(red_) << 16) | (uint32_t(grn_) << 8) | blu_) & 0xffffff;
 }
 
 void VideoUla::dump(std::shared_ptr<spdlog::logger> &logger) {

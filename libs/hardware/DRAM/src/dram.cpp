@@ -22,12 +22,14 @@ DRAM::DRAM(uint16_t sz, uint16_t bus_addr, std::shared_ptr<Clock> clk)
   memory_ = std::make_shared<std::vector<uint8_t>>(sz);
 
   try {
-    auto logger = spdlog::basic_logger_mt("DRAM", "logs/dram-log.txt", true);
-    logger->flush_on(spdlog::level::debug);
+    auto logger = spdlog::basic_logger_mt("DRAM", "logs/DRAM.txt", true);
+    logger->flush_on(spdlog::level::err);
   }
   catch (const spdlog::spdlog_ex &ex) {
     spdlog::warn("Log init failed for DRAM: {}", ex.what());
   }
+  logger_ = spdlog::get("DRAM");
+  bus_dance_logger_ = spdlog::get("BusDance");
 }
 
 bool DRAM::load(const std::string &file_name) {
@@ -52,8 +54,6 @@ bool DRAM::load(const std::string &file_name) {
 
 
 void DRAM::tick(const std::shared_ptr<Bus> &bus) {
-  auto debug_logger = spdlog::get("DRAM");
-
   // Ignore stuff not for DRAM
   auto addr = bus->get_address();
   if (addr < bus_address_ || addr >= (bus_address_ + memory_->size())) {
@@ -65,32 +65,9 @@ void DRAM::tick(const std::shared_ptr<Bus> &bus) {
   if (bus->tst_RW()) {
     auto data = memory_->at(addr - bus_address_);
     bus->set_data(data);
-
-    spdlog::get("BusDance")->debug("DRAM: R 0x{:04x} -> {:02x}", addr, data);
-
-    debug_logger->debug(" : R 0x{:04x} -> {:02x}  16:{}  8:{}  4:{}  2E:{}  2:{}  1:{}", addr, data,
-                        clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_1_MHZ) ? "H" : "L"
-    );
   } else {
     auto data = bus->get_data();
     memory_->at(addr - bus_address_) = data;
-
-    spdlog::get("BusDance")->debug("DRAM: W 0x{:02x} -> {:04x}", data, addr);
-
-    debug_logger->debug(" W {:02x} -> 0x{:04x}  16:{}  8:{}  4:{}  2E:{}  2:{}  1:{}", data, addr,
-                        clock_->is_high(CLK_16_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_8_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_4_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_E_2_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_2_MHZ) ? "H" : "L",
-                        clock_->is_high(CLK_1_MHZ) ? "H" : "L"
-    );
-
   }
 }
 
@@ -100,7 +77,7 @@ void DRAM::tick(const std::shared_ptr<Bus> &bus) {
  * @return The contents
  */
 uint8_t DRAM::at_bus(uint16_t addr) const {
-  spdlog::get("DRAM")->debug("at_bus( 0x{:04x} )", addr);
+  logger_->debug("at_bus( 0x{:04x} )", addr);
 
   return memory_->at(addr - bus_address_);
 }

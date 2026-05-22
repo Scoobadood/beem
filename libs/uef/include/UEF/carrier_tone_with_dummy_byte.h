@@ -15,6 +15,8 @@ class CarrierToneWithDummyByte : public Chunk {
   ~CarrierToneWithDummyByte() override = default;
 
   std::string Description() const override;
+  uint16_t PreByteCycleCount()  const { return pre_byte_cycle_count_; }
+  uint16_t PostByteCycleCount() const { return post_byte_cycle_count_; }
 
  private:
   uint16_t pre_byte_cycle_count_;

@@ -1,5 +1,5 @@
+add_subdirectory(core)
 add_subdirectory(beeb)
-add_subdirectory(common)
 add_subdirectory(disassembler)
 add_subdirectory(hardware)
 add_subdirectory(uef)

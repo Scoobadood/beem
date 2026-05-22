@@ -28,6 +28,9 @@ class WindowMediator : public QObject {
   void hide_memory_view();
   void trace_on();
   void trace_off();
+  void save_breakpoints();
+  void load_breakpoints();
+  void show_history();
 
  public slots:
   void edit_breakpoints();
@@ -50,6 +53,9 @@ class WindowMediator : public QObject {
   QAction * toggle_cassette_view_action_;
   QAction * load_symbols_action_;
   QAction * add_breakpoint_action_;
+  QAction * save_breakpoints_action_;
+  QAction * load_breakpoints_action_;
+  QAction * show_history_action_;
   QAction * load_uef_action_;
   QAction * toggle_trace_action_;
 };

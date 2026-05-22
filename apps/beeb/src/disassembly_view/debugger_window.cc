@@ -16,6 +16,7 @@ DebuggerWindow::DebuggerWindow(
     QWidget *parent)
     : QMainWindow(parent) //
     , bus_view_{nullptr} //
+    , watch_label_{nullptr} //
     , trace_buffer_{} //
     , trace_buffer_idx_{0}//
 {
@@ -45,8 +46,12 @@ DebuggerWindow::DebuggerWindow(
 
   addToolBar(tb);
 
+  watch_label_ = new QLabel(this);
+  watch_label_->setStyleSheet("color: darkorange; font-family: Monaco; font-size: 11px;");
+
   auto status_bar = new QStatusBar(this);
   status_bar->addWidget(register_view_);
+  status_bar->addPermanentWidget(watch_label_);
   setStatusBar(status_bar);
 
   setCentralWidget(disassembly_view_);
@@ -96,6 +101,14 @@ void DebuggerWindow::paused() {
   step_out_action_->setEnabled(true);
   run_action_->setEnabled(true);
   pause_action_->setEnabled(false);
+}
+
+void DebuggerWindow::watch_triggered(uint16_t addr, uint8_t old_val, uint8_t new_val) {
+  auto msg = QString("Watch &%1: $%2 → $%3")
+      .arg(addr, 4, 16, QChar('0'))
+      .arg(old_val, 2, 16, QChar('0'))
+      .arg(new_val, 2, 16, QChar('0'));
+  watch_label_->setText(msg);
 }
 
 void DebuggerWindow::load_symbols() {

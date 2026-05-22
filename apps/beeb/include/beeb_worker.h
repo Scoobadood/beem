@@ -2,21 +2,32 @@
 #define BEEB_WORKER_H_
 
 #include <QObject>
-#include <QAtomicInteger>
 #include "beeb.h"
-#include "breakpoint_manager.h"
+#include "execution_engine.h"
+#include "cassette_port.h"
+#include "uef_tape_stream.h"
 #include <UEF/uef.h>
+#include <Disassembler/disassembler.h>
+#include <atomic>
+#include <memory>
+#include <string>
 
 class BeebWorker : public QObject {
  Q_OBJECT
 
  public:
-  BeebWorker(int32_t mode,
-             BreakpointManager *breakpoint_manager);
-  std::shared_ptr<Beeb> beeb();
+  explicit BeebWorker(int32_t mode);
+
+  // Access the underlying board (replaces beeb()).
+  Beeb& board();
+
   void load_code(std::vector<uint8_t> code, uint16_t address);
+  void load_tape(std::shared_ptr<UefData> uef);
   void enable_tracing();
   void disable_tracing();
+
+  // Expose engine so callers (e.g. main.cc) can wire breakpoints to it.
+  ExecutionEngine& engine();
 
  public slots :
   void start_beeb();
@@ -24,6 +35,8 @@ class BeebWorker : public QObject {
   void step();
   void step_out();
   void run();
+  void do_break();
+  void stop();
 
  signals:
   void finished();
@@ -32,22 +45,23 @@ class BeebWorker : public QObject {
   void registers_changed(uint8_t a, uint8_t x, uint8_t y, uint16_t pc, uint8_t sp);
   void pc_changed(uint16_t pc);
   void bus_changed(std::shared_ptr<Bus> bus);
-  void trace( uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp, uint32_t data);
+  void trace(uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp, uint32_t data);
+  // Emitted when execution paused because a watched address changed value.
+  void watch_triggered(uint16_t addr, uint8_t old_val, uint8_t new_val);
 
  private:
-  const int32_t PAUSED = 0;
-  const int32_t STEPPING = 1;
-  const int32_t STEPPING_OUT = 2;
-  const int32_t RUNNING = 3;
+  void emit_cpu_state();
 
-  uint16_t branch_return_target_;
+  std::unique_ptr<ExecutionEngine> engine_;
+  std::atomic<bool> done_{false};
+  std::atomic<bool> reset_requested_{false};
 
-  std::shared_ptr<Beeb> beeb_;
-  BreakpointManager *breakpoint_manager_;
-  bool done_;
-  bool tracing_;
+  // Currently loaded tape — owned here, plugged into Beeb via set_cassette_port().
+  std::unique_ptr<CassettePort>  cassette_port_;
+  std::unique_ptr<UefTapeStream> tape_stream_;
+  std::shared_ptr<UefData>       tape_data_;
 
-  QAtomicInteger<int32_t> state_;
+  Disassembler logpoint_disasm_;
 };
 
 #endif // BEEB_WORKER_H_

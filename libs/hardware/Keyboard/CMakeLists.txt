@@ -6,7 +6,7 @@ target_include_directories(Keyboard
         include)
 
 target_link_libraries(Keyboard
-        PUBLIC Common
+        PUBLIC Core
 )
 
 add_executable(testKeyboard

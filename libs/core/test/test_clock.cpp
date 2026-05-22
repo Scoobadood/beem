@@ -335,4 +335,3 @@ TEST_F(TestClock, slowed_clock_responds_correctly_ip) {
 
   EXPECT_FALSE( clock->is_stretched());
 }
-

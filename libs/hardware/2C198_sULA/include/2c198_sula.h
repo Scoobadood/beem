@@ -18,6 +18,8 @@
 #include "bus.h"
 #include "data_connectors.h"
 #include "acia_6850.h"
+#include "i_bus_device.h"
+#include "i_cassette_port.h"
 
 class AbstractSula {
  public :
@@ -25,16 +27,20 @@ class AbstractSula {
   virtual ~AbstractSula() = default;
 };
 
-class SerialUla : public AbstractSula {
+class SerialUla : public AbstractSula, public IBusDevice {
  public:
   explicit SerialUla(uint16_t base_addr);
   ~SerialUla() override = default;
 
+  void tick(const std::shared_ptr<Bus>& bus) override;
+  [[nodiscard]] bool decodes(uint16_t addr) const override { return addr >= base_addr_ && addr <= base_addr_ + 0x0f; }
+  [[nodiscard]] bool is_1mhz_device() const override { return true; }
+
   void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
-  void tick(const std::shared_ptr<Bus> &bus);
   void tick_16mhz();
 
   void set_acia(const std::shared_ptr<Acia>& acia);
+  void set_cassette_port(ICassettePort* port);
 
   uint8_t serial_control_register() const;
   bool is_motor_on() const;
@@ -45,6 +51,8 @@ class SerialUla : public AbstractSula {
   void maybe_rw(const std::shared_ptr<Bus> &bus);
   void maybe_tx_clock_tick();
   void maybe_rx_clock_tick();
+  [[nodiscard]] bool is_rs423_selected() const;
+  [[nodiscard]] uint16_t effective_rx_divider() const;
 
   uint16_t tx_baud_;
   uint16_t rx_baud_;
@@ -59,7 +67,19 @@ class SerialUla : public AbstractSula {
   uint32_t rx_clock_counter_;
   uint16_t rx_clock_divider_;
 
+  // Tape bit buffer: next_bit() is called once per baud period (every
+  // clk_divisor rx_clock() ticks) and the result held stable between advances.
+  uint32_t rx_tape_counter_{0};
+  bool current_rx_bit_{true};  // idle / mark
+
+  // Carrier lock: counts consecutive carrier bits seen since motor-on.
+  // apply_carrier() is deferred until this reaches CARRIER_LOCK_THRESHOLD,
+  // matching the real hardware's need to lock onto the leader tone.
+  static constexpr uint32_t CARRIER_LOCK_THRESHOLD = 100;
+  uint32_t carrier_bit_count_{0};
+
   std::shared_ptr<Acia> acia_;
+  ICassettePort* cassette_port_{nullptr};
 };
 
 #endif // BEEB_HARDWARE_2C198_SULA_H

@@ -5,6 +5,7 @@
 #include "clock.h"
 
 #include <vector>
+#include <spdlog/spdlog.h>
 
 class DRAM {
 public:
@@ -47,6 +48,13 @@ public:
     return memory_;
   }
 
+  /**
+   * Return raw pointer to the first byte of DRAM (for O(1) page-table dispatch).
+   */
+  inline uint8_t* raw_ptr() {
+    return memory_->data();
+  }
+
 private:
   /* Address on the bus */
   uint16_t bus_address_;
@@ -56,6 +64,8 @@ private:
 
   /* A copy f the system clock */
   std::shared_ptr<Clock> clock_;
+  std::shared_ptr<spdlog::logger> logger_;
+  std::shared_ptr<spdlog::logger> bus_dance_logger_;
 };
 
 #endif // BEEB_HARDWARE_DRAM_H_

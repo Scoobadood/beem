@@ -176,6 +176,8 @@ private:
   bool reset_in_process_;
   uint8_t reset_cycle_;
 
+  std::shared_ptr<spdlog::logger> logger_;
+
   // DEBUG Tools
   // Last 5 opcodes and PC
   static const uint8_t history_size_ = 50;

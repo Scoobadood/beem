@@ -3,6 +3,7 @@
 
 #include <Disassembler/disassembler.h>
 #include <QMainWindow>
+#include <QLabel>
 
 #include "disassembly_view.h"
 #include "register_view.h"
@@ -24,7 +25,8 @@ class DebuggerWindow : public QMainWindow {
  public slots:
   void paused();
   void load_symbols();
-  void trace( uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp, uint32_t memory);
+  void trace(uint16_t pc, uint8_t a, uint8_t x, uint8_t y, uint8_t flags, uint16_t sp, uint32_t memory);
+  void watch_triggered(uint16_t addr, uint8_t old_val, uint8_t new_val);
 
 
     signals:
@@ -43,6 +45,7 @@ class DebuggerWindow : public QMainWindow {
   DisassemblyView *disassembly_view_;
   RegisterView * register_view_;
   BusView * bus_view_;
+  QLabel * watch_label_;
 
   QAction *step_action_;
   QAction *step_out_action_;

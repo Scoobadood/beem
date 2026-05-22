@@ -2,9 +2,9 @@
 #include "rom.h"
 #include "clock.h"
 
-#include <spdlog/spdlog-inl.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <fstream>
+#include <memory>
 
 /* Memory Map constants */
 const uint16_t DRAM_BASE = 0x0000;
@@ -37,18 +37,13 @@ const uint16_t MMIO_JIM_START = 0xfd00;
 const uint16_t MMIO_JIM_END = 0xfdff;
 
 Beeb::Beeb(uint8_t boot_mode) //
-    : cached_dram_bus_{0} //
+    : read_pages_{} //
+    , write_pages_{} //
+    , cached_dram_bus_{0} //
+    , cached_irq_{false} //
     , last_cassette_motor_{false} //
 {
   using namespace std;
-
-  try {
-    auto logger = spdlog::basic_logger_mt("BusDance", "logs/bus-log.txt", true);
-    logger->flush_on(spdlog::level::debug);
-  }
-  catch (const spdlog::spdlog_ex &ex) {
-    spdlog::error("Log init failed: {}", ex.what());
-  }
 
 
   // Make a common clock for most things
@@ -62,19 +57,19 @@ Beeb::Beeb(uint8_t boot_mode) //
   basic_rom_ = make_shared<Rom>("data/Basic2.rom", BASIC_ROM_BASE);
   mos_ = make_shared<Rom>("data/os120.bin", MOS_ROM_BASE);
 
-  system_via_ = new Via(0xfe40);
-  user_via_ = new Via(0xfe60);
+  system_via_ = std::make_unique<Via>(0xfe40);
+  user_via_ = std::make_unique<Via>(0xfe60);
 
-  latch_ = new IC32Latch();
+  latch_ = std::make_unique<IC32Latch>();
   system_via_->subscribe_port_b(latch_->src());
 
   // Attach Sound chip
-  sound_chip_ = new SN76489();
+  sound_chip_ = std::make_unique<SN76489>();
   latch_->subscribe(sound_chip_->we_src());
   system_via_->subscribe_port_a(sound_chip_->data_src());
 
   // Attach keyboard
-  keyboard_ = new Keyboard(0x07 - (boot_mode & 0x07));
+  keyboard_ = std::make_unique<Keyboard>(0x07 - (boot_mode & 0x07));
   latch_->subscribe(keyboard_->we_src());
   latch_->subscribe(keyboard_->cl_led_src());
   latch_->subscribe(keyboard_->sl_led_src());
@@ -102,7 +97,7 @@ Beeb::Beeb(uint8_t boot_mode) //
 
 
   // ADC
-  adc_ = new Adc(0xfec0);
+  adc_ = std::make_unique<Adc>(0xfec0);
 
 
   // Video ULA
@@ -117,6 +112,75 @@ Beeb::Beeb(uint8_t boot_mode) //
 
   // CRT
   crt_ = make_shared<Crt>(crtc_, v_ula_);
+
+  init_page_table();
+
+  // Register SHEILA devices in address order.
+  // VideoUla is excluded — see IBusDevice comment in i_bus_device.h.
+  sheila_devices_ = {
+      crtc_.get(),
+      acia_.get(),
+      s_ula_.get(),
+      system_via_.get(),
+      user_via_.get(),
+      adc_.get(),
+  };
+
+  // Only devices that can assert /IRQ. Checked every CLK_E_2_MHZ tick so
+  // kept small. Add new IRQ-capable devices here when they are implemented.
+  irq_devices_ = {
+      system_via_.get(),
+      user_via_.get(),
+      acia_.get(),
+  };
+}
+
+void Beeb::init_page_table() {
+  // All pages default to null (MMIO / unmapped)
+  memset(read_pages_,  0, sizeof(read_pages_));
+  memset(write_pages_, 0, sizeof(write_pages_));
+
+  // DRAM: pages 0x00–0x7F (32 KB)
+  uint8_t* dram_base = dram_->raw_ptr();
+  for (int p = 0x00; p <= 0x7F; ++p) {
+    read_pages_[p]  = dram_base + p * 256;
+    write_pages_[p] = dram_base + p * 256;
+  }
+
+  // BASIC ROM: pages 0x80–0xBF (read-only)
+  uint8_t* basic_base = const_cast<uint8_t*>(basic_rom_->raw_ptr());
+  for (int p = 0x80; p <= 0xBF; ++p) {
+    read_pages_[p]  = basic_base + (p - 0x80) * 256;
+    write_pages_[p] = nullptr;  // ROM: writes ignored
+  }
+
+  // MOS ROM: pages 0xC0–0xFB and 0xFF (read-only)
+  uint8_t* mos_base = const_cast<uint8_t*>(mos_->raw_ptr());
+  for (int p = 0xC0; p <= 0xFB; ++p) {
+    read_pages_[p]  = mos_base + (p - 0xC0) * 256;
+    write_pages_[p] = nullptr;
+  }
+  read_pages_[0xFF]  = mos_base + (0xFF - 0xC0) * 256;
+  write_pages_[0xFF] = nullptr;
+
+  // Pages 0xFC–0xFE: SHEILA / FRED / JIM — leave null on both tables
+  // (null read_pages_ + null write_pages_ → MMIO path)
+}
+
+uint8_t Beeb::handle_mmio_read(uint16_t addr) {
+  bus_->set_RW();
+  bus_->set_address(addr);
+  // Dispatch to the owning device by re-using their existing tick logic.
+  // Each device checks its own address range and responds if matched.
+  mos_->tick(bus_);
+  basic_rom_->tick(bus_);
+  return bus_->get_data();
+}
+
+void Beeb::handle_mmio_write(uint16_t addr, uint8_t data) {
+  bus_->clr_RW();
+  bus_->set_address(addr);
+  bus_->set_data(data);
 }
 
 void Beeb::reset() {
@@ -142,99 +206,32 @@ bool Beeb::cpu_has_address_bus() {
 }
 
 /*
- * Return true if the device is addressed at 1MHz
- * Data source from here:
- * https://beebwiki.mdfs.net/Cycle_stretching
+ * Return true if the device at addr runs on the 1MHz bus and requires
+ * cycle-stretching. FRED (0xfc00) and JIM (0xfd00) are always 1MHz pages.
+ * All other SHEILA devices report their own speed via IBusDevice.
+ * Data source: https://beebwiki.mdfs.net/Cycle_stretching
  */
 bool Beeb::is_1mhz_device_address(const std::shared_ptr<Bus> &bus) {
   auto addr = bus->get_address();
 
-  /* CRTC */
-  if (addr == MMIO_CRTC_READ_WRITE || addr == MMIO_CRTC_REG_SEL) return true;
-
-  /* ACIA */
-  if (addr >= MMIO_ACIA_START && addr <= MMIO_ACIA_END) return true;
-
-  /* SULA */
-  if (addr >= MMIO_SULA_START && addr <= MMIO_SULA_END) return true;
-
-  /* Econet station id */
-  if (addr >= MMIO_ECONET_STATID) return true;
-
-  /* Two VIAs */
-  if (addr >= MMIO_SYSTEM_VIA_START && addr <= MMIO_SYSTEM_VIA_END) return true;
-  if (addr >= MMIO_USER_VIA_START && addr <= MMIO_USER_VIA_END) return true;
-
-  if (addr >= MMIO_ADC_START && addr <= MMIO_ADC_END) return true;
+  // Fast path: DRAM (0x0000-0x7fff) and most of ROM (0x8000-0xfbff) are never
+  // 1MHz devices. This covers the vast majority of CPU accesses with one compare.
+  if (addr < MMIO_FRED_START) return false;
 
   if (addr >= MMIO_FRED_START && addr <= MMIO_FRED_END) return true;
-  if (addr >= MMIO_JIM_START && addr <= MMIO_JIM_END) return true;
+  if (addr >= MMIO_JIM_START  && addr <= MMIO_JIM_END)  return true;
 
+  for (auto* dev : sheila_devices_) {
+    if (dev->decodes(addr)) return dev->is_1mhz_device();
+  }
   return false;
 }
 
-/* Determine whether we should copy address and data from main bus or not*/
-void Beeb::pre_dram_checks() {
-  if (!cpu_has_address_bus()) {
-    spdlog::get("BusDance")->debug("PRE : CPU doesn't have control.");
-    return;
-  }
-
-  auto addr = bus_->get_address();
-  if (addr < DRAM_BASE || addr > DRAM_LAST) {
-    spdlog::get("BusDance")->debug("PRE : CPU not accessing DRAM.");
-    return;
-  }
-
-  dram_bus_->set_address(addr);
-  if (bus_->tst_RW()) {
-    dram_bus_->set_RW();
-  } else {
-    dram_bus_->clr_RW();
-    dram_bus_->set_data(bus_->get_data());
-  }
-  spdlog::get("BusDance")->debug("PRE : CPU addressing DRAM. Copied Bus to DRAM bus {:04x} {:02x} {} {}",
-                                 dram_bus_->get_address(),
-                                 dram_bus_->get_data(),
-                                 dram_bus_->tst_RW() ? "R" : "W",
-                                 dram_bus_->tst_SYNC() ? "SYN" : "   ",
-                                 dram_bus_->tst_RST() ? "RST" : "");
-}
-
-void Beeb::post_dram_checks() {
-  if (!cpu_has_address_bus()) {
-    spdlog::get("BusDance")->debug("POST: CPU doesn't have control.");
-    return;
-  }
-
-  auto addr = bus_->get_address();
-  if (addr < DRAM_BASE || addr > DRAM_LAST) {
-    spdlog::get("BusDance")->debug("POST: CPU didn't access DRAM.");
-    return;
-  }
-
-  if (bus_->tst_RW()) {
-    bus_->set_data(dram_bus_->get_data());
-  }
-  spdlog::get("BusDance")->debug("POST: CPU had DRAM control and {} {:02x} {} {:04x}. {}",
-                                 bus_->tst_RW() ? "read" : "wrote",
-                                 bus_->get_data(),
-                                 bus_->tst_RW() ? "from" : "to",
-                                 bus_->get_address(),
-                                 bus_->tst_RW() ? "Main bus updated" : ""
-  );
-}
 
 void Beeb::tick() {
   clock_->tick();
 
   if (clock_->went_high(CLK_2_MHZ)) {
-    spdlog::get("BusDance")->debug("BEEB: 2MHz went high. Cached DRAM bus {:04x} {:02x} {} {}",
-                                   dram_bus_->get_address(),
-                                   dram_bus_->get_data(),
-                                   dram_bus_->tst_RW() ? "R" : "W",
-                                   dram_bus_->tst_SYNC() ? "SYN" : "   ",
-                                   dram_bus_->tst_RST() ? "RST" : "");
     cached_dram_bus_ = dram_bus_->get_pins();
   }
 
@@ -242,73 +239,83 @@ void Beeb::tick() {
   // Bus RW in high phase. We're phaking it so we just go
   // Off the high phase which also makes the isolation code work.
   if (clock_->went_high(CLK_E_2_MHZ)) {
-    spdlog::get("BusDance")->debug("BEEB: 2MHzE went high. CPU starting work.");
-
-    if (system_via_->has_irq() || acia_->has_irq()) cpu_->raise_irq();
-    else cpu_->clear_irq();
+    if (cached_irq_) cpu_->raise_irq(); else cpu_->clear_irq();
 
     cpu_->tick(bus_);
-    spdlog::get("BusDance")->debug("CPU  : finished work. Main bus {:04x} {:02x} {} {}",
-                                   bus_->get_address(),
-                                   bus_->get_data(),
-                                   bus_->tst_RW() ? "R" : "W",
-                                   bus_->tst_SYNC() ? "SYN" : "   ",
-                                   bus_->tst_RST() ? "RST" : "");
 
     if (is_1mhz_device_address(bus_)) {
       clock_->begin_time_stretch();
     }
 
   }
-  // Allow for DRAM Access
+  // Memory access
   if (clock_->went_high(CLK_4_MHZ)) {
-    spdlog::get("BusDance")->debug("BEEB: 4MHz went high. {} should have control",
-                                   clock_->is_high(CLK_2_MHZ) ? " CPU" : "CRTC");
-    pre_dram_checks();
-    dram_->tick(dram_bus_);
-    post_dram_checks();
+    if (cpu_has_address_bus()) {
+      // CPU phase: O(1) page-table dispatch
+      uint16_t addr = bus_->get_address();
+      uint8_t page = addr >> 8;
 
-    // Don't tick MOS for MMIO devices.
-    if (bus_->get_address() <= 0xfc00 || bus_->get_address() >= 0xff00)
-      mos_->tick(bus_);
-
-    basic_rom_->tick(bus_);
+      if (bus_->tst_RW()) {
+        // Read
+        if (read_pages_[page]) {
+          bus_->set_data(read_pages_[page][addr & 0xFF]);
+        }
+        // else: MMIO read — devices tick themselves at 1MHz (CLK_1_MHZ handler)
+      } else {
+        // Write
+        if (write_pages_[page]) {
+          write_pages_[page][addr & 0xFF] = bus_->get_data();
+        }
+        // else: ROM write (ignored) or MMIO write (handled at 1MHz)
+      }
+    } else {
+      // CRTC phase: still uses dram_bus_ — unchanged until Phase D
+      dram_->tick(dram_bus_);
+    }
   }
 
   if (clock_->went_low(CLK_2_MHZ)) {
     dram_bus_->set_pins(cached_dram_bus_);
-    spdlog::get("BusDance")->debug("BEEB: 2MHz went low. DRAM bus restored {:04x} {:02x} {} {}",
-                                   dram_bus_->get_address(),
-                                   dram_bus_->get_data(),
-                                   dram_bus_->tst_RW() ? "R" : "W",
-                                   dram_bus_->tst_SYNC() ? "SYN" : "   ",
-                                   dram_bus_->tst_RST() ? "RST" : "");
   }
 
 /* Tick the 1MHz stuff */
   if (clock_->went_low(CLK_1_MHZ)) {
     keyboard_->tick();
 
-    system_via_->tick(bus_);
-    user_via_->tick(bus_);
+    // VIA timers must tick every 1MHz cycle regardless of CPU address.
+    // MMIO is handled via the SHEILA registry dispatch below.
+    system_via_->tick_timers();
+    user_via_->tick_timers();
 
     latch_->tick();
 
-    /*
-     * Always poke CRTC to read bus at 1MHz because
-     *
-     * "Enable (E) - The enable signal is a high-impedance TTL/MOS
-     * compatible input which enables the data bus input/output
-     * buffers and clocks data to and from the CRTC. This Signal
-     * is usually derived from the processor clock. The high-to-low
-     * transition is the active edge."
-     */
-    crtc_->tick(bus_);
+    auto addr = bus_->get_address();
+    if ((addr & 0xff00) == 0xfe00) {
+      // Watch for VIA Timer 1 and IER writes specifically
+      if (!bus_->tst_RW() && (addr == 0xfe45 || addr == 0xfe4e)) {
+        spdlog::info("SHEILA VIA key write: addr={:04x} data={:02x}", addr, bus_->get_data());
+      }
+      for (auto* dev : sheila_devices_) {
+        if (dev->decodes(addr)) { dev->tick(bus_); break; }
+      }
+    }
 
 //    sound_chip_->tick();
-    acia_->tick(bus_);
-//    adc_->tick(bus_);
-    s_ula_->tick(bus_);
+
+    // Update IRQ cache after all 1MHz device ticks — IRQ state can only change here.
+    cached_irq_ = false;
+    for (auto* dev : irq_devices_) cached_irq_ |= dev->has_irq();
+
+    // Step 6 diagnostic: log first IRQ delivery and which device raised it.
+    static bool first_irq_logged = false;
+    if (!first_irq_logged && cached_irq_) {
+      first_irq_logged = true;
+      spdlog::info("BEEB: First IRQ — sysvia={} uservia={} acia={}",
+                   irq_devices_[0]->has_irq(),
+                   irq_devices_[1]->has_irq(),
+                   irq_devices_[2]->has_irq());
+    }
+
     // notify listeners of stuff
     auto scm = s_ula_->is_motor_on();
     if (scm != last_cassette_motor_) {
@@ -437,4 +444,11 @@ void Beeb::load_data(const std::vector<uint8_t> &data, uint16_t address) {
 
 void Beeb::add_cassette_listener(const std::function<void(bool)> &listener) {
   cassette_listeners_.push_back(listener);
+}
+
+void Beeb::set_cassette_port(ICassettePort* port) {
+  s_ula_->set_cassette_port(port);
+  // Sync current motor state so the port doesn't start cold.
+  if (port)
+    port->set_motor(s_ula_->is_motor_on());
 }

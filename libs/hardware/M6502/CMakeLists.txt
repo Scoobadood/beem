@@ -11,7 +11,7 @@ target_include_directories(M6502
 
 target_link_libraries(M6502
         PUBLIC
-        Bus
+        Core
         DRAM)
 
 add_subdirectory(tests)

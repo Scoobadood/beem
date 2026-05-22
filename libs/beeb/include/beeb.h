@@ -19,6 +19,9 @@
 #include "crt.h"
 #include "clock.h"
 #include "../../hardware/2C198_sULA/include/2c198_sula.h"
+#include "../../hardware/2C198_sULA/include/i_cassette_port.h"
+#include "i_bus_device.h"
+#include <vector>
 
 class Beeb {
 public:
@@ -49,14 +52,20 @@ public:
 
   void add_cassette_listener(const std::function<void(bool)>& listener);
 
+  // Plug a cassette port device into the machine's serial port connector.
+  // Ownership stays with the caller. Pass nullptr to disconnect.
+  void set_cassette_port(ICassettePort* port);
+
  private:
   bool cpu_has_address_bus();
 
-  void pre_dram_checks();
+  void init_page_table();
 
-  void post_dram_checks();
+  uint8_t handle_mmio_read(uint16_t addr);
 
-  static bool is_1mhz_device_address(const std::shared_ptr<Bus> &bus);
+  void handle_mmio_write(uint16_t addr, uint8_t data);
+
+  bool is_1mhz_device_address(const std::shared_ptr<Bus> &bus);
 
   std::shared_ptr<Clock> clock_;
   std::shared_ptr<M6502> cpu_;
@@ -71,15 +80,31 @@ public:
   std::shared_ptr<Crtc> crtc_;
   std::shared_ptr<Crt> crt_;
 
-  Via *system_via_;
-  Via *user_via_;
-  IC32Latch *latch_;
-  SN76489 *sound_chip_;
-  Keyboard *keyboard_;
+  std::unique_ptr<Via> system_via_;
+  std::unique_ptr<Via> user_via_;
+  std::unique_ptr<IC32Latch> latch_;
+  std::unique_ptr<SN76489> sound_chip_;
+  std::unique_ptr<Keyboard> keyboard_;
   std::shared_ptr<Acia> acia_;
-  Adc *adc_;
+  std::unique_ptr<Adc> adc_;
+
+  // Page dispatch table — indexed by addr >> 8.
+  // Non-null: pointer to first byte of that 256-byte page (DRAM or ROM).
+  // Null on read_pages_: MMIO or unmapped.
+  // Null on write_pages_: ROM (ignore write) or MMIO (if read_pages_ also null).
+  uint8_t*       read_pages_[256];
+  uint8_t*       write_pages_[256];
+
+  // SHEILA device registry — used for MMIO dispatch and cycle-stretch detection.
+  // Does not own the devices; existing members do.
+  std::vector<IBusDevice*> sheila_devices_;
+
+  // Subset of sheila_devices_ that can raise /IRQ. Kept separate so the IRQ
+  // aggregation loop (runs every CLK_E_2_MHZ tick) stays O(k) where k is small.
+  std::vector<IBusDevice*> irq_devices_;
 
   uint64_t cached_dram_bus_;
+  bool cached_irq_;
 
   std::vector<std::function<void(bool)>> cassette_listeners_;
   bool last_cassette_motor_;

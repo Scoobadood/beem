@@ -2,10 +2,8 @@
 
 #include <utility>
 #include <vector>
-#include <iostream>
 #include <fstream>
 #include <sstream>
-#include <iomanip>
 
 #include "zlib.h"
 #include "spdlog/spdlog.h"
@@ -64,7 +62,7 @@ int decompress_gzip(const std::vector<uint8_t> &compressed_data, std::vector<uin
     }
     ret = inflate(&strm, Z_NO_FLUSH);
     if (ret == Z_DATA_ERROR) {
-      std::cerr << "Data error during decompression" << std::endl;
+      spdlog::error("Data error during decompression");
       break;
     }
     // We may have multiple concatenated GZip segments.
@@ -94,15 +92,13 @@ int decompress_gzip(const std::vector<uint8_t> &compressed_data, std::vector<uin
 
 std::unique_ptr<std::istream>
 unzip_file_to_stream(std::unique_ptr<std::ifstream> &uef_file) {
-  std::cout << "File is GZipped" << std::endl;
+  spdlog::debug("UEF: file is GZipped");
 
   uef_file->seekg(0, std::ios::seekdir::end);
   auto file_size = uef_file->tellg();
   uef_file->seekg(0, std::ios::beg);
 
-  std:: cout << "        zipped length: "  << std::dec << file_size << " bytes"
-                                     << "(0x" << std::hex << std::setw(10) << std::setfill('0')
-                                     << file_size << ")" << std::endl;
+  spdlog::debug("UEF:   zipped length: {} bytes", static_cast<size_t>(file_size));
 
   // Allocate a buffer large enough to hold the zipped file
   std::vector<uint8_t> buffer(file_size);
@@ -114,9 +110,7 @@ unzip_file_to_stream(std::unique_ptr<std::ifstream> &uef_file) {
   std::vector<uint8_t> output;
   decompress_gzip(buffer, output);
 
-  std::cout << "  uncompressed length: "  << std::dec << file_size << " bytes"
-            << "(0x" << std::hex << std::setw(10) << std::setfill('0')
-            << file_size << ")" << std::endl;
+  spdlog::debug("UEF: uncompressed length: {} bytes", output.size());
 
   // Wrap the output into a stream and return it
   std::string str(output.begin(), output.end());
@@ -146,11 +140,12 @@ void check_header(std::unique_ptr<std::istream> &uef_stream) {
 }
 
 /*
- * Read single byte major and minor versions
+ * Read single byte major and minor versions.
+ * Spec: 1 byte minor, then 1 byte major (little-endian version ordering).
  */
-void read_version(std::unique_ptr<std::istream> &uef_stream, int8_t &major, int8_t &minor) {
-  uef_stream->get((char &) major);
+void read_version(std::unique_ptr<std::istream> &uef_stream, uint8_t &major, uint8_t &minor) {
   uef_stream->get((char &) minor);
+  uef_stream->get((char &) major);
 }
 
 /**
@@ -198,7 +193,7 @@ UefData UefData::FromFile(const std::string &file_name) {
     spdlog::error(msg);
     throw std::runtime_error(msg);
   }
-  std::cout << "Reading from file " << file_name << std::endl;
+  spdlog::debug("UEF: reading from file {}", file_name);
 
   // This file may be a gzip archive in which case unzip it first
   std::unique_ptr<std::istream> uef_stream;

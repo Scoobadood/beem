@@ -7,22 +7,39 @@
 
 #include "bus.h"
 #include "data_connectors.h"
+#include "i_bus_device.h"
 #include <cstdint>
+#include <spdlog/spdlog.h>
 
-class Acia {
+class Acia : public IBusDevice {
  public:
   explicit Acia(uint16_t base_addr);
 
-  void tick(const std::shared_ptr<Bus> &bus);
+  void tick(const std::shared_ptr<Bus>& bus) override;
+  [[nodiscard]] bool decodes(uint16_t addr) const override { return addr >= base_addr_ && addr <= base_addr_ + 7; }
+  [[nodiscard]] bool is_1mhz_device() const override { return true; }
+  // IRQ is active low
+  [[nodiscard]] bool has_irq() const override { return irq_asserted_; }
+
   void tx_clock();
   void rx_clock();
-  // IRQ is active low
-  [[nodiscard]] inline bool has_irq() const { return !irq_; }
+
+  // Set the RX data line state (called by the cassette player / sULA each
+  // rx_clock tick before calling rx_clock()).
+  void set_rx_data(bool bit);
+
+  // Current TX output pin state (read by sULA / cassette player each
+  // tx_clock tick).
+  [[nodiscard]] bool tx_pin() const;
+
+  // Returns the current RX clock divisor (1, 16, or 64).
+  // Used by the sULA to advance the tape at the correct baud rate.
+  [[nodiscard]] uint8_t clk_divisor() const { return clk_divisor_; }
 
   void clear_cts();
   void raise_cts();
-  void clear_dcd();
-  void raise_dcd();
+  void drop_carrier();
+  void apply_carrier();
 
  private:
   void perform_master_reset();
@@ -42,8 +59,11 @@ class Acia {
   void tdr_went_empty();
   void cts_went_active_low();
   void cts_went_inactive_high();
-  void dcd_went_active_low();
-  void dcd_went_inactive_high();
+  void carrier_detected();
+  void carrier_dropped();
+  void rx_receive_data_bit();
+  void rx_receive_parity_bit();
+  void rx_receive_stop_bit();
 
   void mmio_read(uint16_t addr, const std::shared_ptr<Bus> &bus);
   void read_rdr(const std::shared_ptr<Bus> &bus);
@@ -52,7 +72,9 @@ class Acia {
   void mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus);
   void write_tdr(uint8_t data);
 
-  bool is_in_power_on_reset_;
+  bool irq_asserted_ = false;
+
+  bool needs_power_on_reset_;
 
   /* Control register */
   uint32_t tx_clock_ticks_;
@@ -81,19 +103,24 @@ class Acia {
     SEND_STOP_BIT_2 = 5
   } state_;
 
+  bool tx_break_;
+
   /*
    * Receiving data
    */
+  bool rx_data_;     // current state of the RX data input line
   bool rdr_is_full_;
   bool rdr_was_read_;
   bool parity_error_;
   bool overrun_error_pending_;
   bool overrun_error_;
+  enum RxState { RX_IDLE, RX_START, RX_DATA_STATE, RX_PARITY, RX_STOP } rx_state_;
+  uint8_t rx_shift_count_;
+  uint8_t rx_clock_count_;
+  uint8_t rx_parity_calc_;
   bool sr2_high_wait_for_sr_read_;
   bool sr2_high_wait_for_data_read_;
 
-  /* IRQ */
-  bool irq_;
  protected:
   void write_ctl(uint8_t data);
 
@@ -107,7 +134,8 @@ class Acia {
   uint16_t base_addr_;
   bool cts_;
 
-  bool dcd_;
+  bool carrier_present_;
+  std::shared_ptr<spdlog::logger> logger_;
 };
 
 #endif // BEEB_HARDWARE_ACIA_6850_H_

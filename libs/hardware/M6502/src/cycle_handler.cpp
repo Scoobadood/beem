@@ -1,13 +1,11 @@
 #include "cycle_handler.h"
 
-extern const std::map<uint16_t, CycleHandler> cycle_handlers;
+// ir_ is built as (8-bit opcode << 4) | 4-bit cycle counter.
+// Maximum value: 0xFF << 4 | 0xF = 0xFFF, so 0x1000 entries cover all cases.
+static CycleHandler handler_table[0x1000] = {};
 
 CycleHandler cycle_handler(uint16_t ir) {
-  auto iter = cycle_handlers.find(ir);
-  if (iter == cycle_handlers.end()) {
-    return nullptr;
-  }
-  return iter->second;
+  return handler_table[ir];
 }
 
 /**
@@ -3271,3 +3269,14 @@ const std::map<uint16_t, CycleHandler> cycle_handlers = {
         }
         },
 };
+
+// Populate the flat lookup table from the map once at startup.
+// Static init order within this TU is top-to-bottom, so cycle_handlers
+// is fully constructed before table_ready runs.
+static bool init_handler_table() {
+  for (auto const &p : cycle_handlers) {
+    handler_table[p.first] = p.second;
+  }
+  return true;
+}
+static bool table_ready = init_handler_table();

@@ -13,16 +13,16 @@ class UefData {
   explicit UefData(std::unique_ptr<std::istream> &uef_stream);
   static UefData FromStream(std::unique_ptr<std::istream> &uef_stream);
   static UefData FromFile(const std::string &file_name);
-  inline int8_t MajorVersion() const { return major_version_; }
-  inline int8_t MinorVersion() const { return minor_version_; }
-  inline std::string StringVersion() const { return fmt::format("{}.{}", major_version_, minor_version_); }
+  inline uint8_t MajorVersion() const { return major_version_; }
+  inline uint8_t MinorVersion() const { return minor_version_; }
+  inline std::string StringVersion() const { return fmt::format("{}.{}", (int)major_version_, (int)minor_version_); }
   const std::vector<std::shared_ptr<Chunk>> &Chunks() const;
 
  private:
   void ReadChunks(std::unique_ptr<std::istream> &uef_stream);
 
-  int8_t major_version_;
-  int8_t minor_version_;
+  uint8_t major_version_;
+  uint8_t minor_version_;
   std::vector<std::shared_ptr<Chunk>> chunks_;
 
 };

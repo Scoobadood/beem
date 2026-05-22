@@ -1,11 +1,13 @@
 #ifndef BEEB_INCLUDE_BREAKPOINT_DIALOG_H_
 #define BEEB_INCLUDE_BREAKPOINT_DIALOG_H_
 
+#include <optional>
 #include <QObject>
 #include <QDialog>
 #include <QLineEdit>
 #include <QDialogButtonBox>
 #include <QListWidget>
+#include <QTabWidget>
 
 #include "breakpoint_manager.h"
 
@@ -19,18 +21,51 @@ class BreakpointDlg : public QDialog {
 
  private:
   void setup_ui();
+
+  // Breakpoint tab slots
   void add_breakpoint();
   void delete_current_breakpoints();
   void delete_all_breakpoints();
-  static QString bp_to_qstring(uint16_t bp);
-  bool qstring_to_bp(QString bps, uint16_t & bp);
+
+  // Watch tab slots
+  void add_watch();
+  void delete_current_watches();
+  void delete_all_watches();
+
+  // Logpoint tab slots
+  void add_logpoint();
+  void delete_current_logpoints();
+  void delete_all_logpoints();
+
+  static QString addr_to_qstring(uint16_t addr);
+  static QString watch_to_qstring(uint16_t addr, std::optional<uint8_t> tv);
+  static QString logpoint_to_qstring(uint16_t pc_addr, std::optional<uint16_t> mem_addr);
+  static bool qstring_to_addr(const QString& s, uint16_t& addr);
 
   BreakpointManager * breakpoint_manager_;
-  QLineEdit *te_new_brk_;
-  QDialogButtonBox *btn_box_;
-  QPushButton *btn_remove_;
-  QPushButton *btn_remove_all_;
-  QListWidget *lst_brk_;
+
+  // Breakpoints tab widgets
+  QLineEdit    *te_new_brk_;
+  QListWidget  *lst_brk_;
+  QPushButton  *btn_remove_;
+  QPushButton  *btn_remove_all_;
+
+  // Watches tab widgets
+  QLineEdit    *te_new_watch_;       // address input
+  QLineEdit    *te_new_watch_value_; // optional trigger value (empty = any)
+  QListWidget  *lst_watch_;
+  QPushButton  *btn_watch_remove_;
+  QPushButton  *btn_watch_remove_all_;
+
+  // Logpoints tab widgets
+  QLineEdit    *te_new_logpt_pc_;    // PC address to log at
+  QLineEdit    *te_new_logpt_mem_;   // optional memory address to read
+  QListWidget  *lst_logpt_;
+  QPushButton  *btn_logpt_remove_;
+  QPushButton  *btn_logpt_remove_all_;
+
+  QTabWidget        *tab_widget_;
+  QDialogButtonBox  *btn_box_;
 };
 
 #endif // BEEB_INCLUDE_BREAKPOINT_DIALOG_H_

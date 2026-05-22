@@ -15,6 +15,7 @@ class IntegerGap : public Chunk {
   ~IntegerGap() override = default;
 
   std::string Description() const override;
+  uint16_t Duration() const { return duration_; }
 
  private:
   uint16_t duration_;

@@ -30,16 +30,16 @@ void Clock::begin_time_stretch() {
 void Clock::tick() {
   clks_prev_ = clks_;
 
-  ticks_ = (ticks_ + 1) % 16;
+  ticks_ = (ticks_ + 1) & 15;
 
   clks_ ^= CLK_16_MHZ;
-  if (ticks_ % 2 == 0) clks_ ^= CLK_8_MHZ;
-  if (ticks_ % 4 == 0) clks_ ^= CLK_4_MHZ;
-  if (ticks_ % 8 == 0) clks_ ^= CLK_2_MHZ;
-  if (ticks_ % 16 == 0) clks_ ^= CLK_1_MHZ;
+  if ((ticks_ & 1)  == 0) clks_ ^= CLK_8_MHZ;
+  if ((ticks_ & 3)  == 0) clks_ ^= CLK_4_MHZ;
+  if ((ticks_ & 7)  == 0) clks_ ^= CLK_2_MHZ;
+  if ((ticks_ & 15) == 0) clks_ ^= CLK_1_MHZ;
 
   // Varies with time stretching
-  if (ticks_ % 8 == 0) {
+  if ((ticks_ & 7) == 0) {
     bool should_flip = true;
     if (stretch_time_ > 0) {
       should_flip = stretch_seq_[--stretch_time_];

@@ -20,9 +20,11 @@
 #include "bus.h"
 #include "clock.h"
 #include "data_connectors.h"
+#include "i_bus_device.h"
 
 #include <cstdint>
 #include <string>
+#include <spdlog/spdlog.h>
 
 const uint8_t VSYNC_DISP_ENABLE = 1 << 0;
 const uint8_t HSYNC_DISP_ENABLE = 1 << 1;
@@ -34,13 +36,15 @@ const uint8_t EVERYTHING_ENABLED =
     VSYNC_DISP_ENABLE | HSYNC_DISP_ENABLE | SKEW_DISP_ENABLE | SCANLINE_DISP_ENABLE | USER_DISP_ENABLE
         | FRAME_SKIP_ENABLE;
 
-class Crtc {
+class Crtc : public IBusDevice {
  public:
   explicit Crtc(uint16_t base_addr);
 
   ~Crtc() = default;
 
-  void tick(const std::shared_ptr<Bus> &bus);
+  void tick(const std::shared_ptr<Bus>& bus) override;
+  [[nodiscard]] bool decodes(uint16_t addr) const override { return addr == base_addr_ || addr == base_addr_ + 1; }
+  [[nodiscard]] bool is_1mhz_device() const override { return true; }
 
   void generate_next_address(const std::shared_ptr<Bus> &dram_bus);
 
@@ -198,6 +202,8 @@ class Crtc {
   data_subscriber_8_bit_ptr hw_scroll_addr_;
 
   data_provider_8_bit_ptr irq_provider_;
+  std::shared_ptr<spdlog::logger> logger_;
+  std::shared_ptr<spdlog::logger> bus_dance_logger_;
 };
 
 #endif // BEEB_HARDWARE_6845_CRTC_H_

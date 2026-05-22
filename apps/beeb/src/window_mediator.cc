@@ -1,6 +1,8 @@
 #include "window_mediator.h"
 #include "breakpoint_dialog.h"
+#include "history_window.h"
 #include <QMenuBar>
+#include <QFileDialog>
 
 const QString SHOW_DEBUGGER = "Show &Debugger";
 const QString HIDE_DEBUGGER = "Hide &Debugger";
@@ -30,18 +32,24 @@ WindowMediator::WindowMediator(
   toggle_cassette_view_action_ = new QAction(SHOW_CASSETTE, this);
 
   // Debugger only
-  load_symbols_action_ = new QAction("Load symbols", this);
-  add_breakpoint_action_ = new QAction("Add Breakpoint", this);
-  load_uef_action_ = new QAction("Load UEF", this);
-  toggle_trace_action_ = new QAction(ENABLE_TRACING, this);
+  load_symbols_action_     = new QAction("Load symbols", this);
+  add_breakpoint_action_   = new QAction("Add Breakpoint", this);
+  save_breakpoints_action_ = new QAction("Save Breakpoints...", this);
+  load_breakpoints_action_ = new QAction("Load Breakpoints...", this);
+  show_history_action_     = new QAction("Show History", this);
+  load_uef_action_         = new QAction("Load UEF", this);
+  toggle_trace_action_     = new QAction(ENABLE_TRACING, this);
 
   setup_main_window_menu();
   setup_debugger_window_menu();
   setup_memory_window_menu();
   setup_cassette_window_menu();
 
-  assert(connect(load_symbols_action_, &QAction::triggered, debugger_window_, &DebuggerWindow::load_symbols));
-  assert(connect(add_breakpoint_action_, &QAction::triggered, this, &WindowMediator::edit_breakpoints));
+  assert(connect(load_symbols_action_,     &QAction::triggered, debugger_window_, &DebuggerWindow::load_symbols));
+  assert(connect(add_breakpoint_action_,   &QAction::triggered, this, &WindowMediator::edit_breakpoints));
+  assert(connect(save_breakpoints_action_, &QAction::triggered, this, &WindowMediator::save_breakpoints));
+  assert(connect(load_breakpoints_action_, &QAction::triggered, this, &WindowMediator::load_breakpoints));
+  assert(connect(show_history_action_,     &QAction::triggered, this, &WindowMediator::show_history));
 
   assert(connect(toggle_debugger_action_, &QAction::triggered, [this]() {
     if (toggle_debugger_action_->text() == SHOW_DEBUGGER) {
@@ -83,6 +91,10 @@ WindowMediator::WindowMediator(
   assert(connect(cassette_window_, &CassetteWindow::load_cassette_file,[&](const std::shared_ptr<TapeFile>& tf){
     beeb_worker_->load_code(tf->data, tf->load_addr);
   }));
+
+  assert(connect(cassette_window_, &CassetteWindow::tape_inserted, [&](std::shared_ptr<UefData> uef) {
+    beeb_worker_->load_tape(std::move(uef));
+  }));
 }
 
 void WindowMediator::edit_breakpoints() {
@@ -99,6 +111,9 @@ void WindowMediator::setup_debugger_window_menu() {
   auto debugger_menu = debugger_window_->menuBar()->addMenu(tr("&Debugger"));
   debugger_menu->addAction(load_symbols_action_);
   debugger_menu->addAction(add_breakpoint_action_);
+  debugger_menu->addAction(save_breakpoints_action_);
+  debugger_menu->addAction(load_breakpoints_action_);
+  debugger_menu->addAction(show_history_action_);
   debugger_menu->addAction(load_uef_action_);
 
   auto trace_menu = debugger_window_->menuBar()->addMenu(tr("&Trace"));
@@ -155,6 +170,31 @@ void WindowMediator::trace_on(){
 void WindowMediator::trace_off(){
   toggle_trace_action_->setText(ENABLE_TRACING);
   beeb_worker_->disable_tracing();
+}
+
+void WindowMediator::show_history() {
+  auto history = beeb_worker_->engine().instruction_history();
+  auto* win = new HistoryWindow(std::move(history),
+                                debugger_window_->view()->disassembler(),
+                                debugger_window_);
+  win->setAttribute(Qt::WA_DeleteOnClose);
+  win->show();
+}
+
+void WindowMediator::save_breakpoints() {
+  auto path = QFileDialog::getSaveFileName(debugger_window_,
+                                           "Save Breakpoints", "",
+                                           "Breakpoint Files (*.bp);;All Files (*)");
+  if (path.isNull() || path.isEmpty()) return;
+  breakpoint_manager_->save_to_file(path.toStdString());
+}
+
+void WindowMediator::load_breakpoints() {
+  auto path = QFileDialog::getOpenFileName(debugger_window_,
+                                           "Load Breakpoints", "",
+                                           "Breakpoint Files (*.bp);;All Files (*)");
+  if (path.isNull() || path.isEmpty()) return;
+  breakpoint_manager_->load_from_file(path.toStdString());
 }
 
 

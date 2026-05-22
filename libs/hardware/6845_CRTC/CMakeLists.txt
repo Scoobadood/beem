@@ -6,8 +6,7 @@ target_include_directories(6845_CRTC PUBLIC
         include)
 
 target_link_libraries(6845_CRTC PUBLIC
-        Bus
-        Common)
+        Core)
 
 
 

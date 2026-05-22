@@ -3,16 +3,22 @@
 
 #include "bus.h"
 #include "data_connectors.h"
+#include "i_bus_device.h"
 
 #include <cstdint>
 #include <set>
 #include <string>
+#include <spdlog/spdlog.h>
 
-class Via {
+class Via : public IBusDevice {
 public:
   explicit Via(uint16_t base_address);
 
-  void tick(const std::shared_ptr<Bus> &bus);
+  // IBusDevice: handles MMIO only; timer ticking is done separately via tick_timers().
+  void tick(const std::shared_ptr<Bus>& bus) override;
+  [[nodiscard]] bool decodes(uint16_t addr) const override { return addr >= base_address_ && addr <= base_address_ + 0x0f; }
+  [[nodiscard]] bool is_1mhz_device() const override { return true; }
+  [[nodiscard]] bool has_irq() const override { return irq_active_; }
 
   void subscribe_port_a(const data_subscriber_8_bit_ptr &subscriber);
 
@@ -34,7 +40,9 @@ public:
 
   void set_cb1(uint8_t state);
 
-  [[nodiscard]] bool has_irq() const;
+  void tick_timers();
+
+  void check_mmio(const std::shared_ptr<Bus> &bus);
 
 private:
   void raise_irq(uint8_t irq);
@@ -51,9 +59,9 @@ private:
 
   void check_ca2();
 
-  void check_mmio(const std::shared_ptr<Bus> &bus);
-
   void write_irq_enable(uint8_t data);
+
+  void update_irq_cache();
 
   void write_pcr(uint8_t data);
 
@@ -113,8 +121,11 @@ private:
   std::set<data_provider_8_bit_ptr> ca2_providers_;
   std::set<data_provider_8_bit_ptr> ca1_providers_;
 
+  bool irq_active_;
+
   // My name (to distinguish multiple VIAs)
   std::string via_name_;
+  std::shared_ptr<spdlog::logger> logger_;
 };
 
 #endif //BEEB_HARDWARE_6522_VIA_INCLUDE_H_

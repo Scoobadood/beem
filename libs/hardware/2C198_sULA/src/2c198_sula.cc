@@ -10,13 +10,15 @@
 const uint16_t WO_SCR = 0;
 
 SerialUla::SerialUla(uint16_t base_addr)
-    : base_addr_{base_addr} //
+  : base_addr_{base_addr} //
 {
+  spdlog::drop("sULA");
   try {
     auto logger = spdlog::basic_logger_mt("sULA", "logs/sULA.txt", true);
+    logger->set_level(spdlog::level::trace);
     logger->flush_on(spdlog::level::trace);
-  }
-  catch (const spdlog::spdlog_ex &ex) {
+    logger->info("SerialUla constructed at base {:04x}", base_addr);
+  } catch (const spdlog::spdlog_ex &ex) {
     spdlog::error("Log init failed: {}", ex.what());
   }
 }
@@ -36,18 +38,8 @@ SerialUla::maybe_rw(const std::shared_ptr<Bus> &bus) {
 void
 SerialUla::tick(const std::shared_ptr<Bus> &bus) {
   maybe_rw(bus);
-
-  // Check for carrier detect
-  if (acia_) {
-    /* TODO: Hacky override to simulate the DCD - disabled in case FS calls are slowing shiz down.*/
-//    std::ifstream dcd("dcd");
-//    if (dcd.good()) {
-//      acia_->raise_dcd();
-//    } else {
-//      acia_->clear_dcd();
-//    }
-  }
 }
+
 void SerialUla::tick_16mhz() {
   maybe_tx_clock_tick();
   maybe_rx_clock_tick();
@@ -113,7 +105,10 @@ SerialUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
   }
 
   auto data = bus->get_data();
+  auto old_motor_state = serial_control_register_ & 0x80;
   serial_control_register_ = data;
+  auto new_motor_state = serial_control_register_ & 0x80;
+  auto motor_state_changed = (old_motor_state != new_motor_state);
   /*
    * These define the transmit baud rate so that 000 generates 19200 baud and 111 generates
    * 75 baud. Note that this relies upon the 6850 control register being set to divide the
@@ -122,7 +117,11 @@ SerialUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
   decode_clock_bits(data & 0x07, tx_baud_, tx_clock_divider_);
   tx_clock_counter_ = 13 * tx_clock_divider_;
   decode_clock_bits((data >> 3) & 0x07, rx_baud_, rx_clock_divider_);
-  rx_clock_counter_ = 13 * rx_clock_divider_;
+  // In cassette mode the FSK decoder generates the RX clock at a fixed ~19,200 Hz
+  // rate (divider=64) regardless of SCR bits 3-5. The programmable RX divider only
+  // applies to RS423 mode. (AUG 20.6.1: "the serial ULA is always set to 300 baud
+  // for cassette, so division by 64 actually generates 300 baud.")
+  rx_clock_counter_ = 13 * effective_rx_divider();
 
   spdlog::get("sULA")->info("Serial Control Written. CM: {}, Sel: {}, Rx: {}, Tx: {}",
                             (data & 0x80) ? "on" : "off",
@@ -137,6 +136,22 @@ SerialUla::mmio_write(uint16_t addr, const std::shared_ptr<Bus> &bus) {
       acia_->clear_cts();
     } else {
       acia_->raise_cts();
+    }
+  }
+
+  if (cassette_port_ && motor_state_changed) {
+    cassette_port_->set_motor(new_motor_state);
+    if (acia_ && !is_rs423_selected()) {
+      if (new_motor_state == 0) {
+        // Motor off: no tape movement = no carrier.
+        carrier_bit_count_ = 0;
+        acia_->drop_carrier();
+        spdlog::get("sULA")->info("Motor off");
+      } else {
+        // Carrier detection is handled by the tick loop — it must count
+        // CARRIER_LOCK_THRESHOLD consecutive carrier bits before apply_carrier().
+        spdlog::get("sULA")->info("Motor on, waiting for carrier lock");
+      }
     }
   }
 }
@@ -165,17 +180,59 @@ void SerialUla::maybe_tx_clock_tick() {
   tx_clock_counter_ = 13 * tx_clock_divider_;
   if (acia_) {
     acia_->tx_clock();
+    if (cassette_port_ && !is_rs423_selected())
+      cassette_port_->tx_bit(acia_->tx_pin());
   }
 }
 
 void SerialUla::maybe_rx_clock_tick() {
   if (--rx_clock_counter_ != 0) return;
-  rx_clock_counter_ = 13 * rx_clock_divider_;
-  if (acia_) {
-    acia_->rx_clock();
+  rx_clock_counter_ = 13 * effective_rx_divider();
+
+  // TODO: Handle RS423 later.
+  if (!acia_ || is_rs423_selected() || !cassette_port_) {
+    return;
   }
+
+  // The tape stream runs at the baud rate, not the ACIA external clock rate.
+  // Advance the tape only once per clk_divisor rx_clock() ticks so each
+  // bit stays stable for the full bit period (required by ACIA start-bit
+  // false-deletion: needs clk_divisor/2 consecutive matching samples).
+  if (++rx_tape_counter_ >= (uint32_t) acia_->clk_divisor()) {
+    rx_tape_counter_ = 0;
+    current_rx_bit_ = cassette_port_->rx_data();
+
+    if (cassette_port_->has_carrier()) {
+      // Count consecutive carrier bits; only assert DCD once locked on.
+      if (++carrier_bit_count_ == CARRIER_LOCK_THRESHOLD) {
+        spdlog::get("sULA")->info("Carrier lock acquired after {} bits", CARRIER_LOCK_THRESHOLD);
+        acia_->apply_carrier();
+      }
+    } else {
+      // Gap or end of tape — drop carrier and reset lock counter.
+      if (carrier_bit_count_ >= CARRIER_LOCK_THRESHOLD)
+        acia_->drop_carrier();
+      carrier_bit_count_ = 0;
+    }
+  }
+  acia_->set_rx_data(current_rx_bit_);
+  acia_->rx_clock();
+}
+
+bool SerialUla::is_rs423_selected() const {
+  return (serial_control_register_ & 0x40) != 0;
+}
+
+uint16_t SerialUla::effective_rx_divider() const {
+  // In cassette mode the FSK decoder generates the RX clock at a fixed rate
+  // equivalent to divider=64, regardless of SCR bits 3-5.
+  return is_rs423_selected() ? rx_clock_divider_ : uint16_t{64};
 }
 
 void SerialUla::set_acia(const std::shared_ptr<Acia> &acia) {
   acia_ = acia;
+}
+
+void SerialUla::set_cassette_port(ICassettePort *port) {
+  cassette_port_ = port;
 }
